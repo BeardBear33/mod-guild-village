@@ -50,25 +50,38 @@ Odebrán smartAI pro cooking trenéra a ridding trenéra (pouze pohyb)
 ➝ Zobrazí stav currency pro guildu.
 
 ### Admin Příkazy
-.gv reset GUILDID
-➝ Resetuje celou vesnici pro danou guildu
-Příklad: .gv reset 48
 
-.gv creature
-➝ WIP
-Příklad: .gv creature
+.gv reset GUILDID  
+➝ Resetuje celou vesnici pro danou guildu: okamžitě despawne creatury/objekty v jejím **phaseMask** na mapě **37**, smaže související záznamy (`customs.gv_upgrades`, `creature`, `gameobject`, v `customs.gv_currency` vynuluje `timber/stone/iron/crystal`) a pak **znovu nainstaluje** základní layout (`base`).  
+Příklad: `.gv reset 48`
 
-.gv excreature
-➝ WIP
-Příklad: .gv excreature
+.gv creature ENTRY [MOVEMENTTYPE SPAWNDIST SPAWNTIMESECS]  
+➝ Přidá **creature template** do `customs.gv_creature_template` pro layout **base** na mapě **37** v **aktuální pozici hráče**.  
+Defaulty (pokud neuvedeš rozšířené parametry): `MOVEMENTTYPE=1`, `SPAWNDIST=15`, `SPAWNTIMESECS=300`.  
+Příklad (jen entry): `.gv creature 12345`  
+Příklad (všechny parametry): `.gv creature 12345 0 5 600`
 
-.gv object
-➝ WIP
-Příklad: .gv object
+.gv excreature EXPANSIONKEY ENTRY FACTION [MOVEMENTTYPE SPAWNDIST SPAWNTIMESECS]  
+➝ Přidá **expansion creature template** do `customs.gv_expansion_creatures` (klíč `expansion_key`), mapa **37**, pozice z hráče. `FACTION` může být `0/1/2` nebo `both/alliance/horde`.  
+Defaulty: `MOVEMENTTYPE=0`, `SPAWNDIST=0`, `SPAWNTIMESECS=300`.  
+Příklad (minimum): `.gv excreature vendor_armorer 12345 both`  
+Příklad (všechny parametry): `.gv excreature vendor_armorer 12345 alliance 1 10 900`
 
-.gv exobject
-➝ WIP
-Příklad: .gv exobject
+.gv object ENTRY [SPAWNTIMESECS]  
+➝ Přidá **gameobject template** do `customs.gv_gameobject_template` pro layout **base** na mapě **37** v **aktuální pozici hráče**. Rotace se nastaví na `0/0/0/0`.  
+Default: `SPAWNTIMESECS=0`.  
+Příklad (default): `.gv object 178123`  
+Příklad (s respawnem): `.gv object 178123 120`
+
+.gv exobject EXPANSIONKEY ENTRY FACTION [SPAWNTIMESECS]  
+➝ Přidá **expansion gameobject template** do `customs.gv_expansion_gameobjects` (klíč `expansion_key`), mapa **37**, pozice z hráče. Rotace `0/0/0/0`. `FACTION` může být `0/1/2` nebo `both/alliance/horde`.  
+Default: `SPAWNTIMESECS=0`.  
+Příklad (default): `.gv exobject vendor_armorer 178123 horde`  
+Příklad (s respawnem): `.gv exobject vendor_armorer 178123 2 300`
+
+> Poznámky:
+> - Všechny “add” příkazy berou **souřadnice a orientaci z aktuální pozice hráče**, ukládají **map=37** a layout `base` (pro expansion varianty `expansion_key` dle zadání).
+> - `reset` se projeví **ihned** (živé objekty a creatury v dané fázi zmizí bez restartu) a po wipe proběhne **live reinstalace** základního layoutu.
 
 ## License
 This module is licensed under the [GNU General Public License v3.0 (GPL-3.0)](LICENSE).
