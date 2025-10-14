@@ -8,6 +8,7 @@ Tento modul umožňuje:
 - Přidávat creature a gameobjecty  
 - Vlastní currency pro nákup rozšíření vesnice 
 - Jednoduchá správa všech nastavení
+- Max 30 Guildovních vesnic, možnost nastavit automatické čištění při neaktivitě Guild Mastera
 
 ### Požadavky  
 Před použitím je nutné zajistit, aby uživatel databáze z `WorldDatabaseInfo` (standardně `acore`) měl práva i na novou databázi `customs`:  
