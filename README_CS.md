@@ -52,6 +52,19 @@ Odebrán smartAI pro cooking trenéra a ridding trenéra (pouze pohyb)
 
 ### Admin Příkazy
 
+.gv create [GUILDID] [ignorecap]
+➝ Vytvoří guildovní vesnici pro danou guildu ručně (bez kontroly ceny).
+Pokud GUILDID není zadán, použije se gilda, ve které se GM právě nachází.
+Volitelný parametr ignorecap (0/1) určuje, zda se má ignorovat limit z GuildVillage.MaxVillages (např. pro testovací nebo eventové účely).
+Příklad (vlastní gilda): .gv create
+Příklad (jiná gilda, ignoruje limit): .gv create 42 1
+**!!!Pozor stále platí maximum 30 vesnic!!!**
+
+.gv delete GUILDID
+➝ Kompletně odstraní vesnici dané gildy z databáze (customs.gv_guild, customs.gv_currency, customs.gv_upgrades, creature, gameobject) a zároveň odstraní všechny objekty ze světa.
+Používej opatrně — příkaz trvale maže veškerá data spojená s vesnicí.
+Příklad: .gv delete 42
+
 .gv reset GUILDID  
 ➝ Resetuje celou vesnici pro danou guildu: okamžitě despawne creatury/objekty v jejím **phaseMask** na mapě **37**, smaže související záznamy (`customs.gv_upgrades`, `creature`, `gameobject`, v `customs.gv_currency` vynuluje `timber/stone/iron/crystal`) a pak **znovu nainstaluje** základní layout (`base`).  
 Příklad: `.gv reset 48`
