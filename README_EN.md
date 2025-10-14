@@ -52,6 +52,18 @@ SmartAI for cooking and riding trainers has been removed (movement only).
 ➝ Displays guild currency status.
 
 ### Admin Commands
+.gv create [GUILDID] [ignorecap]  
+➝ Manually creates a guild village for the specified guild (without cost check).  
+If **GUILDID** is not provided, the guild of the current GM will be used.  
+The optional parameter **ignorecap** (0/1) determines whether to ignore the limit defined by `GuildVillage.MaxVillages` (useful for testing or events).  
+Example (own guild): `.gv create`  
+Example (another guild, ignoring cap): `.gv create 42 1`  
+**!!!Warning: The maximum of 30 villages still applies!!!**  
+
+.gv delete GUILDID  
+➝ Completely removes the specified guild’s village from the database (`customs.gv_guild`, `customs.gv_currency`, `customs.gv_upgrades`, `creature`, `gameobject`) and also deletes all related objects from the world.  
+Use with caution — this command permanently deletes all data associated with the village.  
+Example: `.gv delete 42`
 
 .gv reset GUILDID  
 ➝ Resets the entire village for the specified guild: instantly despawns creatures and objects in its **phaseMask** on map **37**, deletes related records (`customs.gv_upgrades`, `creature`, `gameobject`, resets `timber/stone/iron/crystal` in `customs.gv_currency`), and then **reinstalls** the base layout (`base`).  
