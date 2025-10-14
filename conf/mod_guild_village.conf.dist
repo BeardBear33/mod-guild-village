@@ -5,6 +5,18 @@
 # EN: Language switch for texts (cs|en).
 GuildVillage.Locale = cs
 
+# Max počet současně existujících vesnic (min-max 1-30)
+# Maximum number of villages that can exist at the same time (min-max 1-30)
+GuildVillage.MaxVillages = 30
+
+# Dny neaktivity Guild Mastera pro auto-úklid (0 = vypnuto)
+# Days of Guild Master's inactivity before automatic cleanup (0 = disabled)
+GuildVillage.Inactivity.CleanupDays = 90
+
+# Zobrazit hlášku "X / Max" při otevření gossipu
+# Show the "X / Max" message when opening the gossip
+GuildVillage.ShowCapacityMessage = 1
+
 # Kdo může spustit .village status?
 #     0 = pouze Guild Master, 1 = všichni členové gildy
 # Who may use .village status?
