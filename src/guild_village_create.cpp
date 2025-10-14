@@ -23,6 +23,7 @@
 #include <string>
 #include <optional>
 #include <algorithm>
+#include <unordered_set>
 
 namespace GuildVillage
 {
@@ -36,6 +37,9 @@ namespace GuildVillage
     static inline float  DefY()     { return sConfigMgr->GetOption<float>("GuildVillage.Default.Y", 289.9494f); }
     static inline float  DefZ()     { return sConfigMgr->GetOption<float>("GuildVillage.Default.Z", 332.66083f); }
     static inline float  DefO()     { return sConfigMgr->GetOption<float>("GuildVillage.Default.O", 3.4305837f); }
+	static inline uint32 MaxVillages()    { return sConfigMgr->GetOption<uint32>("GuildVillage.MaxVillages", 30); }
+	static inline uint32 CleanupDays()    { return sConfigMgr->GetOption<uint32>("GuildVillage.Inactivity.CleanupDays", 90); } // 0 = vypnuto
+	static inline bool   ShowCapacityMsg(){ return sConfigMgr->GetOption<bool>("GuildVillage.ShowCapacityMessage", true); }
 
     enum class Lang { CS, EN };
     static inline Lang LangOpt()
@@ -48,13 +52,87 @@ namespace GuildVillage
     {
         return (LangOpt() == Lang::EN) ? en : cs;
     }
+	
+	// Najde první volný bit v rozsahu 2..31 podle obsahu customs.gv_guild
+	static uint32 AllocatePhaseMask()
+	{
+		std::unordered_set<uint32> used;
+		if (QueryResult r = WorldDatabase.Query("SELECT phase FROM customs.gv_guild"))
+		{
+			do { used.insert(r->Fetch()[0].Get<uint32>()); } while (r->NextRow());
+		}
+	
+		for (uint32 bit = 2; bit <= 31; ++bit)
+		{
+			uint32 mask = (1u << bit);
+			if (!used.count(mask))
+				return mask;
+		}
+		return 0; // nic volného
+	}
 
-    // ===================== PHASE (JEDEN BIT) =====================
+	// ===================== PHASE (JEDEN BIT) =====================
     static inline uint32 CalcGuildPhaseMask(uint32 guildId)
     {
         uint32 bitIndex = (guildId % 30) + 1; // => 2..31
         return (1u << bitIndex);
     }
+	
+	// Aktuální počet vesnic (obsazených slotů)
+	static uint32 CountVillages()
+	{
+		if (QueryResult r = WorldDatabase.Query("SELECT COUNT(*) FROM customs.gv_guild"))
+			return (*r)[0].Get<uint32>();
+		return 0;
+	}
+
+	// Bezpečné smazání vesnice pro danou guildu (stejná logika jako v disband)
+	static void CleanupVillageForGuild(uint32 guildId)
+	{
+		// Zjisti phase
+		uint32 phaseMask = 0;
+		if (QueryResult r = WorldDatabase.Query("SELECT phase FROM customs.gv_guild WHERE guild={}", guildId))
+			phaseMask = (*r)[0].Get<uint32>();
+		if (!phaseMask)
+			phaseMask = CalcGuildPhaseMask(guildId);
+	
+		// 1) customs
+		WorldDatabase.Execute("DELETE FROM customs.gv_currency WHERE guildId={}", guildId);
+		WorldDatabase.Execute("DELETE FROM customs.gv_upgrades WHERE guildId={}", guildId);
+	
+		// 2) spawny na mapě vesnice
+		WorldDatabase.Execute("DELETE FROM creature  WHERE map={} AND phaseMask={}", DefMap(), phaseMask);
+		WorldDatabase.Execute("DELETE FROM gameobject WHERE map={} AND phaseMask={}", DefMap(), phaseMask);
+	
+		// 3) gv_guild
+		WorldDatabase.Execute("DELETE FROM customs.gv_guild WHERE guild={}", guildId);
+	
+		LOG_INFO("modules", "GV: Cleanup (inactive) done for guild {} (phaseMask={})", guildId, phaseMask);
+	}
+	
+	// Projede vesnice a odebere ty, jejichž GM je neaktivní déle než CleanupDays()
+	static void CleanupInactiveVillagesIfNeeded()
+	{
+		uint32 days = CleanupDays();
+		if (!days) return; // vypnuto
+	
+		// Najdi guildy s vesnicí, kde leader je pryč déle než N dní, nebo chybí záznam o leaderovi
+		// POZN: v ACore je tabulka 'guild' v DB characters, sloupec leaderGuid; 'characters.logout_time' je UNIX_TIMESTAMP
+		if (QueryResult r = CharacterDatabase.Query(
+				"SELECT g.guildid "
+				"FROM guild AS g "
+				"JOIN customs.gv_guild AS v ON v.guild = g.guildid "
+				"LEFT JOIN characters AS c ON c.guid = g.leaderGuid "
+				"WHERE (c.logout_time IS NULL OR c.logout_time = 0 OR c.logout_time < UNIX_TIMESTAMP() - {}*24*3600)",
+				days))
+		{
+			do
+			{
+				uint32 gid = r->Fetch()[0].Get<uint32>();
+				CleanupVillageForGuild(gid);
+			} while (r->NextRow());
+		}
+	}
 
     // ===================== DATA =====================
     struct VillageRow { uint32 guildId; uint32 phase; uint32 map; float x,y,z,o; };
@@ -340,7 +418,7 @@ namespace GuildVillage
         player->SetPhaseMask(v.phase, true);
     }
 
-    // ===================== NÁKUP VESNICE =====================
+// ===================== NÁKUP VESNICE =====================
 	static bool CreateVillageForGuild(Player* player)
 	{
 		ChatHandler ch(player->GetSession());
@@ -348,13 +426,31 @@ namespace GuildVillage
 		if (!g) return false;
 	
 		uint32 guildId = g->GetId();
+	
+		// 1) Nejdřív ověř, že gilda už vesnici nemá
 		if (LoadVillage(guildId).has_value())
 		{
 			ch.SendSysMessage(T("Tvoje gilda už vesnici vlastní.", "Your guild already owns a village."));
 			return false;
 		}
 	
-		// cena
+		// 2) Až potom zkontroluj kapacitu slotů
+		uint32 used = CountVillages();
+		uint32 maxv = MaxVillages();
+		if (used >= maxv)
+		{
+			ChatHandler(player->GetSession()).SendSysMessage(
+				Acore::StringFormat("{}{} / {}. {}",
+					T("Kapacita vesnic je plná: ", "Village capacity is full: "),
+					used, maxv,
+					T("Počkej na uvolnění slotu (rozpuštění/neaktivita).",
+					"Please wait for a slot to free up (disband/inactivity).")
+				).c_str()
+			);
+			return false;
+		}
+	
+		// 3) Cena
 		uint64 needCopper = static_cast<uint64>(PriceGold()) * 10000ULL;
 		if (PriceGold() > 0 && player->GetMoney() < needCopper)
 		{
@@ -374,12 +470,18 @@ namespace GuildVillage
 			return false;
 		}
 	
-		// zaplať
+		// 4) Zaplať
 		if (needCopper > 0) player->ModifyMoney(-static_cast<int64>(needCopper));
 		if (PriceItemId() > 0 && PriceItemCount() > 0) player->DestroyItemCount(PriceItemId(), PriceItemCount(), true);
 	
-		// uložit vesnici (jednobitová maska)
-		uint32 phaseMask = CalcGuildPhaseMask(guildId);
+		// 5) Uložit vesnici (jednobitová maska)
+		uint32 phaseMask = AllocatePhaseMask();
+		if (phaseMask == 0)
+		{
+			LOG_WARN("modules", "GV: AllocatePhaseMask() returned 0 (no free bit) during purchase for guild {}", guildId);
+			return false;
+		}
+	
 		WorldDatabase.Execute(
 			"INSERT INTO customs.gv_guild "
 			"(guild, phase, map, positionx, positiony, positionz, orientation, last_update) VALUES "
@@ -389,45 +491,83 @@ namespace GuildVillage
 	
 		EnsureCurrencyRow(guildId);
 	
-		// Layout nainstalujeme hned (viz fix níže), ale NEteleportujeme.
+		// 6) Nainstalovat layout (neteportujeme)
 		InstallBaseLayout(guildId, phaseMask, "base");
 	
+		// 7) Zpráva o úspěchu (bez obsazenosti)
 		ch.SendSysMessage(T("Gratuluji! Tvoje gilda zakoupila guildovní vesnici.",
 							"Congratulations! Your guild has purchased a village."));
+	
 		return true;
 	}
-
 
     // ===================== GOSSIP: SELLER =====================
     enum GossipAction : uint32 { ACT_TELEPORT = 1001, ACT_BUY, ACT_CONFIRM_BUY };
 
-    static void ShowMain(Player* player, Creature* creature)
-    {
-        ClearGossipMenuFor(player);
-        Guild* g = player->GetGuild();
-        if (!g)
-        {
-            ChatHandler(player->GetSession()).SendSysMessage(
-                T("Nejsi v žádné gildě.", "You are not in a guild."));
-            SendGossipMenuFor(player, 1, creature->GetGUID());
-            return;
-        }
-
-        auto row = LoadVillage(g->GetId());
-        if (row.has_value())
-        {
-            AddGossipItemFor(player, GOSSIP_ICON_CHAT,
-                             T("Teleportovat do guild vesnice", "Teleport to guild village"),
-                             GOSSIP_SENDER_MAIN, ACT_TELEPORT);
-        }
-        else
-        {
-            AddGossipItemFor(player, GOSSIP_ICON_VENDOR,
-                             T("Zakoupit guild vesnici", "Purchase guild village"),
-                             GOSSIP_SENDER_MAIN, ACT_BUY);
-        }
-        SendGossipMenuFor(player, 1, creature->GetGUID());
-    }
+	static void ShowMain(Player* player, Creature* creature)
+	{
+		ClearGossipMenuFor(player);
+	
+		// Auto-úklid neaktivních gild (pokud povolen v .conf)
+		CleanupInactiveVillagesIfNeeded();
+	
+		Guild* g = player->GetGuild();
+		if (!g)
+		{
+			// Hráč není v gildě – můžeme mu klidně ukázat obsazenost (je to informativní)
+			if (ShowCapacityMsg())
+			{
+				uint32 used = CountVillages();
+				uint32 maxv = MaxVillages();
+				ChatHandler(player->GetSession()).SendSysMessage(
+					Acore::StringFormat("{}{} / {} {}",
+						T("Obsazeno vesnic: ", "Villages in use: "),
+						used, maxv,
+						T("(pokud je plno, uvolní se po rozpuštění/neaktivitě).",
+						"(if full, slots free up after disband/inactivity).")
+					).c_str()
+				);
+			}
+	
+			ChatHandler(player->GetSession()).SendSysMessage(
+				T("Nejsi v žádné gildě.", "You are not in a guild."));
+			SendGossipMenuFor(player, 1, creature->GetGUID());
+			return;
+		}
+	
+		// Zjisti, jestli má gilda vesnici
+		auto row = LoadVillage(g->GetId());
+	
+		// Obsazenost zobrazuj jen pokud gilda vesnici NEMÁ
+		if (!row.has_value() && ShowCapacityMsg())
+		{
+			uint32 used = CountVillages();
+			uint32 maxv = MaxVillages();
+			ChatHandler(player->GetSession()).SendSysMessage(
+				Acore::StringFormat("{}{} / {} {}",
+					T("Obsazeno vesnic: ", "Villages in use: "),
+					used, maxv,
+					T("(pokud je plno, uvolní se po rozpuštění/neaktivitě).",
+					"(if full, slots free up after disband/inactivity).")
+				).c_str()
+			);
+		}
+	
+		if (row.has_value())
+		{
+			AddGossipItemFor(player, GOSSIP_ICON_CHAT,
+							T("Teleportovat do guild vesnice", "Teleport to guild village"),
+							GOSSIP_SENDER_MAIN, ACT_TELEPORT);
+		}
+		else
+		{
+			AddGossipItemFor(player, GOSSIP_ICON_VENDOR,
+							T("Zakoupit guild vesnici", "Purchase guild village"),
+							GOSSIP_SENDER_MAIN, ACT_BUY);
+		}
+	
+		SendGossipMenuFor(player, 1, creature->GetGUID());
+	}
 
     static void ShowBuyConfirm(Player* player, Creature* creature)
     {
@@ -637,7 +777,8 @@ namespace GuildVillage
 
         void OnPlayerLogin(Player* player) override
         {
-            ApplyProperPhase(player);
+            CleanupInactiveVillagesIfNeeded();
+			ApplyProperPhase(player);
         }
 
         void OnPlayerMapChanged(Player* player) override
