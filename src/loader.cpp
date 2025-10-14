@@ -2,14 +2,14 @@
 #include "ScriptMgr.h"
 
 // dopředné deklarace "lokálních" registrátorů z ostatních cpp
-void RegisterGuildVillageCommands();   // z guild_village_commands.cpp
-void RegisterGuildVillageCreate();     // z guild_village_create.cpp
-void RegisterGuildVillageUpgrade();    // z guild_village_upgrade.cpp
-void RegisterGuildVillageRespawn();    // z guild_village_respawn.cpp
-void RegisterGuildVillageLoot();       // z guild_village_loot.cpp
-void RegisterGuildVillageGM();         // z guild_village_gm.cpp
-void RegisterGuildVillageRest();       // z guild_village_rest.cpp
-void RegisterGuildVillageDisband();    // z guild_village_disband.cpp
+void RegisterGuildVillageCommands();
+void RegisterGuildVillageCreate();
+void RegisterGuildVillageUpgrade();
+void RegisterGuildVillageRespawn();
+void RegisterGuildVillageLoot();
+void RegisterGuildVillageGM();
+void RegisterGuildVillageRest();
+void RegisterGuildVillageDisband();
 void RegisterGuildVillageWhere();
 void RegisterGuildVillageBot();
 void RegisterGuildVillageTeleporter();

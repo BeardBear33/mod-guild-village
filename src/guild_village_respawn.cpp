@@ -15,7 +15,7 @@ struct GVPhaseData : public DataMap::Base
 
 struct GVRepopState : public DataMap::Base
 {
-    bool handledVillageRepop = false; // true, pokud jsme duchovi už zařídili teleport do GV
+    bool handledVillageRepop = false;
 };
 
 // ==== DB helpers ====
@@ -37,8 +37,6 @@ static bool LoadVillageRow(uint32 guildId, uint32& map, float& x, float& y, floa
     return false;
 }
 
-// Najdi pozici Spirit healera (entry 6491) pro danou mapu a phase.
-// Vrátí true, když nalezen, jinak false (použij fallback na village bod).
 static bool FindSpiritHealerPos(uint32 map, uint32 phaseMask, float& x, float& y, float& z, float& o)
 {
     if (QueryResult res = WorldDatabase.Query(
@@ -72,8 +70,6 @@ public:
         if (!g)
             return;
 
-        // Chceme řešit JEN smrt ve village. Tvoje GV: map=37, zone=268 (podle .gps)
-        // Pokud chceš být ještě “chytřejší”, můžeš kontrolovat mapu z customs.gv_guild místo fixních čísel.
         if (!(player->GetMapId() == 37 && player->GetZoneId() == 268))
             return;
 
@@ -82,26 +78,19 @@ public:
         if (!LoadVillageRow(g->GetId(), map, baseX, baseY, baseZ, baseO, phaseMask))
             return;
 
-        // Ulož cílovou phase do stejného stashe jako používá .village teleport – nasadí se po vstupu do zóny
         player->CustomData.GetDefault<GVPhaseData>("gv_phase")->phaseMask = phaseMask;
 
-        // Primárně zkus Spirit healera v dané phase; jinak fallback na village teleport point
         float sx=baseX, sy=baseY, sz=baseZ, so=baseO;
         (void)FindSpiritHealerPos(map, phaseMask, sx, sy, sz, so);
 
-        // Označ, že tuhle repop situaci ve village obsluhujeme my (zabráníme pak defaultnímu repopu na GY)
         player->CustomData.GetDefault<GVRepopState>("gv_repop")->handledVillageRepop = true;
 
-        // Teleport ducha do guild village (u healera / fallback bod)
         player->TeleportTo(map, sx, sy, sz, so);
 
-        // Volitelné info
         ChatHandler(player->GetSession()).SendSysMessage(
             "|cff00ff00[Guild Village]|r Duch vzkříšení tě přivolal do tvojí guildovní vesnice…");
     }
 
-    // Core se ptá, zda smí ducha repopnout na defaultní graveyard.
-    // Když jsme smrt ve village už obsloužili (teleport), vrať false, aby se GRAVEYARD flow nespustil.
     [[nodiscard]] bool OnPlayerCanRepopAtGraveyard(Player* player) override
     {
         if (!player)
@@ -110,12 +99,11 @@ public:
         auto* st = player->CustomData.GetDefault<GVRepopState>("gv_repop");
         if (st->handledVillageRepop)
         {
-            // reset flag pro bezpečí (jednorázová situace)
             st->handledVillageRepop = false;
-            return false; // blokujeme default repop na GY
+            return false;
         }
 
-        return true; // mimo village nebo bez zásahu – nechat core chovat se standardně
+        return true;
     }
 };
 

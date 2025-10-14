@@ -92,7 +92,6 @@ namespace GuildVillage
                 c.cost_iro  = f[6].Get<uint32>();
                 c.cost_crys = f[7].Get<uint32>();
                 c.sort      = f[8].Get<uint8>();
-                // doplníme kategorii pro UI
                 c.cat       = cat;
                 out.push_back(std::move(c));
             }
@@ -114,7 +113,7 @@ namespace GuildVillage
     {
         uint32 map; float x, y;
         uint32 icon, flags;
-        uint32 poiId;             // pokud je 0, pošleme fallback zprávu
+        uint32 poiId;
         std::string name_cs, name_en;
     };
 
@@ -243,9 +242,6 @@ namespace GuildVillage
 
         bool OnGossipHello(Player* player, Creature* creature) override
         {
-            // volitelně omez na konkrétní entry (987452, 987451) – není nutné, pokud nastavíš ScriptName v DB
-            // if (creature->GetEntry() != 987452 && creature->GetEntry() != 987451)
-            //     return false;
 
             Guild* g = player->GetGuild();
             if (!g)
@@ -291,7 +287,7 @@ namespace GuildVillage
                 default: break;
             }
 
-            // Klik na konkrétní položku – pošleme POI / fallback souřadnice
+            // Klik na konkrétní položku – poslat POI / fallback souřadnice
             if (action >= ACT_WHERE_ITEM_BASE && action < ACT_WHERE_ITEM_BASE + 2000)
             {
                 uint32 idx = action - ACT_WHERE_ITEM_BASE;

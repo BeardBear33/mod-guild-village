@@ -74,7 +74,7 @@ namespace GuildVillage
         return (1u << bitIndex);
     }
 
-    // ---------- Načti phase pro guildu ----------
+    // ---------- Načíst phase pro guildu ----------
     static std::optional<uint32> LoadVillagePhase(uint32 guildId)
     {
         if (QueryResult r = WorldDatabase.Query("SELECT phase FROM customs.gv_guild WHERE guild={}", guildId))
@@ -86,7 +86,7 @@ namespace GuildVillage
     // factionFilter: 0=oboje, 1=Alliance, 2=Horde
     static bool ApplyUpgradeByKey(uint32 guildId, uint32 phaseMask, std::string const& key, uint8 factionFilter)
     {
-        // Duplicitní nákup blokuj
+        // Duplicitní nákup blokovat
         if (QueryResult q = WorldDatabase.Query(
                 "SELECT 1 FROM customs.gv_upgrades WHERE guildId={} AND expansion_key='{}'", guildId, key))
             return false;
@@ -255,7 +255,7 @@ namespace GuildVillage
     // ---------- Odečet měny ----------
     static bool TryDeductCurrency(uint32 guildId, CatalogRow const& c)
     {
-        // 1) načti aktuální stav
+        // 1) načíst aktuální stav
         uint32 tim=0, sto=0, iro=0, cry=0;
         if (QueryResult q = WorldDatabase.Query(
                 "SELECT timber, stone, iron, crystal FROM customs.gv_currency WHERE guildId={}", guildId))

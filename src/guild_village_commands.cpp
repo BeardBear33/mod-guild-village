@@ -3,11 +3,11 @@
 #include "ScriptMgr.h"
 #include "Config.h"
 #include "Chat.h"
-#include "ChatCommand.h" // Acore::ChatCommands::ChatCommandBuilder
+#include "ChatCommand.h"
 #include "Player.h"
 #include "Guild.h"
 #include "DatabaseEnv.h"
-#include "DataMap.h"     // <— kvůli per-player “stash”
+#include "DataMap.h" 
 
 #include <string>
 #include <algorithm>
@@ -107,7 +107,7 @@ namespace
             c.crystal = f[3].Get<uint64>();
             return c;
         }
-        return std::nullopt; // gilda nemá vesnici
+        return std::nullopt; // guilda nemá vesnici
     }
 
     // utils
@@ -160,7 +160,7 @@ namespace
             if (!player) return;
 
             uint32 zone = knownZone ? knownZone : player->GetZoneId();
-            // tvoje vesnice: map 37, zone 268 (z .gps)
+            
             bool inVillage = (player->GetMapId() == 37) && (zone == 268);
 
             auto* stash = player->CustomData.GetDefault<GVPhaseData>("gv_phase");
@@ -211,7 +211,6 @@ namespace
                 return true;
             }
 
-            // načti village vč. phase
             std::string q =
                 "SELECT map, positionx, positiony, positionz, orientation, phase "
                 "FROM customs.gv_guild WHERE guild=" + std::to_string(player->GetGuildId());
@@ -224,7 +223,7 @@ namespace
                 double y   = f[2].Get<double>();
                 double z   = f[3].Get<double>();
                 float  o   = f[4].Get<float>();
-                uint32 phaseMask = f[5].Get<uint32>(); // jednový bit (2..31)
+                uint32 phaseMask = f[5].Get<uint32>();
 
                 // stash požadované phase – nasadí se po teleportu v PlayerScriptu
                 auto* stash = player->CustomData.GetDefault<GVPhaseData>("gv_phase");

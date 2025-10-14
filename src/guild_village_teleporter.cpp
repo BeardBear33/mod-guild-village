@@ -203,7 +203,6 @@ namespace GuildVillage
             float z = f[2].Get<float>();
             float o = f[3].Get<float>();
 
-            // Nastav hráči správnou phase a portni vždy na mapu vesnice
             player->SetPhaseMask(gvPhase, true);
             player->TeleportTo(DefMap(), x, y, z, o);
             return true;

@@ -16,7 +16,7 @@ namespace GuildVillage
 {
     // ===== Config flags =====
     static bool  CFG_ENABLED         = true;
-    static bool  CFG_ONLY_IN_VILLAGE = true;  // map=37, zone=268
+    static bool  CFG_ONLY_IN_VILLAGE = true;
     static bool  CFG_DEBUG           = false;
     static bool  CFG_NOTIFY = true;
     static bool  CFG_CAP_ENABLED = true;
@@ -157,23 +157,22 @@ namespace GuildVillage
 
     static Gain ApplyGainToGuild(uint32 guildId, Gain const& g)
     {
-        Gain applied{}; // co se opravdu připíše
+        Gain applied{};
 
         if (!g.Any())
             return applied;
 
         if (!CFG_CAP_ENABLED)
         {
-            // bez capu -> připíšeme vše
             WorldDatabase.DirectExecute(Acore::StringFormat(
                 "UPDATE customs.gv_currency SET "
                 "timber=timber+{}, stone=stone+{}, iron=iron+{}, crystal=crystal+{}, last_update=NOW() "
                 "WHERE guildId={}", g.timber, g.stone, g.iron, g.crystal, guildId).c_str());
 
-            return g; // připsali jsme přesně to, co přišlo
+            return g;
         }
 
-        // načti aktuální stav
+        // načíst aktuální stav
         uint32 curTim=0, curSto=0, curIro=0, curCry=0;
         if (QueryResult q = WorldDatabase.Query(
                 "SELECT timber, stone, iron, crystal FROM customs.gv_currency WHERE guildId={}", guildId))
@@ -184,13 +183,12 @@ namespace GuildVillage
         }
         else
         {
-            // řádek by měl existovat po koupi vesnice; pokud ne, radši nic nedělej
             return applied;
         }
 
         auto room = [](uint32 cur, uint32 cap)->uint32
         {
-            if (cap == 0) return UINT32_MAX; // 0 = bez limitu
+            if (cap == 0) return UINT32_MAX;
             if (cur >= cap) return 0;
             return cap - cur;
         };
@@ -201,7 +199,7 @@ namespace GuildVillage
         uint32 addCry = std::min(g.crystal, room(curCry, CAP_CRYSTAL));
 
         if (!(addTim || addSto || addIro || addCry))
-            return applied; // už jsme na capu všude
+            return applied;
 
         WorldDatabase.DirectExecute(Acore::StringFormat(
             "UPDATE customs.gv_currency SET "
@@ -266,7 +264,7 @@ namespace GuildVillage
 
         if (!applied.Any())
         {
-            // Nic se nepřipsalo – cap(y) plné. Vypiš co je na maximu.
+            // Nic se nepřipsalo – cap(y) plné. Vypsat co je na maximu.
             auto M = GetMaterialNames();
 
             std::string capMsg = std::string("|cffff5555[Guild Village]|r ") +
@@ -287,7 +285,7 @@ namespace GuildVillage
             if (blocked.iron)    addCap(M.iron,    CAP_IRON);
             if (blocked.crystal) addCap(M.crystal, CAP_CRYSTAL);
 
-            // Pokud by se náhodou nic neblokovalo (teoreticky), tak nepiš nic
+            // Pokud by se náhodou nic neblokovalo (teoreticky), tak nepsat nic
             if (first == false)
                 ChatHandler(killer->GetSession()).SendSysMessage(capMsg.c_str());
 
@@ -315,7 +313,7 @@ namespace GuildVillage
             ChatHandler(killer->GetSession()).SendSysMessage(msg.c_str());
         }
 
-        // Pokud cap něco ořízl, přidej informativní řádku
+        // Pokud cap něco ořízl, přidat informativní řádku
         if (blocked.timber || blocked.stone || blocked.iron || blocked.crystal)
         {
             auto M = GetMaterialNames();
@@ -366,11 +364,10 @@ namespace GuildVillage
         if (!killed)
             return;
 
-        // Ujisti se, že je to perzistentní spawn (má spawnId), jinak není co zapisovat
         if (!killed->GetSpawnId())
             return;
 
-        // Pokud je respawn nastaven (1 den, 15 s, apod.), přinuť okamžitý zápis do characters DB
+        // Pokud je respawn nastaven (1 den, 15 s, apod.), přinuťit okamžitý zápis do characters DB
         // SaveRespawnTime() ukládá „čas do respawnu“ (od teď), platí s worldserver.conf: SaveRespawnTimeImmediately = 1
         killed->SaveRespawnTime();
     }

@@ -84,7 +84,7 @@ namespace GuildVillage
     public:
         guild_village_BotGuard() : PlayerScript("guild_village_BotGuard") { }
 
-        // Před jakýmkoli teleportem – blokni cílovou vesnici cizincům
+        // Před jakýmkoli teleportem – bloknout cílovou vesnici cizincům
         [[nodiscard]] bool OnPlayerBeforeTeleport(Player* player, uint32 mapId, float /*x*/, float /*y*/, float /*z*/, float /*orientation*/, uint32 /*options*/, Unit* /*target*/) override
         {
             if (!player || IsGMBypass(player))
@@ -93,7 +93,7 @@ namespace GuildVillage
             if (mapId == DefMap() && !HasGuildVillage(player))
             {
                 TeleportToSafeCity(player);
-                return false; // zrušit původní teleport do vesnice
+                return false;
             }
             return true;
         }
