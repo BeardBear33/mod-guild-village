@@ -8,7 +8,7 @@ This module allows you to:
 - Add creatures and gameobjects  
 - Use custom currencies for village expansion  
 - Manage all settings easily  
-- Up to 30 guild villages with the option for automatic cleanup after Guild Master inactivity
+- Configurable village limit, with optional auto-cleanup when the Guild Master is inactive.
 
 ### Requirements  
 Before using, make sure the database user from `WorldDatabaseInfo` (default `acore`) also has privileges for the new `customs` database:  
@@ -58,7 +58,6 @@ If **GUILDID** is not provided, the guild of the current GM will be used.
 The optional parameter **ignorecap** (0/1) determines whether to ignore the limit defined by `GuildVillage.MaxVillages` (useful for testing or events).  
 Example (own guild): `.gv create`  
 Example (another guild, ignoring cap): `.gv create 42 1`  
-**!!!Warning: The maximum of 30 villages still applies!!!**  
 
 .gv delete GUILDID  
 ➝ Completely removes the specified guild’s village from the database (`customs.gv_guild`, `customs.gv_currency`, `customs.gv_upgrades`, `creature`, `gameobject`) and also deletes all related objects from the world.  
