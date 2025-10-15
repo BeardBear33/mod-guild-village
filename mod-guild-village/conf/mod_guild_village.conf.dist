@@ -1,0 +1,102 @@
+#
+# mod-guild-village – základní konfigurace
+# ---------------------------------------
+# CS: Přepínač jazyka pro texty (cs|en).
+# EN: Language switch for texts (cs|en).
+GuildVillage.Locale = cs
+
+# Max počet současně existujících vesnic (min-max 1-30)
+# Maximum number of villages that can exist at the same time (min-max 1-30)
+GuildVillage.MaxVillages = 30
+
+# Dny neaktivity Guild Mastera pro auto-úklid (0 = vypnuto)
+# Days of Guild Master's inactivity before automatic cleanup (0 = disabled)
+GuildVillage.Inactivity.CleanupDays = 90
+
+# Zobrazit hlášku "X / Max" při otevření gossipu
+# Show the "X / Max" message when opening the gossip
+GuildVillage.ShowCapacityMessage = 1
+
+# Kdo může spustit .village status?
+#     0 = pouze Guild Master, 1 = všichni členové gildy
+# Who may use .village status?
+#     0 = Guild Master only, 1 = all guild members
+GuildVillage.Status.AllowAllMembers = 0
+
+# Povolit nákup jen pro Guild Mastera+Officier (true) nebo všem členům (false)
+# Allow purchases only for Guild Master + Officers (true) or for all members (false)
+GuildVillage.RequireGuildMasterForPurchase = true
+
+# Schovat nákupní menu všem kromě Guild Mastera+Officier (true) nebo ho zobrazit všem (false)
+# Hide the purchase menu for everyone except the Guild Master + Officers (true) or show it to all members (false)
+GuildVillage.HidePurchaseMenuForNonGM = true
+
+# Názvy materiálů pro chatový výpis (můžeš si upravit; pouze texty).
+# České názvy – používají se pouze pokud je GuildVillage.Locale = cs
+GuildVillage.Material.Timber  = Dřevo
+GuildVillage.Material.Stone   = Kámen
+GuildVillage.Material.Iron    = Železo
+GuildVillage.Material.Crystal = Krystal
+
+# Material names for chat messages (you can customize them; text only).
+# English versions – only used when GuildVillage.Locale = en
+GuildVillage.MaterialEN.Timber  = Timber
+GuildVillage.MaterialEN.Stone   = Stone
+GuildVillage.MaterialEN.Iron    = Iron
+GuildVillage.MaterialEN.Crystal = Crystal
+
+# === Guild Village – Purchase price ===
+# 0 = nevyžaduje se
+# cena ve zlatě (celá G)
+GuildVillage.Price.Gold = 5
+# item ID podmínky
+GuildVillage.Price.ItemId = 0
+# množství itemů
+GuildVillage.Price.ItemCount = 0
+
+# === Default teleport / umístění nové vesnice (když se vytvoří) ===
+GuildVillage.Default.Map = 37
+GuildVillage.Default.X   = 1026.7292
+GuildVillage.Default.Y   = 289.9494
+GuildVillage.Default.Z   = 332.66083
+GuildVillage.Default.O   = 3.4305837
+GuildVillage.Default.Phase = 1
+
+# === Guild Village: Loot ===
+GuildVillage.Loot.Enabled = 1
+GuildVillage.Loot.Notify = 1
+# 1 = loot padá jen na map 37 / zone 268
+GuildVillage.Loot.OnlyInVillage = 1
+# 1 = spam do chatu pro ladění
+GuildVillage.Loot.Debug = 0
+
+# === Currency caps ===
+# Enable per-currency caps (0 = unlimited for that currency)
+GuildVillage.CurrencyCap.Enabled  = true
+GuildVillage.CurrencyCap.Timber   = 1000
+GuildVillage.CurrencyCap.Stone    = 1000
+GuildVillage.CurrencyCap.Iron     = 1000
+GuildVillage.CurrencyCap.Crystal  = 1000
+
+################################################################
+# Guild Village – Boss settings
+################################################################
+
+# Thalgron the Earthshaker
+# 0 = normal (bez Ground Spike, používá N verze spellů)
+# 1 = heroic (zapne Ground Spike a používá H verze spellů)
+Thalgron.Heroic = 1
+
+# (Volitelné – pro ostatní dva bossy, které už máš)
+# Voltrix the Unbound
+# 0 = střídá Reflective Shields, 1 = používá Polarity Shift (heroic-like)
+Voltrix.Heroic = 1
+
+# Thranok the Unyielding
+# 0 = bez summonů Crystalline Tangler, 1 = summony povoleny
+Thranok.Heroic = 1
+
+# Thalor the Lifebinder
+# 0 = “10-man” verze spellů (default)
+# 1 = “25-man” verze spellů (vyšší dmg, víc cílů apod.)
+Thalor.Heroic = 1
