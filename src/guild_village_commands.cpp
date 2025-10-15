@@ -3,11 +3,12 @@
 #include "ScriptMgr.h"
 #include "Config.h"
 #include "Chat.h"
-#include "ChatCommand.h"
+#include "ChatCommand.h" 
 #include "Player.h"
 #include "Guild.h"
 #include "DatabaseEnv.h"
-#include "DataMap.h" 
+#include "DataMap.h"     
+#include "gv_common.h"   
 
 #include <string>
 #include <algorithm>
@@ -76,16 +77,16 @@ namespace
         }
         return m;
     }
-	
-	// === Currency caps from config ===
-	static inline bool CapsEnabled()
-	{
-		return sConfigMgr->GetOption<bool>("GuildVillage.CurrencyCap.Enabled", true);
-	}
-	static inline uint32 CapTimber()  { return sConfigMgr->GetOption<uint32>("GuildVillage.CurrencyCap.Timber",   1000); }
-	static inline uint32 CapStone()   { return sConfigMgr->GetOption<uint32>("GuildVillage.CurrencyCap.Stone",    1000); }
-	static inline uint32 CapIron()    { return sConfigMgr->GetOption<uint32>("GuildVillage.CurrencyCap.Iron",     1000); }
-	static inline uint32 CapCrystal() { return sConfigMgr->GetOption<uint32>("GuildVillage.CurrencyCap.Crystal",  1000); }
+
+    // === Currency caps from config ===
+    static inline bool CapsEnabled()
+    {
+        return sConfigMgr->GetOption<bool>("GuildVillage.CurrencyCap.Enabled", true);
+    }
+    static inline uint32 CapTimber()  { return sConfigMgr->GetOption<uint32>("GuildVillage.CurrencyCap.Timber",   1000); }
+    static inline uint32 CapStone()   { return sConfigMgr->GetOption<uint32>("GuildVillage.CurrencyCap.Stone",    1000); }
+    static inline uint32 CapIron()    { return sConfigMgr->GetOption<uint32>("GuildVillage.CurrencyCap.Iron",     1000); }
+    static inline uint32 CapCrystal() { return sConfigMgr->GetOption<uint32>("GuildVillage.CurrencyCap.Crystal",  1000); }
 
     // === Data holders ===
     struct GuildCurrency { uint64 timber=0, stone=0, iron=0, crystal=0; };
@@ -107,7 +108,7 @@ namespace
             c.crystal = f[3].Get<uint64>();
             return c;
         }
-        return std::nullopt; // guilda nemá vesnici
+        return std::nullopt;
     }
 
     // utils
@@ -124,56 +125,57 @@ namespace
         return s;
     }
 
-    // === Phase helpers ===
-    struct GVPhaseData : public DataMap::Base
-    {
-        uint32 phaseMask = 0; // požadovaná phase po teleportu
-    };
-
-    static uint32 GetNormalPhase(Player* plr)
-    {
-        if (plr->IsGameMaster())
-            return PHASEMASK_ANYWHERE;
-
-        uint32 p = plr->GetPhaseByAuras();
-        return p ? p : PHASEMASK_NORMAL;
-    }
-
+    // === PlayerScript: sjednocené chování pro příkaz i NPC ===
     class guild_village_PlayerPhase : public PlayerScript
     {
     public:
         guild_village_PlayerPhase() : PlayerScript("guild_village_PlayerPhase") { }
 
-        void OnPlayerLogin(Player* player) override
+        static uint32 GetNormalPhase(Player* plr)
         {
-            ApplyGVPhaseIfNeeded(player);
+            if (plr->IsGameMaster()) return PHASEMASK_ANYWHERE;
+            uint32 p = plr->GetPhaseByAuras();
+            return p ? p : PHASEMASK_NORMAL;
         }
 
-        void OnPlayerUpdateZone(Player* player, uint32 newZone, uint32 /*newArea*/) override
-        {
-            ApplyGVPhaseIfNeeded(player, newZone);
-        }
+        // vesnice: pevně mapa 37 (zone/area může přijít později)
+        static bool InVillage(Player* p) { return p && p->GetMapId() == 37; }
 
-    private:
-        void ApplyGVPhaseIfNeeded(Player* player, uint32 knownZone = 0)
+        static void ApplyGVPhaseIfNeeded(Player* player)
         {
             if (!player) return;
 
-            uint32 zone = knownZone ? knownZone : player->GetZoneId();
-            
-            bool inVillage = (player->GetMapId() == 37) && (zone == 268);
+            if (InVillage(player))
+            {
+                // 1) stash z příkazu/NPC (zapsán přes GetDefault v teleportu)
+                if (auto* stash = player->CustomData.Get<GVPhaseData>("gv_phase"))
+                {
+                    if (stash->phaseMask)
+                    {
+                        player->SetPhaseMask(stash->phaseMask, true);
+                        return;
+                    }
+                }
+                // 2) fallback z DB (pro případ, že stash není)
+                if (QueryResult res = WorldDatabase.Query(
+                        "SELECT phase FROM customs.gv_guild WHERE guild={}", player->GetGuildId()))
+                {
+                    uint32 ph = res->Fetch()[0].Get<uint32>();
+                    if (ph)
+                    {
+                        player->SetPhaseMask(ph, true);
+                        return;
+                    }
+                }
+            }
 
-            auto* stash = player->CustomData.GetDefault<GVPhaseData>("gv_phase");
-            if (inVillage)
-            {
-                if (stash->phaseMask)
-                    player->SetPhaseMask(stash->phaseMask, true);
-            }
-            else
-            {
-                player->SetPhaseMask(GetNormalPhase(player), true);
-            }
+            // mimo vesnici (nebo nic v DB)
+            player->SetPhaseMask(GetNormalPhase(player), true);
         }
+
+        void OnPlayerLogin(Player* p) override                      { ApplyGVPhaseIfNeeded(p); }
+        void OnPlayerMapChanged(Player* p) override                 { ApplyGVPhaseIfNeeded(p); }
+        void OnPlayerUpdateZone(Player* p, uint32, uint32) override { ApplyGVPhaseIfNeeded(p); }
     };
 
     // === Single command handler: ".village [status|teleport]" ===
@@ -223,7 +225,7 @@ namespace
                 double y   = f[2].Get<double>();
                 double z   = f[3].Get<double>();
                 float  o   = f[4].Get<float>();
-                uint32 phaseMask = f[5].Get<uint32>();
+                uint32 phaseMask = f[5].Get<uint32>(); // přesné ID fáze
 
                 // stash požadované phase – nasadí se po teleportu v PlayerScriptu
                 auto* stash = player->CustomData.GetDefault<GVPhaseData>("gv_phase");
@@ -270,20 +272,20 @@ namespace
             handler->SendSysMessage(T("|cff00ff00[Gildovní vesnice]|r – stav prostředků",
                                       "|cff00ff00[Guild Village]|r – currency status"));
             auto sendLine = [&](std::string const& name, uint64 cur, uint32 cap)
-			{
-				std::string line = "|cff00ffff" + name + ":|r " + std::to_string(cur);
-				if (CapsEnabled())
-				{
-					if (cap == 0) line += " / ∞";
-					else          line += " / " + std::to_string(cap);
-				}
-				handler->SendSysMessage(line.c_str());
-			};
-			
-			sendLine(M.timber,  cur.timber,  CapTimber());
-			sendLine(M.stone,   cur.stone,   CapStone());
-			sendLine(M.iron,    cur.iron,    CapIron());
-			sendLine(M.crystal, cur.crystal, CapCrystal());
+            {
+                std::string line = "|cff00ffff" + name + ":|r " + std::to_string(cur);
+                if (CapsEnabled())
+                {
+                    if (cap == 0) line += " / ∞";
+                    else          line += " / " + std::to_string(cap);
+                }
+                handler->SendSysMessage(line.c_str());
+            };
+
+            sendLine(M.timber,  cur.timber,  CapTimber());
+            sendLine(M.stone,   cur.stone,   CapStone());
+            sendLine(M.iron,    cur.iron,    CapIron());
+            sendLine(M.crystal, cur.crystal, CapCrystal());
             return true;
         }
 

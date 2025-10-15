@@ -1,3 +1,5 @@
+// modules/mod-guild-village/src/guild_village_loot.cpp
+
 #include "ScriptMgr.h"
 #include "Player.h"
 #include "Guild.h"
@@ -14,12 +16,18 @@
 
 namespace GuildVillage
 {
+    // ===== Config: mapa vesnice (sjednoceno s ostatními soubory) =====
+    static inline uint32 DefMap()
+    {
+        return sConfigMgr->GetOption<uint32>("GuildVillage.Default.Map", 37);
+    }
+
     // ===== Config flags =====
     static bool  CFG_ENABLED         = true;
-    static bool  CFG_ONLY_IN_VILLAGE = true;
+    static bool  CFG_ONLY_IN_VILLAGE = true;   // omezit drop jen na mapu vesnice
     static bool  CFG_DEBUG           = false;
-    static bool  CFG_NOTIFY = true;
-    static bool  CFG_CAP_ENABLED = true;
+    static bool  CFG_NOTIFY          = true;
+    static bool  CFG_CAP_ENABLED     = true;
     static uint32 CAP_TIMBER   = 1000;
     static uint32 CAP_STONE    = 1000;
     static uint32 CAP_IRON     = 1000;
@@ -80,7 +88,7 @@ namespace GuildVillage
     // --- helpers ---
     static inline bool InVillage(Player* p)
     {
-        return (p->GetMapId() == 37 && p->GetZoneId() == 268);
+        return p && (p->GetMapId() == DefMap());
     }
 
     static Cur ParseCurrency(std::string s)
@@ -122,12 +130,12 @@ namespace GuildVillage
         CFG_ENABLED         = sConfigMgr->GetOption<bool>("GuildVillage.Loot.Enabled", true);
         CFG_ONLY_IN_VILLAGE = sConfigMgr->GetOption<bool>("GuildVillage.Loot.OnlyInVillage", true);
         CFG_DEBUG           = sConfigMgr->GetOption<bool>("GuildVillage.Loot.Debug", false);
-        CFG_NOTIFY = sConfigMgr->GetOption<bool>("GuildVillage.Loot.Notify", true);
-        CFG_CAP_ENABLED = sConfigMgr->GetOption<bool>("GuildVillage.CurrencyCap.Enabled", true);
-        CAP_TIMBER      = sConfigMgr->GetOption<uint32>("GuildVillage.CurrencyCap.Timber",   1000);
-        CAP_STONE       = sConfigMgr->GetOption<uint32>("GuildVillage.CurrencyCap.Stone",    1000);
-        CAP_IRON        = sConfigMgr->GetOption<uint32>("GuildVillage.CurrencyCap.Iron",     1000);
-        CAP_CRYSTAL     = sConfigMgr->GetOption<uint32>("GuildVillage.CurrencyCap.Crystal",  1000);
+        CFG_NOTIFY          = sConfigMgr->GetOption<bool>("GuildVillage.Loot.Notify", true);
+        CFG_CAP_ENABLED     = sConfigMgr->GetOption<bool>("GuildVillage.CurrencyCap.Enabled", true);
+        CAP_TIMBER          = sConfigMgr->GetOption<uint32>("GuildVillage.CurrencyCap.Timber",   1000);
+        CAP_STONE           = sConfigMgr->GetOption<uint32>("GuildVillage.CurrencyCap.Stone",    1000);
+        CAP_IRON            = sConfigMgr->GetOption<uint32>("GuildVillage.CurrencyCap.Iron",     1000);
+        CAP_CRYSTAL         = sConfigMgr->GetOption<uint32>("GuildVillage.CurrencyCap.Crystal",  1000);
         LoadLootTable();
     }
 
@@ -164,6 +172,7 @@ namespace GuildVillage
 
         if (!CFG_CAP_ENABLED)
         {
+            // bez capu
             WorldDatabase.DirectExecute(Acore::StringFormat(
                 "UPDATE customs.gv_currency SET "
                 "timber=timber+{}, stone=stone+{}, iron=iron+{}, crystal=crystal+{}, last_update=NOW() "
@@ -172,7 +181,7 @@ namespace GuildVillage
             return g;
         }
 
-        // načíst aktuální stav
+        // načti aktuální stav
         uint32 curTim=0, curSto=0, curIro=0, curCry=0;
         if (QueryResult q = WorldDatabase.Query(
                 "SELECT timber, stone, iron, crystal FROM customs.gv_currency WHERE guildId={}", guildId))
@@ -188,7 +197,7 @@ namespace GuildVillage
 
         auto room = [](uint32 cur, uint32 cap)->uint32
         {
-            if (cap == 0) return UINT32_MAX;
+            if (cap == 0) return UINT32_MAX; // 0 = bez limitu
             if (cur >= cap) return 0;
             return cap - cur;
         };
@@ -264,7 +273,6 @@ namespace GuildVillage
 
         if (!applied.Any())
         {
-            // Nic se nepřipsalo – cap(y) plné. Vypsat co je na maximu.
             auto M = GetMaterialNames();
 
             std::string capMsg = std::string("|cffff5555[Guild Village]|r ") +
@@ -285,7 +293,6 @@ namespace GuildVillage
             if (blocked.iron)    addCap(M.iron,    CAP_IRON);
             if (blocked.crystal) addCap(M.crystal, CAP_CRYSTAL);
 
-            // Pokud by se náhodou nic neblokovalo (teoreticky), tak nepsat nic
             if (first == false)
                 ChatHandler(killer->GetSession()).SendSysMessage(capMsg.c_str());
 
@@ -313,7 +320,7 @@ namespace GuildVillage
             ChatHandler(killer->GetSession()).SendSysMessage(msg.c_str());
         }
 
-        // Pokud cap něco ořízl, přidat informativní řádku
+        // Pokud cap něco ořízl
         if (blocked.timber || blocked.stone || blocked.iron || blocked.crystal)
         {
             auto M = GetMaterialNames();
@@ -367,8 +374,6 @@ namespace GuildVillage
         if (!killed->GetSpawnId())
             return;
 
-        // Pokud je respawn nastaven (1 den, 15 s, apod.), přinuťit okamžitý zápis do characters DB
-        // SaveRespawnTime() ukládá „čas do respawnu“ (od teď), platí s worldserver.conf: SaveRespawnTimeImmediately = 1
         killed->SaveRespawnTime();
     }
 
@@ -389,15 +394,13 @@ namespace GuildVillage
         void OnPlayerCreatureKill(Player* killer, Creature* killed) override
         {
             ProcessKill(killer, killed);
-            if (killed->GetMapId() == 37) ForceSaveRespawn(killed);
-            return;
+            if (killed->GetMapId() == DefMap()) ForceSaveRespawn(killed);
         }
 
         void OnPlayerCreatureKilledByPet(Player* petOwner, Creature* killed) override
         {
             ProcessKill(petOwner, killed);
-            if (killed->GetMapId() == 37) ForceSaveRespawn(killed);
-            return;
+            if (killed->GetMapId() == DefMap()) ForceSaveRespawn(killed);
         }
     };
 }

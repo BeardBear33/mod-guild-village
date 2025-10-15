@@ -93,7 +93,7 @@ namespace GuildVillage
             if (mapId == DefMap() && !HasGuildVillage(player))
             {
                 TeleportToSafeCity(player);
-                return false;
+                return false; // zrušit původní teleport do vesnice
             }
             return true;
         }
@@ -101,7 +101,7 @@ namespace GuildVillage
 		void OnPlayerLogin(Player* player) override
 		{
 			if (!player || IsGMBypass(player)) return;
-			Enforce(player); // pokud se probudil rovnou ve vesnici a není „oprávněný“, pošli pryč
+			Enforce(player); // pokud se probudil rovnou ve vesnici a není „oprávněný“, poslat pryč
 		}
 		
 		void OnPlayerMapChanged(Player* player) override

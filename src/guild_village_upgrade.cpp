@@ -67,14 +67,6 @@ namespace GuildVillage
     // ---------- Základ vesnice ----------
     static inline uint32 DefMap() { return sConfigMgr->GetOption<uint32>("GuildVillage.Default.Map", 37); }
 
-    // Phase mask per guild: JEDEN bit (2..31)
-    static inline uint32 CalcGuildPhaseMask(uint32 guildId)
-    {
-        uint32 bitIndex = (guildId % 30) + 1; // 2..31
-        return (1u << bitIndex);
-    }
-
-    // ---------- Načíst phase pro guildu ----------
     static std::optional<uint32> LoadVillagePhase(uint32 guildId)
     {
         if (QueryResult r = WorldDatabase.Query("SELECT phase FROM customs.gv_guild WHERE guild={}", guildId))
@@ -84,9 +76,9 @@ namespace GuildVillage
 
     // ---------- Live instalace expanze (CREATURES/GO) s filtrem podle frakce ----------
     // factionFilter: 0=oboje, 1=Alliance, 2=Horde
-    static bool ApplyUpgradeByKey(uint32 guildId, uint32 phaseMask, std::string const& key, uint8 factionFilter)
+    static bool ApplyUpgradeByKey(uint32 guildId, uint32 phaseId, std::string const& key, uint8 factionFilter)
     {
-        // Duplicitní nákup blokovat
+        // Duplicitní nákup blokuj
         if (QueryResult q = WorldDatabase.Query(
                 "SELECT 1 FROM customs.gv_upgrades WHERE guildId={} AND expansion_key='{}'", guildId, key))
             return false;
@@ -111,12 +103,12 @@ namespace GuildVillage
                 {
                     Creature* c = new Creature();
                     ObjectGuid::LowType low = map->GenerateLowGuid<HighGuid::Unit>();
-                    if (!c->Create(low, map, phaseMask, entry, 0, x, y, z, o))
+                    if (!c->Create(low, map, phaseId, entry, 0, x, y, z, o))
                     { delete c; continue; }
                     c->SetRespawnTime(resp);
                     c->SetWanderDistance(wander);
                     c->SetDefaultMovementType(MovementGeneratorType(mt));
-                    c->SaveToDB(map->GetId(), (1 << map->GetSpawnMode()), phaseMask);
+                    c->SaveToDB(map->GetId(), (1 << map->GetSpawnMode()), phaseId);
                     uint32 spawnId = c->GetSpawnId();
                     c->CleanupsBeforeDelete(); delete c;
                     c = new Creature(); if (!c->LoadCreatureFromDB(spawnId, map)) { delete c; continue; }
@@ -127,7 +119,7 @@ namespace GuildVillage
                     WorldDatabase.Execute(
                         "INSERT INTO creature (id1,map,spawnMask,phaseMask,position_x,position_y,position_z,orientation,spawntimesecs,wander_distance,MovementType) "
                         "VALUES ({}, {}, 1, {}, {}, {}, {}, {}, {}, {}, {})",
-                        entry, mapId, phaseMask, x, y, z, o, resp, wander, (uint32)mt
+                        entry, mapId, phaseId, x, y, z, o, resp, wander, (uint32)mt
                     );
                 }
             }
@@ -155,10 +147,10 @@ namespace GuildVillage
                 {
                     GameObject* g = sObjectMgr->IsGameObjectStaticTransport(entry) ? new StaticTransport() : new GameObject();
                     ObjectGuid::LowType low = map->GenerateLowGuid<HighGuid::GameObject>();
-                    if (!g->Create(low, entry, map, phaseMask, x, y, z, o, G3D::Quat(r0,r1,r2,r3), 0, GO_STATE_READY))
+                    if (!g->Create(low, entry, map, phaseId, x, y, z, o, G3D::Quat(r0,r1,r2,r3), 0, GO_STATE_READY))
                     { delete g; continue; }
                     g->SetRespawnTime(st);
-                    g->SaveToDB(map->GetId(), (1 << map->GetSpawnMode()), phaseMask);
+                    g->SaveToDB(map->GetId(), (1 << map->GetSpawnMode()), phaseId);
                     uint32 spawnId = g->GetSpawnId();
                     g->CleanupsBeforeDelete(); delete g;
                     g = sObjectMgr->IsGameObjectStaticTransport(entry) ? new StaticTransport() : new GameObject();
@@ -170,7 +162,7 @@ namespace GuildVillage
                     WorldDatabase.Execute(
                         "INSERT INTO gameobject (id,map,spawnMask,phaseMask,position_x,position_y,position_z,orientation,rotation0,rotation1,rotation2,rotation3,spawntimesecs) "
                         "VALUES ({}, {}, 1, {}, {}, {}, {}, {}, {}, {}, {}, {}, {})",
-                        entry, mapId, phaseMask, x, y, z, o, r0, r1, r2, r3, st
+                        entry, mapId, phaseId, x, y, z, o, r0, r1, r2, r3, st
                     );
                 }
             }
@@ -186,7 +178,7 @@ namespace GuildVillage
     }
 
     // ---------- Katalog položek ----------
-    // NOVĚ: faction v šablonách (0=oboje, 1=Alliance, 2=Horde). Katalog zůstává společný.
+    // faction v šablonách (0=oboje, 1=Alliance, 2=Horde). Katalog zůstává společný.
     enum class Cat : uint8 { Trainers=1, Professions, Vendor, Portal, Objects, Others };
 
     struct CatalogRow
@@ -378,7 +370,7 @@ namespace GuildVillage
         // 1=Alliance, 2=Horde
         uint8 factionFilter = (player->GetTeamId() == TEAM_ALLIANCE) ? 1 : 2;
 
-        // Načti katalog + set již zakoupených klíčů
+        // Načíst katalog + set již zakoupených klíčů
         auto listAll = LoadCatalog(cat);
         auto purchased = LoadPurchasedKeys(g->GetId());
 
@@ -431,7 +423,6 @@ namespace GuildVillage
         ChatHandler(player->GetSession()).SendSysMessage(
             Acore::StringFormat("{} {}", T("Cena:", "Cost:"), CostLine(c)).c_str());
 
-        // najdi index v aktuální kategorii
         auto& state = s_menu[player->GetGUID().GetCounter()];
         auto it = std::find_if(state.items.begin(), state.items.end(),
                                [&](CatalogRow const& x){ return x.id == c.id; });
@@ -481,7 +472,7 @@ namespace GuildVillage
             if (!g) { CloseGossipMenuFor(player); return true; }
             auto phaseOpt = LoadVillagePhase(g->GetId());
             if (!phaseOpt) { CloseGossipMenuFor(player); return true; }
-            uint32 phaseMask = *phaseOpt;
+            uint32 phaseId = *phaseOpt; // jediné číslo fáze
 
             // frakce pro šablony: 1=Alliance, 2=Horde
             uint8 factionFilter = (player->GetTeamId() == TEAM_ALLIANCE) ? 1 : 2;
@@ -497,7 +488,7 @@ namespace GuildVillage
                 case ACT_CAT_OBJECTS:
                 case ACT_CAT_OTHERS:
                 {
-                    // Pokud je menu skryté pro ne-GM, nepustíme dál
+                    // Pokud je menu skryté pro ne-GM, nepustím dál
                     if (Cfg_HidePurchaseForNonGM() && !isLeader)
                     {
                         ChatHandler(player->GetSession()).SendSysMessage(
@@ -599,7 +590,7 @@ namespace GuildVillage
                 }
 
                 // 2) instalace
-                bool ok = ApplyUpgradeByKey(g->GetId(), phaseMask, c.key, factionFilter);
+                bool ok = ApplyUpgradeByKey(g->GetId(), phaseId, c.key, factionFilter);
                 if (!ok)
                 {
                     ChatHandler(player->GetSession()).SendSysMessage(

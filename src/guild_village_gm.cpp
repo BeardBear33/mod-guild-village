@@ -32,8 +32,7 @@ namespace GuildVillage {
     bool DeleteVillageForGuild_GM(uint32 guildId);
 }
 
-// Mapa vesnic
-static inline uint32 DefMap() { return 37; }
+static inline uint32 DefMap() { return sConfigMgr->GetOption<uint32>("GuildVillage.Default.Map", 37); }
 
 namespace
 {
@@ -57,20 +56,20 @@ namespace
         return s;
     }
 
-    // --- Despawn všech creature/GO pro daný phaseMask na mapId (okamžitě ze světa) ---
-    static void DespawnPhaseObjects(uint32 mapId, uint32 phaseMask)
+    // --- Despawn všech creature/GO pro daný phaseId na mapId (okamžitě ze světa) ---
+    static void DespawnPhaseObjects(uint32 mapId, uint32 phaseId)
     {
         std::vector<uint32> cGuids;
         std::vector<uint32> gGuids;
 
         if (QueryResult qc = WorldDatabase.Query(
-                "SELECT guid FROM creature WHERE map = {} AND phaseMask = {}", mapId, phaseMask))
+                "SELECT guid FROM creature WHERE map = {} AND phaseMask = {}", mapId, phaseId))
         {
             do { cGuids.emplace_back((*qc)[0].Get<uint32>()); } while (qc->NextRow());
         }
 
         if (QueryResult qg = WorldDatabase.Query(
-                "SELECT guid FROM gameobject WHERE map = {} AND phaseMask = {}", mapId, phaseMask))
+                "SELECT guid FROM gameobject WHERE map = {} AND phaseMask = {}", mapId, phaseId))
         {
             do { gGuids.emplace_back((*qg)[0].Get<uint32>()); } while (qg->NextRow());
         }
@@ -102,7 +101,8 @@ namespace
     }
 
     // === Live instalace BASE layoutu (převzato z create.cpp) ===
-    static void InstallBaseLayout_Live(uint32 /*guildId*/, uint32 phaseMask, std::string const& layout_key = "base")
+    // Pozn.: používáme "phaseId" = přesné ID fáze (žádná bitová maska).
+    static void InstallBaseLayout_Live(uint32 /*guildId*/, uint32 phaseId, std::string const& layout_key = "base")
     {
         uint32 cCount = 0, goCount = 0;
 
@@ -138,7 +138,7 @@ namespace
                         "(id1, map, spawnMask, phaseMask, position_x, position_y, position_z, orientation, "
                         " spawntimesecs, wander_distance, MovementType, Comment) "
                         "VALUES ({}, {}, 1, {}, {}, {}, {}, {}, {}, {}, {}, 'Village mob')",
-                        entry, mapId, phaseMask, x, y, z, o, respawnSecs, wander, (uint32)moveType
+                        entry, mapId, phaseId, x, y, z, o, respawnSecs, wander, (uint32)moveType
                     );
                     ++cCount;
                     continue;
@@ -146,18 +146,17 @@ namespace
 
                 Creature* c = new Creature();
                 ObjectGuid::LowType low = map->GenerateLowGuid<HighGuid::Unit>();
-                if (!c->Create(low, map, phaseMask, entry, 0, x, y, z, o))
+                if (!c->Create(low, map, phaseId, entry, 0, x, y, z, o))
                 { delete c; continue; }
 
                 c->SetRespawnTime(respawnSecs);
                 c->SetWanderDistance(wander);
                 c->SetDefaultMovementType(MovementGeneratorType(moveType));
 
-                c->SaveToDB(map->GetId(), (1 << map->GetSpawnMode()), phaseMask);
+                c->SaveToDB(map->GetId(), (1 << map->GetSpawnMode()), phaseId);
                 uint32 spawnId = c->GetSpawnId();
 
-                c->CleanupsBeforeDelete();
-                delete c;
+                c->CleanupsBeforeDelete(); delete c;
 
                 c = new Creature();
                 if (!c->LoadCreatureFromDB(spawnId, map, /*addToMap=*/true)) { delete c; continue; }
@@ -203,15 +202,14 @@ namespace
                     GameObject* g = sObjectMgr->IsGameObjectStaticTransport(entry) ? new StaticTransport() : new GameObject();
                     ObjectGuid::LowType low = map->GenerateLowGuid<HighGuid::GameObject>();
 
-                    if (!g->Create(low, entry, map, phaseMask, x, y, z, o, G3D::Quat(), 0, GO_STATE_READY))
+                    if (!g->Create(low, entry, map, phaseId, x, y, z, o, G3D::Quat(), 0, GO_STATE_READY))
                     { delete g; continue; }
 
                     g->SetRespawnTime(spawntime);
-                    g->SaveToDB(map->GetId(), (1 << map->GetSpawnMode()), phaseMask);
+                    g->SaveToDB(map->GetId(), (1 << map->GetSpawnMode()), phaseId);
                     uint32 spawnId = g->GetSpawnId();
 
-                    g->CleanupsBeforeDelete();
-                    delete g;
+                    g->CleanupsBeforeDelete(); delete g;
 
                     g = sObjectMgr->IsGameObjectStaticTransport(entry) ? new StaticTransport() : new GameObject();
                     if (!g->LoadGameObjectFromDB(spawnId, map, true)) { delete g; continue; }
@@ -225,7 +223,7 @@ namespace
                         "(id, map, spawnMask, phaseMask, position_x, position_y, position_z, orientation, "
                         " rotation0, rotation1, rotation2, rotation3, spawntimesecs) "
                         "VALUES ({}, {}, 1, {}, {}, {}, {}, {}, 0, 0, 0, 0, {})",
-                        entry, mapId, phaseMask, x, y, z, o, spawntime // ✅ opraveno mapId
+                        entry, mapId, phaseId, x, y, z, o, spawntime
                     );
                     ++goCount;
                 }
@@ -233,8 +231,8 @@ namespace
             while (go->NextRow());
         }
 
-        LOG_INFO("modules", "GV: (GM reset) Installed base layout '{}' -> creatures={}, gameobjects={}, phaseMask={}",
-                 layout_key, cCount, goCount, phaseMask);
+        LOG_INFO("modules", "GV: (GM reset) Installed base layout '{}' -> creatures={}, gameobjects={}, phaseId={}",
+                 layout_key, cCount, goCount, phaseId);
     }
 
     // === Hlavní GM handler ===
@@ -331,9 +329,9 @@ namespace
             }
 
             uint32 guildId = std::stoul(rest);
-            uint32 phaseMask = 0;
+            uint32 phaseId = 0;
             if (QueryResult pr = WorldDatabase.Query("SELECT phase FROM customs.gv_guild WHERE guild = {} LIMIT 1", guildId))
-                phaseMask = (*pr)[0].Get<uint32>();
+                phaseId = (*pr)[0].Get<uint32>();
 
             if (!GuildVillage::GuildHasVillage(guildId))
             {
@@ -342,8 +340,8 @@ namespace
                 return true;
             }
 
-            if (phaseMask)
-                DespawnPhaseObjects(DefMap(), phaseMask);
+            if (phaseId)
+                DespawnPhaseObjects(DefMap(), phaseId);
 
             bool ok = GuildVillage::DeleteVillageForGuild_GM(guildId);
             handler->SendSysMessage(ok ?

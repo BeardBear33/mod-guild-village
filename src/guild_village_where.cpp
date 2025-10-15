@@ -38,7 +38,7 @@ namespace GuildVillage
         return (LangOpt() == Lang::EN) ? en : cs;
     }
 
-    // ---------- Načti phase pro guildu (pro kontrolu, že vesnici má) ----------
+    // ---------- phase pro guildu (pro kontrolu, že vesnici má) ----------
     static std::optional<uint32> LoadVillagePhase(uint32 guildId)
     {
         if (QueryResult r = WorldDatabase.Query(
@@ -113,7 +113,7 @@ namespace GuildVillage
     {
         uint32 map; float x, y;
         uint32 icon, flags;
-        uint32 poiId;
+        uint32 poiId;             // pokud je 0, poslat fallback zprávu
         std::string name_cs, name_en;
     };
 
@@ -287,7 +287,7 @@ namespace GuildVillage
                 default: break;
             }
 
-            // Klik na konkrétní položku – poslat POI / fallback souřadnice
+            // Klik na konkrétní položku – POI / fallback souřadnice
             if (action >= ACT_WHERE_ITEM_BASE && action < ACT_WHERE_ITEM_BASE + 2000)
             {
                 uint32 idx = action - ACT_WHERE_ITEM_BASE;

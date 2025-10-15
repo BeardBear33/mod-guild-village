@@ -12,6 +12,9 @@
 #include "GuildMgr.h"
 #include "ObjectMgr.h"
 #include "Log.h"
+#include "Config.h"
+#include "DataMap.h"
+#include "gv_common.h"
 
 #include <vector>
 #include <string>
@@ -19,7 +22,7 @@
 
 namespace GuildVillage
 {
-    // ===== Lokalizace (stejně jako v guild_village_upgrade.cpp) =====
+    // ===== Lokalizace =====
     enum class Lang { CS, EN };
     static inline Lang LangOpt()
     {
@@ -34,11 +37,10 @@ namespace GuildVillage
 
     // ===== Základní nastavení =====
     static inline uint32 DefMap() { return sConfigMgr->GetOption<uint32>("GuildVillage.Default.Map", 37); }
-    static constexpr uint32 GV_TELEPORTER_ENTRY = 990203; // tvůj GO entry
-    static constexpr float  kHideIfWithinYards  = 3.0f;   // prah pro skrytí "tohoto" teleporteru
+    static constexpr uint32 GV_TELEPORTER_ENTRY = 990203;
+    static constexpr float  kHideIfWithinYards  = 3.0f;
 
-    // Guildovní phaseMask z DB
-    static uint32 LoadGuildVillagePhaseMask(uint32 guildId)
+    static uint32 LoadGuildVillagePhaseId(uint32 guildId)
     {
         if (!guildId) return 0;
         if (QueryResult r = WorldDatabase.Query("SELECT phase FROM customs.gv_guild WHERE guild={}", guildId))
@@ -46,7 +48,7 @@ namespace GuildVillage
         return 0;
     }
 
-    // ===== Menu model (bez require_phase/require_key/target_map) =====
+    // ===== Menu model =====
     struct TeleRow
     {
         uint32 id;
@@ -110,21 +112,20 @@ namespace GuildVillage
             Guild* g = player->GetGuild();
             if (!g)
             {
-                ChatHandler(player->GetSession()).SendSysMessage(T("Nejsi v gildě.", "You are not in a guild."));
+                ChatHandler(player->GetSession()).SendSysMessage(T("Nejsi v guildě.", "You are not in a guild."));
                 return true;
             }
 
-            uint32 gvPhase = LoadGuildVillagePhaseMask(g->GetId());
+            uint32 gvPhase = LoadGuildVillagePhaseId(g->GetId());
             if (!gvPhase)
             {
-                ChatHandler(player->GetSession()).SendSysMessage(T("Tvoje gilda nevlastní vesnici.", "Your guild does not own a village."));
+                ChatHandler(player->GetSession()).SendSysMessage(T("Tvoje guilda nevlastní vesnici.", "Your guild does not own a village."));
                 return true;
             }
 
-            // Link vlastnictví přes phaseMask GO vs. guildy
-            if ((go->GetPhaseMask() & gvPhase) == 0)
+            if (go->GetPhaseMask() != gvPhase)
             {
-                ChatHandler(player->GetSession()).SendSysMessage(T("Tento teleporter nepatří tvé gildě.", "This teleporter does not belong to your guild."));
+                ChatHandler(player->GetSession()).SendSysMessage(T("Tento teleporter nepatří tvé guildě.", "This teleporter does not belong to your guild."));
                 return true;
             }
 
@@ -150,7 +151,6 @@ namespace GuildVillage
             uint32 shown = 0;
             for (auto& r : rows)
             {
-                // Skryj položku, která odpovídá "tomuto" teleporteru (podle blízkosti pozice)
                 float dx = gx - r.x;
                 float dy = gy - r.y;
                 float dz = gz - r.z;
@@ -184,7 +184,7 @@ namespace GuildVillage
             Guild* g = player->GetGuild();
             if (!g) return true;
 
-            uint32 gvPhase = LoadGuildVillagePhaseMask(g->GetId());
+            uint32 gvPhase = LoadGuildVillagePhaseId(g->GetId());
             if (!gvPhase) return true;
 
             uint32 rowId = Decode(action);
@@ -203,14 +203,17 @@ namespace GuildVillage
             float z = f[2].Get<float>();
             float o = f[3].Get<float>();
 
+            player->CustomData.GetDefault<GVPhaseData>("gv_phase")->phaseMask = gvPhase;
+
             player->SetPhaseMask(gvPhase, true);
+			
             player->TeleportTo(DefMap(), x, y, z, o);
             return true;
         }
     };
 } // namespace GuildVillage
 
-// ===== Registrace v jednotném stylu =====
+// ===== Registrace =====
 void RegisterGuildVillageTeleporter()
 {
     new GuildVillage::gv_teleporter_go();

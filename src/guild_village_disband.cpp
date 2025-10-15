@@ -15,14 +15,11 @@ namespace GuildVillage
         return sConfigMgr->GetOption<uint32>("GuildVillage.Default.Map", 37);
     }
 
-    // Jednobitová phase per guild (2..31)
-    static inline uint32 CalcGuildPhaseMask(uint32 guildId)
+    static inline uint32 PhaseIdForGuild(uint32 guildId)
     {
-        uint32 bitIndex = (guildId % 30) + 1;
-        return (1u << bitIndex);
+        return guildId + 10;
     }
 
-    // Načte phase z customs.gv_guild (pokud existuje)
     static std::optional<uint32> LoadGuildPhase(uint32 guildId)
     {
         if (QueryResult r = WorldDatabase.Query(
@@ -34,26 +31,26 @@ namespace GuildVillage
     // Hlavní mazání pro danou guildu
     static void WipeGuildVillage(uint32 guildId)
     {
-        // Zjistit phase z DB , jinak fallback výpočet
-        uint32 phaseMask = LoadGuildPhase(guildId).value_or(CalcGuildPhaseMask(guildId));
+        // Zjistit phase z DB (preferovaná), jinak fallback na přesné ID z guildId
+        uint32 phaseId = LoadGuildPhase(guildId).value_or(PhaseIdForGuild(guildId));
 
-        // 1) customs.gv_currency a customs.gv_upgrades podle sloupce guildId
+        // 1) customs: měny a upgrady
         WorldDatabase.Execute("DELETE FROM customs.gv_currency WHERE guildId={}", guildId);
         WorldDatabase.Execute("DELETE FROM customs.gv_upgrades WHERE guildId={}", guildId);
 
-        // 2) world spawny pro tuto phase 
+        // 2) world spawny pro danou phase na mapě vesnice
         WorldDatabase.Execute(
-            "DELETE FROM creature WHERE map={} AND phaseMask={}", DefMap(), phaseMask);
+            "DELETE FROM creature WHERE map={} AND phaseMask={}", DefMap(), phaseId);
         WorldDatabase.Execute(
-            "DELETE FROM gameobject WHERE map={} AND phaseMask={}", DefMap(), phaseMask);
+            "DELETE FROM gameobject WHERE map={} AND phaseMask={}", DefMap(), phaseId);
 
-        // 3) AŽ NAKONEC smazat z customs.gv_guild (sloupec 'guild')
+        // 3) AŽ NAKONEC záznam o vesnici
         WorldDatabase.Execute("DELETE FROM customs.gv_guild WHERE guild={}", guildId);
 
-        LOG_INFO("modules", "GV: Disband cleanup done for guild {} (phaseMask={})", guildId, phaseMask);
+        LOG_INFO("modules", "GV: Disband cleanup done for guild {} (phaseId={})", guildId, phaseId);
     }
 
-    class guild_village_Disband : public GuildScript 
+    class guild_village_Disband : public GuildScript
     {
     public:
         guild_village_Disband() : GuildScript("guild_village_Disband") { }
