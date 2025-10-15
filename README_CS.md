@@ -45,12 +45,19 @@ Odebrán smartAI pro cooking trenéra a ridding trenéra (pouze pohyb)
 
 ### Příkazy
 .village teleport
+.village tp
+.v teleport
+.v tp
 ➝ Teleportuje do guild vesnice.
 
 .village status
+.v status
 ➝ Zobrazí stav currency pro guildu.
 
 ### Admin Příkazy
+.gv list [PAGE]
+➝ Vypíše název guildy a její ID
+Příklad: .gv list 15
 
 .gv create [GUILDID] [ignorecap]
 ➝ Vytvoří guildovní vesnici pro danou guildu ručně (bez kontroly ceny).

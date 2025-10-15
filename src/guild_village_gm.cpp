@@ -18,12 +18,15 @@
 #include "ObjectAccessor.h"
 #include "Creature.h"
 #include "Guild.h"
+#include "DataMap.h" // per-player stash
 
 #include <string>
 #include <algorithm>
 #include <cctype>
 #include <limits>
 #include <vector>
+#include <cmath>
+#include <sstream>
 
 // === PUBLIC API z guild_village_create.cpp ===
 namespace GuildVillage {
@@ -36,6 +39,9 @@ static inline uint32 DefMap() { return sConfigMgr->GetOption<uint32>("GuildVilla
 
 namespace
 {
+    // per-player stash stejného jména/typu jako jinde (.commands/.respawn…)
+    struct GVPhaseData : public DataMap::Base { uint32 phaseMask = 0; };
+
     enum class Lang { CS, EN };
     static inline Lang LangOpt()
     {
@@ -235,6 +241,61 @@ namespace
                  layout_key, cCount, goCount, phaseId);
     }
 
+    // Pomocné: stránkovaný výpis z customs.gv_guild (jména dotáhneme z characters.guild)
+    static void CmdListVillages(ChatHandler* handler, uint32 page)
+    {
+        constexpr uint32 kPageSize = 10;
+
+        // celkový count
+        uint32 total = 0;
+        if (QueryResult rc = WorldDatabase.Query("SELECT COUNT(*) FROM customs.gv_guild"))
+            total = (*rc)[0].Get<uint32>();
+
+        if (total == 0)
+        {
+            handler->SendSysMessage(T("|cffffaa00[GV]|r Není vytvořena žádná vesnice.",
+                                      "|cffffaa00[GV]|r No villages exist yet."));
+            return;
+        }
+
+        uint32 totalPages = (total + kPageSize - 1) / kPageSize;
+        if (page == 0) page = 1;
+        if (page > totalPages) page = totalPages;
+
+        uint32 offset = (page - 1) * kPageSize;
+
+        // vyzvedni guild ID a phase (limit/offset)
+        std::vector<uint32> guildIds;
+        if (QueryResult rl = WorldDatabase.Query(
+                "SELECT guild FROM customs.gv_guild ORDER BY guild LIMIT {} OFFSET {}",
+                kPageSize, offset))
+        {
+            do { guildIds.emplace_back(rl->Fetch()[0].Get<uint32>()); } while (rl->NextRow());
+        }
+
+        handler->SendSysMessage(Acore::StringFormat(T("Stránka {}/{}", "Page {}/{}"),
+                                                    page, totalPages).c_str());
+
+        // pro každé guildId načti jméno z characters.guild
+        uint32 idxOnPage = 1;
+        for (uint32 gid : guildIds)
+        {
+            std::string name = T("<neznámá>", "<unknown>");
+            if (QueryResult rn = CharacterDatabase.Query(
+                    "SELECT name FROM guild WHERE guildid={}", gid))
+            {
+                name = rn->Fetch()[0].Get<std::string>();
+            }
+
+            handler->SendSysMessage(
+                Acore::StringFormat("{}{}. {} - ID: {}",
+                                    (idxOnPage < 10 ? " " : ""), // drobná kosmetika zarovnání
+                                    idxOnPage, name, gid).c_str()
+            );
+            ++idxOnPage;
+        }
+    }
+
     // === Hlavní GM handler ===
     static bool HandleGv(ChatHandler* handler, char const* args)
     {
@@ -259,16 +320,20 @@ namespace
             handler->SendSysMessage(T(
                 R"(|cffffd000[GV]|r Dostupné příkazy:
   |cff00ff00.gv create [GUILDID] [ignorecap]|r - vytvoří vesnici pro gildy
-  |cff00ff00.gv delete <GUILDID>|r - kompletní odstranění vesnice
-  |cff00ff00.gv reset <GUILDID>|r - wipe + reinstall base layout
+  |cff00ff00.gv delete <GUILDID>|r           - kompletní odstranění vesnice
+  |cff00ff00.gv reset <GUILDID>|r            - wipe + reinstall base layout
+  |cff00ff00.gv list [PAGE]|r                - vypíše 10 vesnic na stránku
+  |cff00ff00.gv teleport <GUILDID>|r         - portne tě do vesnice dané gildy (alias: .gv tp)
   |cff00ff00.gv creature <ENTRY> [MOVEMENTTYPE SPAWNDIST SPAWNTIMESECS]|r
   |cff00ff00.gv object <ENTRY> [SPAWNTIMESECS]|r
   |cff00ff00.gv excreature <EXPKEY> <ENTRY> <FACTION> [MOVEMENTTYPE SPAWNDIST SPAWNTIMESECS]|r
   |cff00ff00.gv exobject <EXPKEY> <ENTRY> <FACTION> [SPAWNTIMESECS]|r)",
                 R"(|cffffd000[GV]|r Available commands:
   |cff00ff00.gv create [GUILDID] [ignorecap]|r - create village
-  |cff00ff00.gv delete <GUILDID>|r - remove village completely
-  |cff00ff00.gv reset <GUILDID>|r - wipe + reinstall base layout
+  |cff00ff00.gv delete <GUILDID>|r           - remove village completely
+  |cff00ff00.gv reset <GUILDID>|r            - wipe + reinstall base layout
+  |cff00ff00.gv list [PAGE]|r                - list 10 villages per page
+  |cff00ff00.gv teleport <GUILDID>|r         - teleport you to that guild's village (alias: .gv tp)
   |cff00ff00.gv creature <ENTRY> [MOVEMENTTYPE SPAWNDIST SPAWNTIMESECS]|r
   |cff00ff00.gv object <ENTRY> [SPAWNTIMESECS]|r
   |cff00ff00.gv excreature <EXPKEY> <ENTRY> <FACTION> [MOVEMENTTYPE SPAWNDIST SPAWNTIMESECS]|r
@@ -280,6 +345,20 @@ namespace
         std::string cmd = sp == std::string::npos ? a : a.substr(0, sp);
         std::string rest = sp == std::string::npos ? "" : Trim(a.substr(sp + 1));
         std::transform(cmd.begin(), cmd.end(), cmd.begin(), [](unsigned char c){ return std::tolower(c); });
+
+        // ===== .gv list [PAGE] =====
+        if (cmd == "list")
+        {
+            uint32 page = 1;
+            if (!rest.empty())
+            {
+                std::stringstream ss(rest);
+                ss >> page;
+                if (page == 0) page = 1;
+            }
+            CmdListVillages(handler, page);
+            return true;
+        }
 
         // ===== .gv create [GUILDID] [ignorecap] =====
         if (cmd == "create")
@@ -358,17 +437,19 @@ namespace
   |cff00ff00.gv create [GUILDID] [ignorecap]|r
   |cff00ff00.gv delete <GUILDID>|r
   |cff00ff00.gv reset <GUILDID>|r
+  |cff00ff00.gv list [PAGE]|r
   |cff00ff00.gv creature <ENTRY> [MOVEMENTTYPE SPAWNDIST SPAWNTIMESECS]|r
   |cff00ff00.gv object <ENTRY> [SPAWNTIMESECS]|r
-  |cff00ff00.gv excreature <EXPKEY> <ENTRY> <FACTION> [MOVEMENTTYPE SPAWNDIST SPAWNTIMESECS]|r
+  |cff00ff00.gv excreature <EXPKEY> <ENTRY> <FACTION> [MOVEMENTTYPE SPAWNTIMESECS]|r
   |cff00ff00.gv exobject <EXPKEY> <ENTRY> <FACTION> [SPAWNTIMESECS]|r)",
             R"(|cffffd000[GV]|r Available commands:
   |cff00ff00.gv create [GUILDID] [ignorecap]|r
   |cff00ff00.gv delete <GUILDID>|r
   |cff00ff00.gv reset <GUILDID>|r
+  |cff00ff00.gv list [PAGE]|r
   |cff00ff00.gv creature <ENTRY> [MOVEMENTTYPE SPAWNDIST SPAWNTIMESECS]|r
   |cff00ff00.gv object <ENTRY> [SPAWNTIMESECS]|r
-  |cff00ff00.gv excreature <EXPKEY> <ENTRY> <FACTION> [MOVEMENTTYPE SPAWNDIST SPAWNTIMESECS]|r
+  |cff00ff00.gv excreature <EXPKEY> <ENTRY> <FACTION> [MOVEMENTTYPE SPAWNTIMESECS]|r
   |cff00ff00.gv exobject <EXPKEY> <ENTRY> <FACTION> [SPAWNTIMESECS]|r)"));
         return true;
     }

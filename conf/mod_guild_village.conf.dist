@@ -5,8 +5,8 @@
 # EN: Language switch for texts (cs|en).
 GuildVillage.Locale = cs
 
-# Max počet současně existujících vesnic
-# Maximum number of villages that can exist at the same time
+# Max počet současně existujících vesnic (min-max 1-30)
+# Maximum number of villages that can exist at the same time (min-max 1-30)
 GuildVillage.MaxVillages = 30
 
 # Dny neaktivity Guild Mastera pro auto-úklid (0 = vypnuto)
@@ -100,4 +100,3 @@ Thranok.Heroic = 1
 # 0 = “10-man” verze spellů (default)
 # 1 = “25-man” verze spellů (vyšší dmg, víc cílů apod.)
 Thalor.Heroic = 1
-
