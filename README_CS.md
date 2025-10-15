@@ -8,7 +8,7 @@ Tento modul umožňuje:
 - Přidávat creature a gameobjecty  
 - Vlastní currency pro nákup rozšíření vesnice 
 - Jednoduchá správa všech nastavení
-- Max 30 Guildovních vesnic, možnost nastavit automatické čištění při neaktivitě Guild Mastera
+- Nastavitelný limit pro vesnice, možnost nastavit automatické čištění při neaktivitě Guild Mastera
 
 ### Požadavky  
 Před použitím je nutné zajistit, aby uživatel databáze z `WorldDatabaseInfo` (standardně `acore`) měl práva i na novou databázi `customs`:  
@@ -58,7 +58,6 @@ Pokud GUILDID není zadán, použije se gilda, ve které se GM právě nachází
 Volitelný parametr ignorecap (0/1) určuje, zda se má ignorovat limit z GuildVillage.MaxVillages (např. pro testovací nebo eventové účely).
 Příklad (vlastní gilda): .gv create
 Příklad (jiná gilda, ignoruje limit): .gv create 42 1
-**!!!Pozor stále platí maximum 30 vesnic!!!**
 
 .gv delete GUILDID
 ➝ Kompletně odstraní vesnici dané gildy z databáze (customs.gv_guild, customs.gv_currency, customs.gv_upgrades, creature, gameobject) a zároveň odstraní všechny objekty ze světa.
