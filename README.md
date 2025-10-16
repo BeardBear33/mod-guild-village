@@ -25,3 +25,16 @@ Guild Village module adds customizable guild villages with upgrades, currency, a
 [azerothcore-wotlk (Playerbot branch)](https://github.com/liyunfan1223/azerothcore-wotlk/tree/Playerbot)
 
 ----------------------------------------------------------------------------------------------------------------
+
+***To-Do list:***
+🌐 Česky
+
+Měsíční PvE event: Nájezd na vesnici — pravidelná událost, při které gildy brání svou vesnici před vlnami nepřátel.
+
+Teleporter ke vstupům do RAID instancí — přidat teleportovací systém usnadňující přesun hráčů přímo ke vstupům do raidů.
+
+🌐 English
+
+Monthly PvE Event: Village Raid — recurring event where guilds defend their village against enemy waves.
+
+Teleporter to RAID Entrances — add a teleportation system to quickly transport players to raid entrances.
