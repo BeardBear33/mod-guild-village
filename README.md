@@ -27,6 +27,7 @@ Guild Village module adds customizable guild villages with upgrades, currency, a
 ----------------------------------------------------------------------------------------------------------------
 
 ***To-Do list:***
+ 
 🌐 Česky
 
 Měsíční PvE event: Nájezd na vesnici — pravidelná událost, při které gildy brání svou vesnici před vlnami nepřátel.
