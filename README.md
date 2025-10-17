@@ -30,10 +30,6 @@ Guild Village module adds customizable guild villages with upgrades, currency, a
  
 🌐 Česky
 
-Měsíční PvE event: Nájezd na vesnici — pravidelná událost, při které gildy brání svou vesnici před vlnami nepřátel.
-
-Teleporter ke vstupům do RAID instancí — přidat teleportovací systém usnadňující přesun hráčů přímo ke vstupům do raidů.
-
 - Více druhů měn
 
 - Možnost rozšířit vesnici o defenzivní prvky pro měsíční event s možností opětovného nákupu (např. miny, harpuny apod.)
@@ -46,12 +42,12 @@ Teleporter ke vstupům do RAID instancí — přidat teleportovací systém usna
 
 🌐 English
 
-Multiple types of currencies
+- Multiple types of currencies
 
-Ability to expand the village with defensive structures for the monthly event, with repeatable purchases (e.g. mines, harpoons, etc.)
+- Ability to expand the village with defensive structures for the monthly event, with repeatable purchases (e.g. mines, harpoons, etc.)
 
-Option to reposition guards through a Gossip menu
+- Option to reposition guards through a Gossip menu
 
-An NPC that converts guild currency into random crafting materials or finished items up to a certain item level depending on the current phase
+- An NPC that converts guild currency into random crafting materials or finished items up to a certain item level depending on the current phase
 
-Expedition – purchase heroes that can be sent into dungeons or raids
+- Expedition – purchase heroes that can be sent into dungeons or raids
