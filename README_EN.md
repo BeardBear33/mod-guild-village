@@ -53,7 +53,7 @@ SmartAI for cooking and riding trainers has been removed (movement only).
 
 .village status
 .v status
-➝ Displays guild currency status.
+➝ Displays guild+boss currency status.
 
 ### Admin Commands
 .gv list [PAGE]

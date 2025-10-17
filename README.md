@@ -34,8 +34,24 @@ Měsíční PvE event: Nájezd na vesnici — pravidelná událost, při které 
 
 Teleporter ke vstupům do RAID instancí — přidat teleportovací systém usnadňující přesun hráčů přímo ke vstupům do raidů.
 
+- Více druhů měn
+
+- Možnost rozšířit vesnici o defenzivní prvky pro měsíční event s možností opětovného nákupu (např. miny, harpuny apod.)
+
+- Možnost přemístit stráže dle vlastního uvážení přes Gossip menu
+
+- NPC, které by z guildovní měny vyrábělo náhodné materiály pro profese nebo hotové předměty do určitého ilvl podle fáze
+
+- Expedice – možnost zakoupit hrdiny, které lze vysílat do dungeonů nebo raidů
+
 🌐 English
 
-Monthly PvE Event: Village Raid — recurring event where guilds defend their village against enemy waves.
+Multiple types of currencies
 
-Teleporter to RAID Entrances — add a teleportation system to quickly transport players to raid entrances.
+Ability to expand the village with defensive structures for the monthly event, with repeatable purchases (e.g. mines, harpoons, etc.)
+
+Option to reposition guards through a Gossip menu
+
+An NPC that converts guild currency into random crafting materials or finished items up to a certain item level depending on the current phase
+
+Expedition – purchase heroes that can be sent into dungeons or raids

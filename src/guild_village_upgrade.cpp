@@ -99,29 +99,42 @@ namespace GuildVillage
                 Map* map = sMapMgr->FindMap(mapId, 0);
                 if (!map) { sMapMgr->CreateBaseMap(mapId); map = sMapMgr->FindMap(mapId, 0); }
 
-                if (map)
-                {
-                    Creature* c = new Creature();
-                    ObjectGuid::LowType low = map->GenerateLowGuid<HighGuid::Unit>();
-                    if (!c->Create(low, map, phaseId, entry, 0, x, y, z, o))
-                    { delete c; continue; }
-                    c->SetRespawnTime(resp);
-                    c->SetWanderDistance(wander);
-                    c->SetDefaultMovementType(MovementGeneratorType(mt));
-                    c->SaveToDB(map->GetId(), (1 << map->GetSpawnMode()), phaseId);
-                    uint32 spawnId = c->GetSpawnId();
-                    c->CleanupsBeforeDelete(); delete c;
-                    c = new Creature(); if (!c->LoadCreatureFromDB(spawnId, map)) { delete c; continue; }
-                    sObjectMgr->AddCreatureToGrid(spawnId, sObjectMgr->GetCreatureData(spawnId));
-                }
-                else
-                {
-                    WorldDatabase.Execute(
-                        "INSERT INTO creature (id1,map,spawnMask,phaseMask,position_x,position_y,position_z,orientation,spawntimesecs,wander_distance,MovementType) "
-                        "VALUES ({}, {}, 1, {}, {}, {}, {}, {}, {}, {}, {})",
-                        entry, mapId, phaseId, x, y, z, o, resp, wander, (uint32)mt
-                    );
-                }
+				if (map)
+				{
+					Creature* c = new Creature();
+					ObjectGuid::LowType low = map->GenerateLowGuid<HighGuid::Unit>();
+					if (!c->Create(low, map, phaseId, entry, 0, x, y, z, o))
+					{ delete c; continue; }
+				
+					// správně: defaultní delay, ne absolutní čas
+					c->SetRespawnDelay(resp);
+					c->SetWanderDistance(wander);
+					c->SetDefaultMovementType(MovementGeneratorType(mt));
+				
+					// uložit do DB
+					c->SaveToDB(map->GetId(), (1 << map->GetSpawnMode()), phaseId);
+					uint32 spawnId = c->GetSpawnId();
+				
+					// pojistka – propsat hodnoty do tabulky (někdy jinak spadne na 300)
+					WorldDatabase.Execute(
+						"UPDATE creature SET spawntimesecs = {}, wander_distance = {}, MovementType = {} WHERE guid = {}",
+						resp, wander, (uint32)mt, spawnId
+					);
+				
+					// reload + grid
+					c->CleanupsBeforeDelete(); delete c;
+					c = new Creature();
+					if (!c->LoadCreatureFromDB(spawnId, map, /*addToMap=*/true)) { delete c; continue; }
+					sObjectMgr->AddCreatureToGrid(spawnId, sObjectMgr->GetCreatureData(spawnId));
+				}
+				else
+				{
+					WorldDatabase.Execute(
+						"INSERT INTO creature (id1,map,spawnMask,phaseMask,position_x,position_y,position_z,orientation,spawntimesecs,wander_distance,MovementType) "
+						"VALUES ({}, {}, 1, {}, {}, {}, {}, {}, {}, {}, {})",
+						entry, mapId, phaseId, x, y, z, o, resp, wander, (uint32)mt
+					);
+				}
             }
             while (cr->NextRow());
         }

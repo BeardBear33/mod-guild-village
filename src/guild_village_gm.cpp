@@ -62,6 +62,25 @@ namespace
         return s;
     }
 
+    // Smaže respawny pro zadané GUIDy po dávkách z characters DB
+    static void DeleteRespawnsByGuids(std::string const& table, std::vector<uint32> const& guids, size_t batch = 500)
+    {
+        if (guids.empty())
+            return;
+
+        for (size_t i = 0; i < guids.size(); i += batch)
+        {
+            size_t j = std::min(i + batch, guids.size());
+            std::ostringstream inlist;
+            for (size_t k = i; k < j; ++k)
+            {
+                if (k != i) inlist << ',';
+                inlist << guids[k];
+            }
+            CharacterDatabase.Execute("DELETE FROM " + table + " WHERE guid IN (" + inlist.str() + ")");
+        }
+    }
+
     // --- Despawn všech creature/GO pro daný phaseId na mapId (okamžitě ze světa) ---
     static void DespawnPhaseObjects(uint32 mapId, uint32 phaseId)
     {
@@ -120,15 +139,15 @@ namespace
             do
             {
                 Field* f = cr->Fetch();
-                uint32 entry = f[0].Get<uint32>();
-                uint32 mapId = f[1].Get<uint32>();
-                float x = f[2].Get<float>();
-                float y = f[3].Get<float>();
-                float z = f[4].Get<float>();
-                float o = f[5].Get<float>();
-                uint32 respawnSecs = f[6].Get<uint32>();
-                float wander = f[7].Get<float>();
-                uint8 moveType = f[8].Get<uint8>();
+                uint32 entry      = f[0].Get<uint32>();
+                uint32 mapId      = f[1].Get<uint32>();
+                float  x          = f[2].Get<float>();
+                float  y          = f[3].Get<float>();
+                float  z          = f[4].Get<float>();
+                float  o          = f[5].Get<float>();
+                uint32 respawnSec = f[6].Get<uint32>();
+                float  wander     = f[7].Get<float>();
+                uint8  moveType   = f[8].Get<uint8>();
 
                 Map* map = sMapMgr->FindMap(mapId, 0);
                 if (!map)
@@ -144,7 +163,7 @@ namespace
                         "(id1, map, spawnMask, phaseMask, position_x, position_y, position_z, orientation, "
                         " spawntimesecs, wander_distance, MovementType, Comment) "
                         "VALUES ({}, {}, 1, {}, {}, {}, {}, {}, {}, {}, {}, 'Village mob')",
-                        entry, mapId, phaseId, x, y, z, o, respawnSecs, wander, (uint32)moveType
+                        entry, mapId, phaseId, x, y, z, o, respawnSec, wander, (uint32)moveType
                     );
                     ++cCount;
                     continue;
@@ -155,25 +174,25 @@ namespace
                 if (!c->Create(low, map, phaseId, entry, 0, x, y, z, o))
                 { delete c; continue; }
 
-                c->SetRespawnTime(respawnSecs);
+                // správně: defaultní respawn delay (ne absolutní čas)
+                c->SetRespawnDelay(respawnSec);
                 c->SetWanderDistance(wander);
                 c->SetDefaultMovementType(MovementGeneratorType(moveType));
 
                 c->SaveToDB(map->GetId(), (1 << map->GetSpawnMode()), phaseId);
                 uint32 spawnId = c->GetSpawnId();
 
+                // pojistka: přepsat hodnoty v DB (jinak hrozí výchozích 300)
+                WorldDatabase.Execute(
+                    "UPDATE creature SET spawntimesecs = {}, wander_distance = {}, MovementType = {}, Comment='Village mob' WHERE guid = {}",
+                    respawnSec, wander, (uint32)moveType, spawnId
+                );
+
                 c->CleanupsBeforeDelete(); delete c;
 
                 c = new Creature();
                 if (!c->LoadCreatureFromDB(spawnId, map, /*addToMap=*/true)) { delete c; continue; }
                 sObjectMgr->AddCreatureToGrid(spawnId, sObjectMgr->GetCreatureData(spawnId));
-                c->SetRespawnDelay(respawnSecs);
-                map->AddToMap(c);
-
-                WorldDatabase.Execute(
-                    "UPDATE creature SET spawntimesecs = {}, wander_distance = {}, MovementType = {}, Comment='Village mob' WHERE guid = {}",
-                    respawnSecs, wander, (uint32)moveType, spawnId
-                );
 
                 ++cCount;
             }
@@ -190,11 +209,11 @@ namespace
                 Field* f = go->Fetch();
                 uint32 entry = f[0].Get<uint32>();
                 uint32 mapId = f[1].Get<uint32>();
-                float x = f[2].Get<float>();
-                float y = f[3].Get<float>();
-                float z = f[4].Get<float>();
-                float o = f[5].Get<float>();
-                int32 spawntime = f[10].Get<int32>();
+                float  x = f[2].Get<float>();
+                float  y = f[3].Get<float>();
+                float  z = f[4].Get<float>();
+                float  o = f[5].Get<float>();
+                int32  st = f[10].Get<int32>();
 
                 Map* map = sMapMgr->FindMap(mapId, 0);
                 if (!map)
@@ -211,9 +230,15 @@ namespace
                     if (!g->Create(low, entry, map, phaseId, x, y, z, o, G3D::Quat(), 0, GO_STATE_READY))
                     { delete g; continue; }
 
-                    g->SetRespawnTime(spawntime);
+                    g->SetRespawnTime(st);
                     g->SaveToDB(map->GetId(), (1 << map->GetSpawnMode()), phaseId);
                     uint32 spawnId = g->GetSpawnId();
+
+                    // pojistka: přepsat spawntimesecs i v DB
+                    WorldDatabase.Execute(
+                        "UPDATE gameobject SET spawntimesecs = {} WHERE guid = {}",
+                        st, spawnId
+                    );
 
                     g->CleanupsBeforeDelete(); delete g;
 
@@ -229,7 +254,7 @@ namespace
                         "(id, map, spawnMask, phaseMask, position_x, position_y, position_z, orientation, "
                         " rotation0, rotation1, rotation2, rotation3, spawntimesecs) "
                         "VALUES ({}, {}, 1, {}, {}, {}, {}, {}, 0, 0, 0, 0, {})",
-                        entry, mapId, phaseId, x, y, z, o, spawntime
+                        entry, mapId, phaseId, x, y, z, o, st
                     );
                     ++goCount;
                 }
@@ -419,6 +444,35 @@ namespace
                 return true;
             }
 
+            // 1.5) Před despawnem/mazáním – vyčisti respawny pro GUIDy téhle phase v characters DB
+            if (phaseId)
+            {
+                // posbírat GUIDy z world.creature (mapa vesnice + phase)
+                std::vector<uint32> creatureGuids;
+                if (QueryResult qc = WorldDatabase.Query(
+                        "SELECT guid FROM creature WHERE map={} AND phaseMask={}", DefMap(), phaseId))
+                {
+                    do { creatureGuids.emplace_back(qc->Fetch()[0].Get<uint32>()); }
+                    while (qc->NextRow());
+                }
+
+                // posbírat GUIDy z world.gameobject (mapa vesnice + phase)
+                std::vector<uint32> goGuids;
+                if (QueryResult qg = WorldDatabase.Query(
+                        "SELECT guid FROM gameobject WHERE map={} AND phaseMask={}", DefMap(), phaseId))
+                {
+                    do { goGuids.emplace_back(qg->Fetch()[0].Get<uint32>()); }
+                    while (qg->NextRow());
+                }
+
+                // smazat odpovídající respawny
+                DeleteRespawnsByGuids("creature_respawn", creatureGuids);
+                DeleteRespawnsByGuids("gameobject_respawn", goGuids);
+
+                LOG_INFO("modules", "GV: GM delete cleared respawns (guild={}, phaseId={}, creatures={}, gos={})",
+                         guildId, phaseId, creatureGuids.size(), goGuids.size());
+            }
+
             if (phaseId)
                 DespawnPhaseObjects(DefMap(), phaseId);
 
@@ -440,7 +494,7 @@ namespace
   |cff00ff00.gv list [PAGE]|r
   |cff00ff00.gv creature <ENTRY> [MOVEMENTTYPE SPAWNDIST SPAWNTIMESECS]|r
   |cff00ff00.gv object <ENTRY> [SPAWNTIMESECS]|r
-  |cff00ff00.gv excreature <EXPKEY> <ENTRY> <FACTION> [MOVEMENTTYPE SPAWNTIMESECS]|r
+  |cff00ff00.gv excreature <EXPKEY> <ENTRY> <FACTION> [MOVEMENTTYPE SPAWNDIMESECS]|r
   |cff00ff00.gv exobject <EXPKEY> <ENTRY> <FACTION> [SPAWNTIMESECS]|r)",
             R"(|cffffd000[GV]|r Available commands:
   |cff00ff00.gv create [GUILDID] [ignorecap]|r
@@ -449,7 +503,7 @@ namespace
   |cff00ff00.gv list [PAGE]|r
   |cff00ff00.gv creature <ENTRY> [MOVEMENTTYPE SPAWNDIST SPAWNTIMESECS]|r
   |cff00ff00.gv object <ENTRY> [SPAWNTIMESECS]|r
-  |cff00ff00.gv excreature <EXPKEY> <ENTRY> <FACTION> [MOVEMENTTYPE SPAWNTIMESECS]|r
+  |cff00ff00.gv excreature <EXPKEY> <ENTRY> <FACTION> [MOVEMENTTYPE SPAWNDIMESECS]|r
   |cff00ff00.gv exobject <EXPKEY> <ENTRY> <FACTION> [SPAWNTIMESECS]|r)"));
         return true;
     }

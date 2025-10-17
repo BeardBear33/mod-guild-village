@@ -52,7 +52,7 @@ Odebrán smartAI pro cooking trenéra a ridding trenéra (pouze pohyb)
 
 .village status
 .v status
-➝ Zobrazí stav currency pro guildu.
+➝ Zobrazí stav currency+boss pro guildu.
 
 ### Admin Příkazy
 .gv list [PAGE]

@@ -142,15 +142,30 @@ namespace GuildVillage
                 }
 
                 Creature* c = new Creature();
-                ObjectGuid::LowType low = map->GenerateLowGuid<HighGuid::Unit>();
-                if (!c->Create(low, map, phaseId, entry, 0, x, y, z, o)) { delete c; continue; }
-                c->SetRespawnTime(resp); c->SetWanderDistance(wander); c->SetDefaultMovementType(MovementGeneratorType(mt));
-                c->SaveToDB(map->GetId(), (1 << map->GetSpawnMode()), phaseId);
-                uint32 spawnId = c->GetSpawnId();
-                c->CleanupsBeforeDelete(); delete c;
-                c = new Creature(); if (!c->LoadCreatureFromDB(spawnId, map, true)) { delete c; continue; }
-                sObjectMgr->AddCreatureToGrid(spawnId, sObjectMgr->GetCreatureData(spawnId));
-                ++cCount;
+				ObjectGuid::LowType low = map->GenerateLowGuid<HighGuid::Unit>();
+				if (!c->Create(low, map, phaseId, entry, 0, x, y, z, o)) { delete c; continue; }
+				
+				// správně: jen defaultní delay, NE absolutní čas
+				c->SetRespawnDelay(resp);
+				c->SetWanderDistance(wander);
+				c->SetDefaultMovementType(MovementGeneratorType(mt));
+				
+				// uložení
+				c->SaveToDB(map->GetId(), (1 << map->GetSpawnMode()), phaseId);
+				uint32 spawnId = c->GetSpawnId();
+				
+				// pojistka do DB (někdy by jinak spadl na 300)
+				WorldDatabase.Execute(
+					"UPDATE creature SET spawntimesecs = {}, wander_distance = {}, MovementType = {} WHERE guid = {}",
+					resp, wander, (uint32)mt, spawnId
+				);
+				
+				// reload + grid
+				c->CleanupsBeforeDelete(); delete c;
+				c = new Creature();
+				if (!c->LoadCreatureFromDB(spawnId, map, true)) { delete c; continue; }
+				sObjectMgr->AddCreatureToGrid(spawnId, sObjectMgr->GetCreatureData(spawnId));
+				++cCount;
             }
             while (cr->NextRow());
         }
@@ -177,26 +192,30 @@ namespace GuildVillage
 
                 if (map)
                 {
-                    GameObject* g = sObjectMgr->IsGameObjectStaticTransport(entry) ? new StaticTransport() : new GameObject();
-                    ObjectGuid::LowType low = map->GenerateLowGuid<HighGuid::GameObject>();
-                    if (!g->Create(low, entry, map, phaseId, x, y, z, o, G3D::Quat(r0,r1,r2,r3), 0, GO_STATE_READY))
-                    { delete g; continue; }
-                    g->SetRespawnTime(st); g->SaveToDB(map->GetId(), (1 << map->GetSpawnMode()), phaseId);
-                    uint32 spawnId = g->GetSpawnId();
-                    g->CleanupsBeforeDelete(); delete g;
-                    g = sObjectMgr->IsGameObjectStaticTransport(entry) ? new StaticTransport() : new GameObject();
-                    if (!g->LoadGameObjectFromDB(spawnId, map, true)) { delete g; continue; }
-                    sObjectMgr->AddGameobjectToGrid(spawnId, sObjectMgr->GetGameObjectData(spawnId));
-                    ++goCount;
-                }
-                else
-                {
-                    WorldDatabase.Execute(
-                        "INSERT INTO gameobject (id,map,spawnMask,phaseMask,position_x,position_y,position_z,orientation,rotation0,rotation1,rotation2,rotation3,spawntimesecs) "
-                        "VALUES ({}, {}, 1, {}, {}, {}, {}, {}, {}, {}, {}, {}, {})",
-                        entry, mapId, phaseId, x, y, z, o, r0, r1, r2, r3, st
-                    );
-                    ++goCount;
+				GameObject* g = sObjectMgr->IsGameObjectStaticTransport(entry) ? new StaticTransport() : new GameObject();
+				ObjectGuid::LowType low = map->GenerateLowGuid<HighGuid::GameObject>();
+				if (!g->Create(low, entry, map, phaseId, x, y, z, o, G3D::Quat(r0,r1,r2,r3), 0, GO_STATE_READY))
+				{ delete g; continue; }
+				
+				// nastav respawn
+				g->SetRespawnTime(st);
+				
+				// uložit
+				g->SaveToDB(map->GetId(), (1 << map->GetSpawnMode()), phaseId);
+				uint32 spawnId = g->GetSpawnId();
+				
+				// POJISTKA: přepiš spawntimesecs i v DB (některé verze ho po SaveToDB() vrací na 300)
+				WorldDatabase.Execute(
+					"UPDATE gameobject SET spawntimesecs = {} WHERE guid = {}",
+					st, spawnId
+				);
+				
+				// reload do mapy + grid
+				g->CleanupsBeforeDelete(); delete g;
+				g = sObjectMgr->IsGameObjectStaticTransport(entry) ? new StaticTransport() : new GameObject();
+				if (!g->LoadGameObjectFromDB(spawnId, map, true)) { delete g; continue; }
+				sObjectMgr->AddGameobjectToGrid(spawnId, sObjectMgr->GetGameObjectData(spawnId));
+				++goCount;
                 }
             }
             while (go->NextRow());
@@ -235,14 +254,29 @@ namespace GuildVillage
                 }
 
                 Creature* c = new Creature();
-                ObjectGuid::LowType low = map->GenerateLowGuid<HighGuid::Unit>();
-                if (!c->Create(low, map, phaseId, entry, 0, x, y, z, o)) { delete c; continue; }
-                c->SetRespawnTime(resp); c->SetWanderDistance(wander); c->SetDefaultMovementType(MovementGeneratorType(mt));
-                c->SaveToDB(map->GetId(), (1 << map->GetSpawnMode()), phaseId);
-                uint32 spawnId = c->GetSpawnId();
-                c->CleanupsBeforeDelete(); delete c;
-                c = new Creature(); if (!c->LoadCreatureFromDB(spawnId, map, true)) { delete c; continue; }
-                sObjectMgr->AddCreatureToGrid(spawnId, sObjectMgr->GetCreatureData(spawnId));
+				ObjectGuid::LowType low = map->GenerateLowGuid<HighGuid::Unit>();
+				if (!c->Create(low, map, phaseId, entry, 0, x, y, z, o)) { delete c; continue; }
+				
+				// nastav template hodnoty (delay, wander, movement)
+				c->SetRespawnDelay(resp); // <<< delay v sekundách, ne absolutní čas
+				c->SetWanderDistance(wander);
+				c->SetDefaultMovementType(MovementGeneratorType(mt));
+				
+				// uložit do DB
+				c->SaveToDB(map->GetId(), (1 << map->GetSpawnMode()), phaseId);
+				uint32 spawnId = c->GetSpawnId();
+				
+				// pojistka: propsat do DB, jinak hrozí default 300
+				WorldDatabase.Execute(
+					"UPDATE creature SET spawntimesecs = {}, wander_distance = {}, MovementType = {} WHERE guid = {}",
+					resp, wander, (uint32)mt, spawnId
+				);
+				
+				// reload + grid
+				c->CleanupsBeforeDelete(); delete c;
+				c = new Creature();
+				if (!c->LoadCreatureFromDB(spawnId, map, /*addToMap=*/true)) { delete c; continue; }
+				sObjectMgr->AddCreatureToGrid(spawnId, sObjectMgr->GetCreatureData(spawnId));
             }
             while (cr->NextRow());
         }
@@ -274,12 +308,21 @@ namespace GuildVillage
                 ObjectGuid::LowType low = map->GenerateLowGuid<HighGuid::GameObject>();
                 if (!g->Create(low, entry, map, phaseId, x, y, z, o, G3D::Quat(r0,r1,r2,r3), 0, GO_STATE_READY))
                 { delete g; continue; }
-                g->SetRespawnTime(st); g->SaveToDB(map->GetId(), (1 << map->GetSpawnMode()), phaseId);
-                uint32 spawnId = g->GetSpawnId();
-                g->CleanupsBeforeDelete(); delete g;
-                g = sObjectMgr->IsGameObjectStaticTransport(entry) ? new StaticTransport() : new GameObject();
-                if (!g->LoadGameObjectFromDB(spawnId, map, true)) { delete g; continue; }
-                sObjectMgr->AddGameobjectToGrid(spawnId, sObjectMgr->GetGameObjectData(spawnId));
+                g->SetRespawnTime(st);
+				g->SaveToDB(map->GetId(), (1 << map->GetSpawnMode()), phaseId);
+				uint32 spawnId = g->GetSpawnId();
+				
+				// pojistka: propsat spawntimesecs
+				WorldDatabase.Execute(
+					"UPDATE gameobject SET spawntimesecs = {} WHERE guid = {}",
+					st, spawnId
+				);
+				
+				// reload + grid
+				g->CleanupsBeforeDelete(); delete g;
+				g = sObjectMgr->IsGameObjectStaticTransport(entry) ? new StaticTransport() : new GameObject();
+				if (!g->LoadGameObjectFromDB(spawnId, map, true)) { delete g; continue; }
+				sObjectMgr->AddGameobjectToGrid(spawnId, sObjectMgr->GetGameObjectData(spawnId));
             }
             while (go->NextRow());
         }

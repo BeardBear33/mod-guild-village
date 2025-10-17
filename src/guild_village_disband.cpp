@@ -5,8 +5,12 @@
 #include "DatabaseEnv.h"
 #include "Config.h"
 #include "Log.h"
+
 #include <optional>
 #include <string>
+#include <sstream>
+#include <vector>
+#include <algorithm>
 
 namespace GuildVillage
 {
@@ -28,6 +32,28 @@ namespace GuildVillage
         return std::nullopt;
     }
 
+    // --- Pomůcka: dávkové DELETE v characters DB podle GUIDů -------------
+    static void DeleteByGuidBatches(std::string const& table, std::vector<uint32> const& guids, size_t batch = 500)
+    {
+        if (guids.empty())
+            return;
+
+        for (size_t i = 0; i < guids.size(); i += batch)
+        {
+            size_t j = std::min(i + batch, guids.size());
+            std::ostringstream inlist;
+            for (size_t k = i; k < j; ++k)
+            {
+                if (k != i) inlist << ',';
+                inlist << guids[k];
+            }
+
+            // slož hotový SQL string pro pool (žádné {} placeholdery)
+            std::string sql = "DELETE FROM " + table + " WHERE guid IN (" + inlist.str() + ")";
+            CharacterDatabase.Execute(sql);
+        }
+    }
+
     // Hlavní mazání pro danou guildu
     static void WipeGuildVillage(uint32 guildId)
     {
@@ -37,6 +63,34 @@ namespace GuildVillage
         // 1) customs: měny a upgrady
         WorldDatabase.Execute("DELETE FROM customs.gv_currency WHERE guildId={}", guildId);
         WorldDatabase.Execute("DELETE FROM customs.gv_upgrades WHERE guildId={}", guildId);
+
+        // 1.5) Vyčistit respawny v characters.* pro GUIDy této phase (než smažeme world.*)
+        {
+            // posbírej GUIDy z world.creature pro tuhle mapu+phase
+            std::vector<uint32> creatureGuids;
+            if (QueryResult qc = WorldDatabase.Query(
+                    "SELECT guid FROM creature WHERE map={} AND phaseMask={}", DefMap(), phaseId))
+            {
+                do { creatureGuids.emplace_back(qc->Fetch()[0].Get<uint32>()); }
+                while (qc->NextRow());
+            }
+
+            // posbírej GUIDy z world.gameobject pro tuhle mapu+phase
+            std::vector<uint32> goGuids;
+            if (QueryResult qg = WorldDatabase.Query(
+                    "SELECT guid FROM gameobject WHERE map={} AND phaseMask={}", DefMap(), phaseId))
+            {
+                do { goGuids.emplace_back(qg->Fetch()[0].Get<uint32>()); }
+                while (qg->NextRow());
+            }
+
+            // smaž odpovídající respawny v characters DB
+            DeleteByGuidBatches("creature_respawn", creatureGuids);
+            DeleteByGuidBatches("gameobject_respawn", goGuids);
+
+            LOG_INFO("modules", "GV: Cleared respawns for guild {} (phaseId={}, map={}, creatures={}, gos={})",
+                     guildId, phaseId, DefMap(), creatureGuids.size(), goGuids.size());
+        }
 
         // 2) world spawny pro danou phase na mapě vesnice
         WorldDatabase.Execute(
