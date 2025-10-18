@@ -33,6 +33,7 @@ enum Spells
     SPELL_SUMMON_NETHER_CHARGE_SW   = 35906,
 };
 
+// (enum Yells ponechaný kvůli čitelnosti – texty bereme z kódu přes me->Yell())
 enum Yells
 {
     SAY_AGGRO                      = 0,
@@ -89,6 +90,7 @@ struct boss_voltrix_the_unbound : public ScriptedAI
         });
 
         // Heroic-like režim (Polarity Shift) – vlastní SpellScripty NEPOTŘEBUJEME,
+        // používáme mechanarové 'spell_capacitus_*' z jádra (mapované v DB).
         if (VoltrixHeroic())
         {
             scheduler.Schedule(15s, [this](TaskContext context)
