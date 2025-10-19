@@ -32,11 +32,13 @@ Guild Village module adds customizable guild villages with upgrades, currency, a
 
 - Více druhů měn
 
+- PvE event každý měsíc se spustí najézd nepřátel na vesnici.
+
 - Možnost rozšířit vesnici o defenzivní prvky pro měsíční event s možností opětovného nákupu (např. miny, harpuny apod.)
 
 - Možnost přemístit stráže dle vlastního uvážení přes Gossip menu
 
-- NPC, které by z guildovní měny vyrábělo náhodné materiály pro profese nebo hotové předměty do určitého ilvl podle fáze
+- NPC, které by z guildovní měny vyrábělo náhodné materiály pro profese nebo hotové předměty do určitého ilvl
 
 - Expedice – možnost zakoupit hrdiny, které lze vysílat do dungeonů nebo raidů
 
@@ -44,10 +46,12 @@ Guild Village module adds customizable guild villages with upgrades, currency, a
 
 - Multiple types of currencies
 
+- Every month, a PvE event triggers an enemy raid on the village.
+
 - Ability to expand the village with defensive structures for the monthly event, with repeatable purchases (e.g. mines, harpoons, etc.)
 
 - Option to reposition guards through a Gossip menu
 
-- An NPC that converts guild currency into random crafting materials or finished items up to a certain item level depending on the current phase
+- An NPC that converts guild currency into random crafting materials or finished items up to a certain item level
 
 - Expedition – purchase heroes that can be sent into dungeons or raids
