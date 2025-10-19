@@ -26,7 +26,7 @@ namespace GuildVillage
 
     // ===== Config flags =====
     static bool  CFG_ENABLED         = true;
-    static bool  CFG_ONLY_IN_VILLAGE = true;   // omezit drop jen na mapu vesnice
+    static bool  CFG_ONLY_IN_VILLAGE = true;
     static bool  CFG_DEBUG           = false;
     static bool  CFG_NOTIFY          = true;
     static bool  CFG_CAP_ENABLED     = true;
@@ -381,28 +381,28 @@ namespace GuildVillage
             addCut(M.crystal, blocked.crystal, CAP_CRYSTAL);
 
             if (!first)
-                // původně: ChatHandler(killer->GetSession()).SendSysMessage(capMsg.c_str());
                 BroadcastToGroup(killer, capMsg);
         }
 
-        // volitelně hláška
-        if (CFG_DEBUG)
-        {
-            std::string msg = "Zisk: ";
-            bool first = true;
-            auto add = [&](char const* n, uint32 v)
-            {
-                if (!v) return;
-                if (!first) msg += ", ";
-                msg += n; msg += " +"; msg += std::to_string(v);
-                first = false;
-            };
-            add("Dřevo",   applied.timber);
-            add("Kámen",   applied.stone);
-            add("Železo",  applied.iron);
-            add("Krystal", applied.crystal);
-            DebugMsg(killer, msg);
-        }
+		// volitelně hláška – respektuje názvy z configu
+		if (CFG_DEBUG)
+		{
+			auto M = GetMaterialNames();
+			std::string msg = T("Zisk: ", "Gain: ");
+			bool first = true;
+			auto add = [&](std::string const& n, uint32 v)
+			{
+				if (!v) return;
+				if (!first) msg += ", ";
+				msg += n; msg += " +"; msg += std::to_string(v);
+				first = false;
+			};
+			add(M.timber,  applied.timber);
+			add(M.stone,   applied.stone);
+			add(M.iron,    applied.iron);
+			add(M.crystal, applied.crystal);
+			DebugMsg(killer, msg);
+		}
     }
 
     static inline void ForceSaveRespawn(Creature* killed)

@@ -2,43 +2,50 @@
 # mod-guild-village – základní konfigurace
 # ---------------------------------------
 # CS: Přepínač jazyka pro texty (cs|en).
+#
 # EN: Language switch for texts (cs|en).
 GuildVillage.Locale = cs
 
 # Max počet současně existujících vesnic (min-max 1-30)
+#
 # Maximum number of villages that can exist at the same time (min-max 1-30)
 GuildVillage.MaxVillages = 30
 
 # Dny neaktivity Guild Mastera pro auto-úklid (0 = vypnuto)
+#
 # Days of Guild Master's inactivity before automatic cleanup (0 = disabled)
 GuildVillage.Inactivity.CleanupDays = 90
 
 # Zobrazit hlášku "X / Max" při otevření gossipu
+#
 # Show the "X / Max" message when opening the gossip
 GuildVillage.ShowCapacityMessage = 1
 
 # Kdo může spustit .village status?
 #     0 = pouze Guild Master, 1 = všichni členové gildy
+#
 # Who may use .village status?
 #     0 = Guild Master only, 1 = all guild members
 GuildVillage.Status.AllowAllMembers = 0
 
 # Povolit nákup jen pro Guild Mastera+Officier (true) nebo všem členům (false)
+#
 # Allow purchases only for Guild Master + Officers (true) or for all members (false)
 GuildVillage.RequireGuildMasterForPurchase = true
 
 # Schovat nákupní menu všem kromě Guild Mastera+Officier (true) nebo ho zobrazit všem (false)
+#
 # Hide the purchase menu for everyone except the Guild Master + Officers (true) or show it to all members (false)
 GuildVillage.HidePurchaseMenuForNonGM = true
 
-# Názvy materiálů pro chatový výpis (můžeš si upravit; pouze texty).
+# Názvy materiálů pro chatový výpis / ceník u vendora / loot zprávy (můžeš si upravit; pouze texty).
 # České názvy – používají se pouze pokud je GuildVillage.Locale = cs
 GuildVillage.Material.Timber  = Dřevo
 GuildVillage.Material.Stone   = Kámen
 GuildVillage.Material.Iron    = Železo
 GuildVillage.Material.Crystal = Krystal
 
-# Material names for chat messages (you can customize them; text only).
+# Material names for chat messages / price list at vendor / loot messages (you can customize them; text only).
 # English versions – only used when GuildVillage.Locale = en
 GuildVillage.MaterialEN.Timber  = Timber
 GuildVillage.MaterialEN.Stone   = Stone
@@ -46,15 +53,22 @@ GuildVillage.MaterialEN.Iron    = Iron
 GuildVillage.MaterialEN.Crystal = Crystal
 
 # === Guild Village – Purchase price ===
-# 0 = nevyžaduje se
-# cena ve zlatě (celá G)
+# 0 = nevyžaduje se, cena ve zlatě 
+#
+# 0 = not required, price in gold
 GuildVillage.Price.Gold = 5
+
 # item ID podmínky
+#
+# item ID requirement
 GuildVillage.Price.ItemId = 0
+
 # množství itemů
+#
+# number of items
 GuildVillage.Price.ItemCount = 0
 
-# === Default teleport / umístění nové vesnice (když se vytvoří) ===
+# === Default teleport in village / Místo teleportu ve vesnici ===
 GuildVillage.Default.Map = 37
 GuildVillage.Default.X   = 1026.7292
 GuildVillage.Default.Y   = 289.9494
@@ -63,14 +77,29 @@ GuildVillage.Default.O   = 3.4305837
 GuildVillage.Default.Phase = 1
 
 # === Guild Village: Loot ===
+# Povolit nebo zakázat loot pro currency
+#
+# Enable or disable loot for currency
 GuildVillage.Loot.Enabled = 1
+
+# Povolit nebo zakázat info o lootu currency
+#
+# Enable or disable currency loot info
 GuildVillage.Loot.Notify = 1
+
 # 1 = loot padá jen na map 37 / zone 268
+#
+# 1 = loot drops only on map 37 / zone 268
 GuildVillage.Loot.OnlyInVillage = 1
-# 1 = spam do chatu pro ladění
+
+# Pouze pro debug
+#
+# Only debug
 GuildVillage.Loot.Debug = 0
 
 # === Currency caps ===
+# Povolit limity pro jednotlivé měny (0 = neomezené pro danou měnu)
+#
 # Enable per-currency caps (0 = unlimited for that currency)
 GuildVillage.CurrencyCap.Enabled  = true
 GuildVillage.CurrencyCap.Timber   = 1000
@@ -81,6 +110,13 @@ GuildVillage.CurrencyCap.Crystal  = 1000
 ################################################################
 # Guild Village – Bot prevention
 ################################################################
+# Bezpečné místo, kam se teleportují hráči nebo boti, kteří
+# nejsou členy stejné guildy při pokusu o vstup do guild village.
+# (Zabránění zneužití nebo vstupu cizích botů)
+#
+# Safe location where players or bots are teleported if they are
+# not members of the same guild when trying to enter the guild village.
+# (Prevents unauthorized access or bot abuse)
 
 GuildVillage.Safe.Alliance.Map = 0
 GuildVillage.Safe.Alliance.X = -8833.379883
@@ -98,14 +134,26 @@ GuildVillage.Safe.Horde.O = 0.000000
 # Guild Village – Boss settings
 ################################################################
 
-# Thalgron the Earthshaker
+# === Thalgron the Earthshaker ===
+# Aktivuje Enrage po 2 minutách
+#
+# Activates Enrage after 2 minutes
 Thalgron.Heroic = 1
 
-# Voltrix the Unbound
+# === Voltrix the Unbound ===
+# Silnější Gravity Bomb a Searing Light
+#
+# Stronger Gravity Bomb and Searing Ligh
 Voltrix.Heroic = 0
 
-# Thranok the Unyielding
+# === Thranok the Unyielding ===
+# Silnější Rock Shard, Stomp, Impale
+#
+# Stronger Rock Shard, Stomp, and Impale
 Thranok.Heroic = 0
 
-# Thalor the Lifebinder
+# === Thalor the Lifebinder ===
+# Silnější Solar Flare a Unstable Sun Damage 
+#
+# Stronger Solar Flare and Unstable Sun Damage
 Thalor.Heroic = 0

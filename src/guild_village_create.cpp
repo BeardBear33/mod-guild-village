@@ -20,7 +20,7 @@
 #include "Transport.h"
 #include "Log.h"
 #include "gv_common.h"
-
+#include "Item.h"
 
 #include <string>
 #include <optional>
@@ -59,7 +59,7 @@ namespace GuildVillage
 
     struct GVPhaseData : public DataMap::Base
     {
-        uint32 phaseMask = 0; // požadovaná phase po teleportu
+        uint32 phaseMask = 0;
     };
 
     // Aktuální počet vesnic
@@ -535,7 +535,7 @@ namespace GuildVillage
                         return true;
                     }
 
-                    // === KLÍČOVÉ: chovej se jako příkaz – jen nastav stash a teleportuj ===
+                    // === jen nastavit stash a teleport ===
                     auto* stash = player->CustomData.GetDefault<GVPhaseData>("gv_phase");
                     stash->phaseMask = row->phase;
 
@@ -546,27 +546,43 @@ namespace GuildVillage
                 }
 
                 case 1002: // ACT_BUY
-                {
-                    ClearGossipMenuFor(player);
-
-                    std::string priceInfo;
-                    if (PriceGold() > 0)
-                        priceInfo += Acore::StringFormat("{}{}{}", T("Cena: ", "Price: "), PriceGold(), T(" g", " g"));
-                    if (PriceItemId() > 0 && PriceItemCount() > 0)
-                    {
-                        if (!priceInfo.empty()) priceInfo += " + ";
-                        priceInfo += Acore::StringFormat("{}{} × {}", T("Item ", "Item "), PriceItemId(), PriceItemCount());
-                    }
-                    if (priceInfo.empty()) priceInfo = T("Cena: zdarma", "Price: free");
-
-                    ChatHandler(player->GetSession()).SendSysMessage(priceInfo.c_str());
-
-                    AddGossipItemFor(player, GOSSIP_ICON_CHAT,
-                                     T("Ano, chci koupit vesnici", "Yes, purchase the village"),
-                                     GOSSIP_SENDER_MAIN, 1003);
-                    SendGossipMenuFor(player, 1, creature->GetGUID());
-                    return true;
-                }
+				{
+					ClearGossipMenuFor(player);
+				
+					std::string priceInfo = T("Cena: ", "Price: ");
+					bool empty = true;
+				
+					if (PriceGold() > 0)
+					{
+						priceInfo += Acore::StringFormat("{}g", PriceGold());
+						empty = false;
+					}
+				
+					if (PriceItemId() > 0 && PriceItemCount() > 0)
+					{
+						if (!empty) priceInfo += " + ";
+				
+						std::string itemName;
+						if (auto const* proto = sObjectMgr->GetItemTemplate(PriceItemId()))
+							itemName = proto->Name1;
+						else
+							itemName = Acore::StringFormat("Item {}", PriceItemId());
+				
+						priceInfo += Acore::StringFormat("{}x {}", PriceItemCount(), itemName);
+						empty = false;
+					}
+				
+					if (empty)
+						priceInfo += T("zdarma", "free");
+				
+					ChatHandler(player->GetSession()).SendSysMessage(priceInfo.c_str());
+				
+					AddGossipItemFor(player, GOSSIP_ICON_CHAT,
+									T("Ano, chci koupit vesnici", "Yes, purchase the village"),
+									GOSSIP_SENDER_MAIN, 1003);
+					SendGossipMenuFor(player, 1, creature->GetGUID());
+					return true;
+				}
 
                 case 1003: // ACT_CONFIRM_BUY
                 {
