@@ -1,52 +1,64 @@
 #include "CreatureScript.h"
+#include "Player.h"
 #include "ScriptedCreature.h"
+#include "SpellScript.h"
+#include "SpellScriptLoader.h"
 #include "Config.h"
 
 // =====================================
-// Thranok the Unyielding (open-world)
+// Thranok the Unyielding
 // =====================================
-//
-// Texty jsou přímo v kódu – není potřeba creature_text!
-// Crystal Spikes kompletně odstraněny.
-// =====================================
+// - Heroic toggle: Thranok.Heroic = 1  (25-man hodnoty kouzel)
+// - Schopnosti: Rock Shards, Stomp, Impale, Berserk (5m)
 
 static bool ThranokHeroic()
 {
     return sConfigMgr->GetOption<bool>("Thranok.Heroic", false);
 }
+static inline uint32 R10_25(uint32 id10, uint32 id25) { return ThranokHeroic() ? id25 : id10; }
 
+// ---------- Spells ----------
 enum Spells
 {
-    SPELL_SPELL_REFLECTION           = 47981,
-    SPELL_TRAMPLE                    = 48016,
-    SPELL_FRENZY                     = 48017,
-    SPELL_SUMMON_CRYSTALLINE_TANGLER = 61564
+    SPELL_ROCK_SHARDS             = 58678,
+
+    SPELL_ROCK_SHARDS_DAMAGE_10   = 58695,
+    SPELL_ROCK_SHARDS_DAMAGE_25   = 60883,
+
+    SPELL_STOMP_10                = 58663,
+    SPELL_STOMP_25                = 60880,
+    SPELL_IMPALE_10               = 58666,
+    SPELL_IMPALE_25               = 60882,
+
+    SPELL_BERSERK                 = 47008
 };
 
 enum Events
 {
-    EVENT_THRANOK_TRAMPLE = 1,
-    EVENT_THRANOK_SPELL_REFLECTION,
-    EVENT_THRANOK_SUMMON,
-    EVENT_THRANOK_HEALTH,
-    EVENT_KILL_TALK
+    EVENT_ROCK_SHARDS = 1,
+    EVENT_STOMP,
+    EVENT_IMPALE,
+    EVENT_BERSERK
 };
 
-// =====================
-// Boss AI (open-world)
-// =====================
+// ---------- (volitelné) hlášky ----------
+struct ThranokYellsA
+{
+    static void Aggro(Creature* me)   { me->Yell("Stone will break you!", LANG_UNIVERSAL, nullptr); }
+    static void Stomp(Creature* me)   { me->Yell("Tremble!", LANG_UNIVERSAL, nullptr); }
+    static void Berserk(Creature* me) { me->Yell("Crush them all!", LANG_UNIVERSAL, nullptr); }
+    static void Slay(Creature* me)    { me->Yell("Ground to dust.", LANG_UNIVERSAL, nullptr); }
+    static void Death(Creature* me)   { me->Yell("…stone cracks…", LANG_UNIVERSAL, nullptr); }
+};
+
+// =====================================
+// Boss AI
+// =====================================
 struct boss_thranok_the_unyielding : public ScriptedAI
 {
-    boss_thranok_the_unyielding(Creature* creature) : ScriptedAI(creature) { }
+    boss_thranok_the_unyielding(Creature* c) : ScriptedAI(c) {}
 
     EventMap events;
-
-    // ====== in-code hlášky ======
-    void YellAggro()   { me->Yell("Noo!",  LANG_UNIVERSAL, nullptr); }
-    void YellDeath()   { me->Yell("Aaggh!", LANG_UNIVERSAL, nullptr); }
-    void YellReflect() { me->Yell("Back!", LANG_UNIVERSAL, nullptr); }
-    void YellKill()    { me->Yell("Kill!", LANG_UNIVERSAL, nullptr); }
-    void EmoteFrenzy() { me->TextEmote("%s goes into a frenzy!", me); }
 
     void Reset() override
     {
@@ -55,29 +67,25 @@ struct boss_thranok_the_unyielding : public ScriptedAI
 
     void JustEngagedWith(Unit* /*who*/) override
     {
-        YellAggro();
+        ThranokYellsA::Aggro(me);
 
-        events.ScheduleEvent(EVENT_THRANOK_TRAMPLE, 10s);
-        events.ScheduleEvent(EVENT_THRANOK_SPELL_REFLECTION, 30s);
-        events.ScheduleEvent(EVENT_THRANOK_HEALTH, 1s);
+        // Timery
+        events.ScheduleEvent(EVENT_ROCK_SHARDS, 15s);
+        events.ScheduleEvent(EVENT_STOMP,       45s);
+        events.ScheduleEvent(EVENT_BERSERK,      5min);
 
-        if (ThranokHeroic())
-            events.ScheduleEvent(EVENT_THRANOK_SUMMON, 17s);
+        me->setActive(true);
+    }
+
+    void KilledUnit(Unit* v) override
+    {
+        if (v->IsPlayer())
+            ThranokYellsA::Slay(me);
     }
 
     void JustDied(Unit* /*killer*/) override
     {
-        YellDeath();
-    }
-
-    void KilledUnit(Unit* /*victim*/) override
-    {
-        // omezíme spam kill hlášky
-        if (events.GetNextEventTime(EVENT_KILL_TALK) == 0)
-        {
-            YellKill();
-            events.ScheduleEvent(EVENT_KILL_TALK, 6s);
-        }
+        ThranokYellsA::Death(me);
     }
 
     void UpdateAI(uint32 diff) override
@@ -89,42 +97,46 @@ struct boss_thranok_the_unyielding : public ScriptedAI
         if (me->HasUnitState(UNIT_STATE_CASTING))
             return;
 
-        while (uint32 eventId = events.ExecuteEvent())
+        switch (events.ExecuteEvent())
         {
-            switch (eventId)
+            case EVENT_ROCK_SHARDS:
             {
-                case EVENT_THRANOK_HEALTH:
-                {
-                    if (me->HealthBelowPct(26))
-                    {
-                        me->CastSpell(me, SPELL_FRENZY, true);
-                        EmoteFrenzy();
-                        // neschedulujeme znovu; jednorázově
-                        break;
-                    }
-                    events.ScheduleEvent(EVENT_THRANOK_HEALTH, 1s);
-                    break;
-                }
-                case EVENT_THRANOK_TRAMPLE:
-                {
-                    me->CastSpell(me, SPELL_TRAMPLE, false);
-                    events.ScheduleEvent(EVENT_THRANOK_TRAMPLE, 10s);
-                    break;
-                }
-                case EVENT_THRANOK_SPELL_REFLECTION:
-                {
-                    YellReflect();
-                    me->CastSpell(me, SPELL_SPELL_REFLECTION, false);
-                    events.ScheduleEvent(EVENT_THRANOK_SPELL_REFLECTION, 30s);
-                    break;
-                }
-                case EVENT_THRANOK_SUMMON:
-                {
-                    if (Unit* target = SelectTarget(SelectTargetMethod::MinDistance, 0, 50.0f, true))
-                        me->CastSpell(target, SPELL_SUMMON_CRYSTALLINE_TANGLER, true);
-                    events.ScheduleEvent(EVENT_THRANOK_SUMMON, 17s);
-                    break;
-                }
+                // Vybrat náhodný cíl a cast trigger 58678 (viz SpellScript níže).
+                if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0))
+                    me->CastSpell(target, SPELL_ROCK_SHARDS, false);
+
+                events.Repeat(15s);
+                break;
+            }
+
+			case EVENT_STOMP:
+			{
+				if (Unit* v = me->GetVictim())
+				{
+					std::string msg = std::string(me->GetName()) + " stomps the ground at " + v->GetName() + "!";
+					me->TextEmote(msg, v, /*isBossEmote=*/true);
+			
+					ThranokYellsA::Stomp(me);
+					me->CastSpell(v, R10_25(SPELL_STOMP_10, SPELL_STOMP_25), false);
+				}
+			
+				events.Repeat(45s);
+				events.ScheduleEvent(EVENT_IMPALE, 3s);
+				break;
+			}
+
+
+            case EVENT_IMPALE:
+            {
+                me->CastSpell(me->GetVictim(), R10_25(SPELL_IMPALE_10, SPELL_IMPALE_25), false);
+                break;
+            }
+
+            case EVENT_BERSERK:
+            {
+                ThranokYellsA::Berserk(me);
+                me->CastSpell(me, SPELL_BERSERK, true);
+                break;
             }
         }
 
@@ -133,9 +145,41 @@ struct boss_thranok_the_unyielding : public ScriptedAI
 };
 
 // ===============================
-// Lokální registrátor pro loader
+// SpellScript: Rock Shards
+// ===============================
+class spell_thranok_rock_shards : public SpellScript
+{
+    PrepareSpellScript(spell_thranok_rock_shards);
+
+    bool Validate(SpellInfo const* /*spellInfo*/) override
+    {
+        return ValidateSpellInfo({ SPELL_ROCK_SHARDS_DAMAGE_10, SPELL_ROCK_SHARDS_DAMAGE_25 });
+    }
+
+    void HandleScript(SpellEffIndex effIndex)
+    {
+        PreventHitDefaultEffect(effIndex);
+
+        Unit* caster = GetCaster();
+        Unit* target = GetHitUnit();
+        if (!caster || !target)
+            return;
+
+        uint32 dmgId = R10_25(SPELL_ROCK_SHARDS_DAMAGE_10, SPELL_ROCK_SHARDS_DAMAGE_25);
+        caster->CastSpell(target, dmgId, true);
+    }
+
+    void Register() override
+    {
+        OnEffectHitTarget += SpellEffectFn(spell_thranok_rock_shards::HandleScript, EFFECT_0, SPELL_EFFECT_SCRIPT_EFFECT);
+    }
+};
+
+// ===============================
+// Registrátor
 // ===============================
 void RegisterGuildVillageThranok()
 {
     RegisterCreatureAI(boss_thranok_the_unyielding);
+    RegisterSpellScript(spell_thranok_rock_shards);
 }

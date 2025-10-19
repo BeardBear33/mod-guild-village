@@ -7,6 +7,8 @@
 #include "DatabaseEnv.h"
 #include "Chat.h"
 #include "Config.h"
+#include "Group.h"
+#include "Log.h"
 
 #include <unordered_map>
 #include <vector>
@@ -91,39 +93,50 @@ namespace GuildVillage
         return p && (p->GetMapId() == DefMap());
     }
 
-    static Cur ParseCurrency(std::string s)
-    {
-        std::transform(s.begin(), s.end(), s.begin(), ::tolower);
-        if (s == "timber"  || s == "drevo" || s == "dřevo") return Cur::Timber;
-        if (s == "stone"   || s == "kamen" || s == "kámen") return Cur::Stone;
-        if (s == "iron"    || s == "zelezo"|| s == "železo")return Cur::Iron;
-        // default -> crystal
-        return Cur::Crystal;
-    }
+	static bool ParseCurrency(std::string s, Cur& out)
+	{
+		std::transform(s.begin(), s.end(), s.begin(), ::tolower);
+	
+		if (s == "timber"  || s == "drevo"  || s == "dřevo")  { out = Cur::Timber;  return true; }
+		if (s == "stone"   || s == "kamen"  || s == "kámen")  { out = Cur::Stone;   return true; }
+		if (s == "iron"    || s == "zelezo" || s == "železo") { out = Cur::Iron;    return true; }
+		if (s == "crystal" || s == "krystal")                  { out = Cur::Crystal; return true; }
+	
+		return false; // neznámá měna
+	}
 
-    static void LoadLootTable()
-    {
-        s_loot.clear();
-
-        if (QueryResult res = WorldDatabase.Query(
-            "SELECT entry, currency, chance, min_amount, max_amount "
-            "FROM customs.gv_loot"))
-        {
-            do
-            {
-                Field* f = res->Fetch();
-                uint32 entry      = f[0].Get<uint32>();
-                std::string curS  = f[1].Get<std::string>();
-                float  chance     = f[2].Get<float>();
-                uint32 minA       = f[3].Get<uint32>();
-                uint32 maxA       = f[4].Get<uint32>();
-
-                if (minA > maxA) std::swap(minA, maxA);
-                LootRow row { ParseCurrency(curS), std::max(0.f, std::min(chance, 100.f)), minA, maxA };
-                s_loot[entry].push_back(row);
-            } while (res->NextRow());
-        }
-    }
+	static void LoadLootTable()
+	{
+		s_loot.clear();
+	
+		if (QueryResult res = WorldDatabase.Query(
+			"SELECT entry, currency, chance, min_amount, max_amount "
+			"FROM customs.gv_loot"))
+		{
+			do
+			{
+				Field* f = res->Fetch();
+				uint32 entry      = f[0].Get<uint32>();
+				std::string curS  = f[1].Get<std::string>();
+				float  chance     = f[2].Get<float>();
+				uint32 minA       = f[3].Get<uint32>();
+				uint32 maxA       = f[4].Get<uint32>();
+	
+				if (minA > maxA)
+					std::swap(minA, maxA);
+	
+				Cur cur;
+				if (!ParseCurrency(curS, cur))
+				{
+					LOG_WARN("guildvillage", "Unknown currency '%s' in customs.gv_loot (entry %u) — skipping.", curS.c_str(), entry);
+					continue; // přeskočí neznámou měnu
+				}
+	
+				LootRow row { cur, std::max(0.f, std::min(chance, 100.f)), minA, maxA };
+				s_loot[entry].push_back(row);
+			} while (res->NextRow());
+		}
+	}
 
     static void OnConfigLoad()
     {
@@ -181,7 +194,7 @@ namespace GuildVillage
             return g;
         }
 
-        // načti aktuální stav
+        // načíst aktuální stav
         uint32 curTim=0, curSto=0, curIro=0, curCry=0;
         if (QueryResult q = WorldDatabase.Query(
                 "SELECT timber, stone, iron, crystal FROM customs.gv_currency WHERE guildId={}", guildId))
@@ -226,6 +239,31 @@ namespace GuildVillage
     {
         if (!CFG_DEBUG || !p) return;
         ChatHandler(p->GetSession()).SendSysMessage(("[GV-LOOT] " + msg).c_str());
+    }
+
+    // === Broadcast helper: poslat zprávu celé party/raidu poblíž killer-a (default 100 yd) ===
+    static void BroadcastToGroup(Player* killer, std::string const& msg, float rangeYards = 100.f)
+    {
+        if (!killer) return;
+
+        if (Group* grp = killer->GetGroup())
+        {
+            for (GroupReference* itr = grp->GetFirstMember(); itr; itr = itr->next())
+            {
+                if (Player* m = itr->GetSource())
+                {
+                    if (m->IsInWorld() && m->GetMapId() == killer->GetMapId() &&
+                        killer->GetDistance(m) <= rangeYards)
+                    {
+                        ChatHandler(m->GetSession()).SendSysMessage(msg.c_str());
+                    }
+                }
+            }
+        }
+        else
+        {
+            ChatHandler(killer->GetSession()).SendSysMessage(msg.c_str());
+        }
     }
 
     static void ProcessKill(Player* killer, Creature* killed)
@@ -317,7 +355,7 @@ namespace GuildVillage
             add(M.iron,    applied.iron);
             add(M.crystal, applied.crystal);
 
-            ChatHandler(killer->GetSession()).SendSysMessage(msg.c_str());
+            BroadcastToGroup(killer, msg);
         }
 
         // Pokud cap něco ořízl
@@ -343,7 +381,8 @@ namespace GuildVillage
             addCut(M.crystal, blocked.crystal, CAP_CRYSTAL);
 
             if (!first)
-                ChatHandler(killer->GetSession()).SendSysMessage(capMsg.c_str());
+                // původně: ChatHandler(killer->GetSession()).SendSysMessage(capMsg.c_str());
+                BroadcastToGroup(killer, capMsg);
         }
 
         // volitelně hláška

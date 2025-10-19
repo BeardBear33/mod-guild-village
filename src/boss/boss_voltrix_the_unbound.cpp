@@ -1,155 +1,213 @@
 #include "CreatureScript.h"
 #include "Player.h"
 #include "ScriptedCreature.h"
+#include "SpellAuraEffects.h"
 #include "SpellScript.h"
 #include "SpellScriptLoader.h"
 #include "Config.h"
-#include "Random.h"
+#include "PassiveAI.h"
+#include "Opcodes.h"
 
-// =====================================
-// Voltrix the Unbound (Guild Village Boss)
-// =====================================
-// Konfigurační klíč: Voltrix.Heroic = 1
-// -> zapne "heroic" styl (Polarity Shift místo štítů)
-
+// ============================
+// Config: 10 / 25 pomocná volba
+// ============================
 static bool VoltrixHeroic()
 {
     return sConfigMgr->GetOption<bool>("Voltrix.Heroic", false);
 }
+static uint32 R10_25(uint32 id10, uint32 id25)
+{
+    return VoltrixHeroic() ? id25 : id10;
+}
 
-// ---------- Kouzla ----------
+// ============================
+// Spells
+// ============================
 enum Spells
 {
-    SPELL_HEADCRACK                 = 35161,
-    SPELL_REFLECTIVE_MAGIC_SHIELD   = 35158,
-    SPELL_REFLECTIVE_DAMAGE_SHIELD  = 35159,
-    SPELL_POLARITY_SHIFT            = 39096,
-    SPELL_BERSERK                   = 26662,
-
-    SPELL_NETHER_CHARGE_PASSIVE     = 35150,
-    SPELL_SUMMON_NETHER_CHARGE_NE   = 35153,
-    SPELL_SUMMON_NETHER_CHARGE_NW   = 35904,
-    SPELL_SUMMON_NETHER_CHARGE_SE   = 35905,
-    SPELL_SUMMON_NETHER_CHARGE_SW   = 35906,
+    // BASIC
+    SPELL_GRAVITY_BOMB_10   = 63024,
+    SPELL_GRAVITY_BOMB_25   = 64234,
+    SPELL_SEARING_LIGHT_10  = 63018,
+    SPELL_SEARING_LIGHT_25  = 65121,
+    SPELL_TYMPANIC_TANTARUM = 62776,
+    SPELL_ENRAGE            = 26662
 };
 
-// (enum Yells ponechaný kvůli čitelnosti – texty bereme z kódu přes me->Yell())
-enum Yells
+enum Events
 {
-    SAY_AGGRO                      = 0,
-    SAY_REFLECTIVE_MAGIC_SHIELD    = 1,
-    SAY_REFLECTIVE_DAMAGE_SHIELD   = 2,
-    SAY_KILL                       = 3,
-    SAY_DEATH                      = 4
+    EVENT_GRAVITY_BOMB = 1,
+    EVENT_SEARING_LIGHT,
+    EVENT_ENRAGE,
+    EVENT_TANTRUM
 };
 
-// =====================================
-// Boss AI
-// =====================================
+// ============================
+// Boss Voltrix
+// ============================
 struct boss_voltrix_the_unbound : public ScriptedAI
 {
-    boss_voltrix_the_unbound(Creature* creature) : ScriptedAI(creature) { }
+    boss_voltrix_the_unbound(Creature* c) : ScriptedAI(c), summons(me) { }
 
-    // ---- in-code hlášky (bez creature_text) ----
-    void YellAggro()                 { me->Yell("You should split while you can.", LANG_UNIVERSAL, nullptr); }
-    void YellMagicShield()           { me->Yell("Go ahead, gimme your best shot.  I can take it!", LANG_UNIVERSAL, nullptr); }
-    void YellDamageShield()          { me->Yell("Think you can hurt me, huh?  Think I'm afraid a' you?", LANG_UNIVERSAL, nullptr); }
-    void YellKillRandom()
+    EventMap events;
+    SummonList summons;
+
+    // Yelly
+    void YellAggro()   { me->Yell("New toys? For me? I promise I won't break them this time!", LANG_UNIVERSAL, nullptr); }
+    void YellTantrum() { me->Yell("NO! NO! NO! NO! NO!", LANG_UNIVERSAL, nullptr); }
+    void YellSlay()    { me->Yell(urand(0,1) ? "I... I think I broke it." : "I guess it doesn't bend that way.", LANG_UNIVERSAL, nullptr); }
+    void YellBerserk() { me->Yell("I'm tired of these toys. I don't want to play anymore!", LANG_UNIVERSAL, nullptr); }
+    void YellDeath()   { me->Yell("You are bad... Toys... Very... Baaaaad", LANG_UNIVERSAL, nullptr); }
+
+    // helper: 10/25
+    uint32 SPELL_GRAVITY_BOMB() const { return R10_25(SPELL_GRAVITY_BOMB_10,  SPELL_GRAVITY_BOMB_25); }
+    uint32 SPELL_SEARING_LIGHT() const { return R10_25(SPELL_SEARING_LIGHT_10, SPELL_SEARING_LIGHT_25); }
+
+    void Reset() override
     {
-        if (urand(0, 1) == 0) me->Yell("Can't say I didn't warn you....", LANG_UNIVERSAL, nullptr);
-        else                  me->Yell("Damn, I'm good!", LANG_UNIVERSAL, nullptr);
+        events.Reset();
+        summons.DespawnAll();
+        me->RemoveAllAuras();
+        me->RemoveUnitFlag(UNIT_FLAG_NON_ATTACKABLE | UNIT_FLAG_NOT_SELECTABLE);
+        me->SetControlled(false, UNIT_STATE_STUNNED);
     }
-    void YellDeath()                 { me->Yell("Bully!", LANG_UNIVERSAL, nullptr); }
 
-    void JustEngagedWith(Unit* /*who*/) override
+    void JustReachedHome() override { me->setActive(false); }
+
+    void JustEngagedWith(Unit*) override
     {
+        me->setActive(true);
+        me->CallForHelp(175.0f);
         YellAggro();
 
-        // Headcrack
-        scheduler.Schedule(6s, [this](TaskContext context)
-        {
-            DoCastVictim(SPELL_HEADCRACK);
-            context.Repeat(20s);
-        });
-
-        // Nether Charges
-        scheduler.Schedule(10s, [this](TaskContext context)
-        {
-            uint32 spellId = RAND(SPELL_SUMMON_NETHER_CHARGE_NE,
-                                  SPELL_SUMMON_NETHER_CHARGE_NW,
-                                  SPELL_SUMMON_NETHER_CHARGE_SE,
-                                  SPELL_SUMMON_NETHER_CHARGE_SW);
-            DoCastAOE(spellId);
-            context.Repeat(2400ms, 3600ms);
-        });
-
-        // Berserk po 3 minutách
-        scheduler.Schedule(3min, [this](TaskContext /*context*/)
-        {
-            DoCastSelf(SPELL_BERSERK, true);
-        });
-
-        // Heroic-like režim (Polarity Shift) – vlastní SpellScripty NEPOTŘEBUJEME,
-        // používáme mechanarové 'spell_capacitus_*' z jádra (mapované v DB).
-        if (VoltrixHeroic())
-        {
-            scheduler.Schedule(15s, [this](TaskContext context)
-            {
-                DoCastSelf(SPELL_POLARITY_SHIFT, true);
-                context.Repeat(30s);
-            });
-        }
-        else
-        {
-            scheduler.Schedule(15s, [this](TaskContext context)
-            {
-                if (IsEvenNumber(context.GetRepeatCounter()))
-                {
-                    YellDamageShield();
-                    DoCastSelf(SPELL_REFLECTIVE_DAMAGE_SHIELD);
-                }
-                else
-                {
-                    YellMagicShield();
-                    DoCastSelf(SPELL_REFLECTIVE_MAGIC_SHIELD);
-                }
-                context.Repeat(20s);
-            });
-        }
+        // core rota
+        events.RescheduleEvent(EVENT_GRAVITY_BOMB, 1s);
+        events.RescheduleEvent(EVENT_TANTRUM, 1min);
+        events.RescheduleEvent(EVENT_ENRAGE, 10min);
     }
 
-    void KilledUnit(Unit* victim) override
+    void KilledUnit(Unit* v) override
     {
-        if (victim->IsPlayer())
-            YellKillRandom();
+        if (v->IsPlayer() && !urand(0,2))
+            YellSlay();
     }
 
-    void JustDied(Unit* /*killer*/) override
+    void JustDied(Unit*) override
     {
         YellDeath();
+        summons.DespawnAll();
     }
 
-    void JustSummoned(Creature* summon) override
-    {
-        // pojistky pro „Nether Charge“ i mimo instanci
-        summon->GetMotionMaster()->MoveRandom(30.0f);
-        summon->CastSpell(summon, SPELL_NETHER_CHARGE_PASSIVE, true);
-        summon->DespawnOrUnsummon(10000); // 10s v ms
-    }
+    void JustSummoned(Creature* cr) override { summons.Summon(cr); }
+    void SummonedCreatureDespawn(Creature* cr) override { summons.Despawn(cr); }
 
     void UpdateAI(uint32 diff) override
     {
         if (!UpdateVictim())
             return;
-        scheduler.Update(diff, [this]{ DoMeleeAttackIfReady(); });
+
+        events.Update(diff);
+        if (me->HasUnitState(UNIT_STATE_CASTING))
+            return;
+
+        switch (events.ExecuteEvent())
+        {
+            case EVENT_GRAVITY_BOMB:
+                me->CastCustomSpell(SPELL_GRAVITY_BOMB(), SPELLVALUE_MAX_TARGETS, 1, me, true);
+                events.ScheduleEvent(EVENT_SEARING_LIGHT, 10s);
+                break;
+
+            case EVENT_SEARING_LIGHT:
+                me->CastCustomSpell(SPELL_SEARING_LIGHT(), SPELLVALUE_MAX_TARGETS, 1, me, true);
+                events.ScheduleEvent(EVENT_GRAVITY_BOMB, 10s);
+                break;
+
+            case EVENT_TANTRUM:
+                YellTantrum();
+                me->CastSpell(me, SPELL_TYMPANIC_TANTARUM, true);
+                events.Repeat(1min);
+                break;
+
+            case EVENT_ENRAGE:
+                YellBerserk();
+                me->CastSpell(me, SPELL_ENRAGE, true);
+                break;
+        }
+
+        DoMeleeAttackIfReady();
     }
 };
 
-// =====================================
-// Lokální registrátor pro loader.cpp
-// =====================================
+// ============================
+// Spell skripty
+// ============================
+
+class spell_voltrix_tympanic_tantrum : public SpellScript
+{
+    PrepareSpellScript(spell_voltrix_tympanic_tantrum);
+
+    void FilterTargets(std::list<WorldObject*>& targets) { targets.remove_if(PlayerOrPetCheck()); }
+    void RecalculateDamage() { if (GetHitUnit()) SetHitDamage(GetHitUnit()->CountPctFromMaxHealth(GetHitDamage())); }
+
+    void Register() override
+    {
+        OnObjectAreaTargetSelect += SpellObjectAreaTargetSelectFn(spell_voltrix_tympanic_tantrum::FilterTargets, EFFECT_ALL, TARGET_UNIT_SRC_AREA_ENEMY);
+        OnHit += SpellHitFn(spell_voltrix_tympanic_tantrum::RecalculateDamage);
+    }
+};
+
+// Gravity Bomb – nezasáhne aktuálního tank target (bez Acore::ObjectGUIDCheck)
+class spell_voltrix_gravity_bomb : public SpellScript
+{
+    PrepareSpellScript(spell_voltrix_gravity_bomb);
+
+    void SelectTarget(std::list<WorldObject*>& targets)
+    {
+        if (Unit* victim = GetCaster()->GetVictim())
+        {
+            auto vg = victim->GetGUID();
+            targets.remove_if([&](WorldObject* obj)
+            {
+                return obj && obj->GetGUID() == vg;
+            });
+        }
+    }
+    void Register() override
+    {
+        OnObjectAreaTargetSelect += SpellObjectAreaTargetSelectFn(spell_voltrix_gravity_bomb::SelectTarget, EFFECT_ALL, TARGET_UNIT_DEST_AREA_ENEMY);
+    }
+};
+
+// 63018/65121 – Searing Light: jen target filtr (bez Acore::ObjectGUIDCheck)
+class spell_voltrix_searing_light : public SpellScript
+{
+    PrepareSpellScript(spell_voltrix_searing_light);
+
+    void SelectTarget(std::list<WorldObject*>& targets)
+    {
+        if (Unit* victim = GetCaster()->GetVictim())
+        {
+            auto vg = victim->GetGUID();
+            targets.remove_if([&](WorldObject* obj)
+            {
+                return obj && obj->GetGUID() == vg;
+            });
+        }
+    }
+    void Register() override
+    {
+        OnObjectAreaTargetSelect += SpellObjectAreaTargetSelectFn(spell_voltrix_searing_light::SelectTarget, EFFECT_ALL, TARGET_UNIT_DEST_AREA_ENEMY);
+    }
+};
+
+// ============================
+// Registrace
+// ============================
 void RegisterGuildVillageVoltrix()
 {
     RegisterCreatureAI(boss_voltrix_the_unbound);
-    // ŽÁDNÉ RegisterSpellScript – používáme mechanarové spell_capacitus_* z jádra
+
+    RegisterSpellScript(spell_voltrix_tympanic_tantrum);
+    RegisterSpellScript(spell_voltrix_gravity_bomb);
+    RegisterSpellScript(spell_voltrix_searing_light);
 }

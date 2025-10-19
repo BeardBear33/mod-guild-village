@@ -5,8 +5,7 @@
 #include "Random.h"
 
 // =====================================
-// Thalor the Lifebinder (open-world boss)
-// Vychází z Elder Brightleaf (Freya encounter), ale BEZ instance logiky.
+// Thalor the Lifebinder
 // - Flux (stacky) -> Solar Flare (škáluje dle stacků)
 // - Unstable Sun Beams: 2x paprsek s aurami, po chvíli výbuch a despawn
 // - Hlášky jsou přímo v kódu (bez creature_text)
@@ -19,7 +18,7 @@ static bool ThalorHeroic()
     return sConfigMgr->GetOption<bool>("Thalor.Heroic", false);
 }
 
-// ---------- Spelly (Brightleaf) ----------
+// ---------- Spelly ----------
 enum Spells
 {
     SPELL_BRIGHTLEAF_FLUX            = 62239,
@@ -31,7 +30,7 @@ enum Spells
     SPELL_UNSTABLE_SUN_DAMAGE_25     = 62922
 };
 
-// ---------- NPC (Brightleaf beam) ----------
+// ---------- NPC ----------
 enum Npcs
 {
     NPC_UNSTABLE_SUN_BRIGHTLEAF      = 33050
@@ -50,9 +49,9 @@ enum Events
 // ---------- Hlášky (in-code) ----------
 enum Yells
 {
-    SAY_AGGRO = 0, // "Matron, the Conservatory has been breached!"
-    SAY_SLAY  = 1, // "Fertilizer." / "Your corpse will nourish the soil."
-    SAY_DEATH = 2  // "Matron, one has fallen!"
+    SAY_AGGRO = 0, 
+    SAY_SLAY  = 1,
+    SAY_DEATH = 2
 };
 
 // Pomocná volba 10/25 verze
@@ -71,7 +70,7 @@ struct boss_thalor_the_lifebinder : public ScriptedAI
     EventMap events;
     SummonList summons;
 
-    // ---- in-code hlášky (bez creature_text) ----
+    // ---- in-code hlášky ----
     void YellAggro() { me->Yell("Matron, the Conservatory has been breached!", LANG_UNIVERSAL, nullptr); }
     void YellSlay()
     {
@@ -93,11 +92,10 @@ struct boss_thalor_the_lifebinder : public ScriptedAI
         events.Reset();
         YellAggro();
 
-        // Timery podle Elder Brightleaf (upravené pro open-world)
-        events.ScheduleEvent(EVENT_FLUX,               10s);  // stacky Fluxu
-        events.ScheduleEvent(EVENT_SOLAR_FLARE,         5s);  // pálí dle stacků
-        events.ScheduleEvent(EVENT_UNSTABLE_SUN_BEAM,   8s);  // 2x beam → po 15s výbuch
-        me->SetInCombatWithZone();
+        // Timery
+        events.ScheduleEvent(EVENT_FLUX,               10s);
+        events.ScheduleEvent(EVENT_SOLAR_FLARE,         5s);
+        events.ScheduleEvent(EVENT_UNSTABLE_SUN_BEAM,   8s);
     }
 
     void KilledUnit(Unit* victim) override

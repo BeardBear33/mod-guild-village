@@ -5,8 +5,8 @@
 # EN: Language switch for texts (cs|en).
 GuildVillage.Locale = cs
 
-# Max počet současně existujících vesnic
-# Maximum number of villages that can exist at the same time
+# Max počet současně existujících vesnic (min-max 1-30)
+# Maximum number of villages that can exist at the same time (min-max 1-30)
 GuildVillage.MaxVillages = 30
 
 # Dny neaktivity Guild Mastera pro auto-úklid (0 = vypnuto)
@@ -79,24 +79,33 @@ GuildVillage.CurrencyCap.Iron     = 1000
 GuildVillage.CurrencyCap.Crystal  = 1000
 
 ################################################################
+# Guild Village – Bot prevention
+################################################################
+
+GuildVillage.Safe.Alliance.Map = 0
+GuildVillage.Safe.Alliance.X = -8833.379883
+GuildVillage.Safe.Alliance.Y = 628.619995
+GuildVillage.Safe.Alliance.Z = 94.000000
+GuildVillage.Safe.Alliance.O = 0.000000
+
+GuildVillage.Safe.Horde.Map = 1
+GuildVillage.Safe.Horde.X = 1629.849976
+GuildVillage.Safe.Horde.Y = -4373.640137
+GuildVillage.Safe.Horde.Z = 31.549999
+GuildVillage.Safe.Horde.O = 0.000000
+
+################################################################
 # Guild Village – Boss settings
 ################################################################
 
 # Thalgron the Earthshaker
-# 0 = normal (bez Ground Spike, používá N verze spellů)
-# 1 = heroic (zapne Ground Spike a používá H verze spellů)
 Thalgron.Heroic = 1
 
-# (Volitelné – pro ostatní dva bossy, které už máš)
 # Voltrix the Unbound
-# 0 = střídá Reflective Shields, 1 = používá Polarity Shift (heroic-like)
-Voltrix.Heroic = 1
+Voltrix.Heroic = 0
 
 # Thranok the Unyielding
-# 0 = bez summonů Crystalline Tangler, 1 = summony povoleny
-Thranok.Heroic = 1
+Thranok.Heroic = 0
 
 # Thalor the Lifebinder
-# 0 = “10-man” verze spellů (default)
-# 1 = “25-man” verze spellů (vyšší dmg, víc cílů apod.)
-Thalor.Heroic = 1
+Thalor.Heroic = 0
