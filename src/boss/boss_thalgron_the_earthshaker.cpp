@@ -7,16 +7,17 @@
 #include "Config.h"
 
 // ============================
-// Thalgron the Earthshaker
+// Thalgron the Earthshaker — Koralon-style (open-world)
 // ============================
 //
 // Schopnosti:
 //  - Burning Breath (periodicky; boss se při tom „točí“ kolem dokola)
 //  - Meteor Fists (proc aura -> dodatečné zásahy při mele)
-//  - Flaming Cinder (náhodné cíle; dummy -> missile)
+//  - Flaming Cinder (náhodné cíle; PŘÍMO vystřelený missile, bez SpellScriptu)
 //  - (HC) Enrage po 5 minutách, zapíná se přes Thalgron.Heroic = 1
+// Bez instance logiky, bez SetInCombatWithZone.
 //
-//
+
 // ============================
 // Heroic toggle (config)
 // ============================
@@ -25,20 +26,19 @@ static bool ThalgronHeroic()
     return sConfigMgr->GetOption<bool>("Thalgron.Heroic", false);
 }
 
-// --- Spelly (převzaté z Koralona) ---
+// --- Spelly (z Koralona) ---
 enum Spells
 {
-    SPELL_BURNING_FURY               = 68168,
-    SPELL_BURNING_BREATH             = 66665,
-    SPELL_FLAMING_CINDER             = 66681,
-    SPELL_FLAMING_CINDER_DUMMY       = 66690,
-    SPELL_FLAMING_CINDER_MISSILE     = 66682,
-    SPELL_METEOR_FISTS               = 66725,
-    SPELL_METEOR_FISTS_DAMAGE        = 66765,
-    SPELL_ENRAGE                     = 26662  // HC only
+    SPELL_BURNING_FURY               = 68168, // pasivní stacking aura
+    SPELL_BURNING_BREATH             = 66665, // handled by spell_difficulty
+    // SPELL_FLAMING_CINDER           = 66681,   // NEPOUŽÍVÁME (nahrazeno přímým missile)
+    SPELL_FLAMING_CINDER_MISSILE     = 66682,  // přímo castneme z AI
+    SPELL_METEOR_FISTS               = 66725,  // aura (dmg řeší aura script níže)
+    SPELL_METEOR_FISTS_DAMAGE        = 66765,  // proc dmg
+    SPELL_ENRAGE                     = 26662   // HC only
 };
 
-// --- Eventy
+// --- Eventy ---
 enum Events
 {
     EVENT_BURNING_BREATH = 1,
@@ -55,12 +55,12 @@ struct boss_thalgron_the_earthshaker : public ScriptedAI
     uint32 rotateTimer = 0;
 
     // volitelné hlášky (in-code)
-    void YellAggro()    { me->Yell("The flames will consume you!", LANG_UNIVERSAL, nullptr); }
-    void YellBreath()   { me->Yell("Burn!", LANG_UNIVERSAL, nullptr); }
-    void YellFists()    { me->Yell("My fists are meteors!", LANG_UNIVERSAL, nullptr); }
-    void YellCinder()   { me->Yell("Cinders to ashes!", LANG_UNIVERSAL, nullptr); }
+    void YellAggro()   { me->Yell("The flames will consume you!", LANG_UNIVERSAL, nullptr); }
+    void YellBreath()  { me->Yell("Burn!", LANG_UNIVERSAL, nullptr); }
+    void YellFists()   { me->Yell("My fists are meteors!", LANG_UNIVERSAL, nullptr); }
+    void YellCinder()  { me->Yell("Cinders to ashes!", LANG_UNIVERSAL, nullptr); }
     void YellEnrage()  { me->Yell("Enough! Burn to ash!", LANG_UNIVERSAL, nullptr); }
-    void YellDeath()    { me->Yell("The fire... fades...", LANG_UNIVERSAL, nullptr); }
+    void YellDeath()   { me->Yell("The fire... fades...", LANG_UNIVERSAL, nullptr); }
 
     void Reset() override
     {
@@ -71,9 +71,7 @@ struct boss_thalgron_the_earthshaker : public ScriptedAI
 
     void JustEngagedWith(Unit* /*who*/) override
     {
-        // pasivní „růst“
         me->CastSpell(me, SPELL_BURNING_FURY, true);
-
         YellAggro();
 
         // plánování schopností
@@ -96,7 +94,7 @@ struct boss_thalgron_the_earthshaker : public ScriptedAI
 
     void UpdateAI(uint32 diff) override
     {
-        // „otáčení“ během Burning Breath
+        // „otáčení“ během Burning Breath (stejná finta jako u Koralona)
         if (rotateTimer)
         {
             me->SetUInt64Value(UNIT_FIELD_CHANNEL_OBJECT, 0);
@@ -131,7 +129,7 @@ struct boss_thalgron_the_earthshaker : public ScriptedAI
         {
             case EVENT_BURNING_BREATH:
                 YellBreath();
-                rotateTimer = 1500;
+                rotateTimer = 1500; // rozběh rotace (jako v originálu)
                 me->CastSpell(me, SPELL_BURNING_BREATH, false);
                 events.Repeat(45s);
                 break;
@@ -143,15 +141,18 @@ struct boss_thalgron_the_earthshaker : public ScriptedAI
                 break;
 
             case EVENT_FLAME_CINDER:
+            {
                 YellCinder();
-                me->CastSpell(me, SPELL_FLAMING_CINDER, true);
+                if (Unit* t = SelectTarget(SelectTargetMethod::Random, 0))
+                    me->CastSpell(t->GetPositionX(), t->GetPositionY(), t->GetPositionZ(),
+                                  SPELL_FLAMING_CINDER_MISSILE, true);
                 events.Repeat(30s);
                 break;
+            }
 
             case EVENT_ENRAGE:
                 YellEnrage();
                 me->CastSpell(me, SPELL_ENRAGE, true);
-                // žádné Repeat – je to jednorázové
                 break;
 
             default:
@@ -163,32 +164,8 @@ struct boss_thalgron_the_earthshaker : public ScriptedAI
 };
 
 // ============================
-// SpellScripty
+// AuraScript: Meteor Fists (ponecháno)
 // ============================
-
-// Flaming Cinder: dummy -> vystřel missile na pozici cíle
-class spell_thalgron_flaming_cinder : public SpellScript
-{
-    PrepareSpellScript(spell_thalgron_flaming_cinder);
-
-    bool Validate(SpellInfo const* /*spellInfo*/) override
-    {
-        return ValidateSpellInfo({ SPELL_FLAMING_CINDER_MISSILE });
-    }
-
-    void HandleDummy(SpellEffIndex /*effIndex*/)
-    {
-        if (Unit* target = GetHitUnit())
-            GetCaster()->CastSpell(target->GetPositionX(), target->GetPositionY(), target->GetPositionZ(), SPELL_FLAMING_CINDER_MISSILE, true);
-    }
-
-    void Register() override
-    {
-        OnEffectHitTarget += SpellEffectFn(spell_thalgron_flaming_cinder::HandleDummy, EFFECT_0, SPELL_EFFECT_DUMMY);
-    }
-};
-
-// Meteor Fists aura: každý proc přidá dodatečný zásah
 class spell_thalgron_meteor_fists_aura : public AuraScript
 {
     PrepareAuraScript(spell_thalgron_meteor_fists_aura);
@@ -216,6 +193,6 @@ class spell_thalgron_meteor_fists_aura : public AuraScript
 void RegisterGuildVillageThalgron()
 {
     RegisterCreatureAI(boss_thalgron_the_earthshaker);
-    RegisterSpellScript(spell_thalgron_flaming_cinder);
+    // Flaming Cinder SpellScript NEregistrovat (není potřeba)
     RegisterSpellScript(spell_thalgron_meteor_fists_aura);
 }

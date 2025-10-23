@@ -6,10 +6,12 @@
 #include "Config.h"
 
 // =====================================
-// Thranok the Unyielding
+// Thranok the Unyielding (Archavon-style, OW)
 // =====================================
 // - Heroic toggle: Thranok.Heroic = 1  (25-man hodnoty kouzel)
-// - Schopnosti: Rock Shards, Stomp, Impale, Berserk (5m)
+// - Schopnosti: Rock Shards (jen dmg, bez hand vizuálů), Stomp, Impale, Berserk (5m)
+// - BEZ: Crushing Leap, Rock Shards L/R hand visual
+// - Hlášky přímo v kódu (bez creature_text)
 
 static bool ThranokHeroic()
 {
@@ -17,10 +19,13 @@ static bool ThranokHeroic()
 }
 static inline uint32 R10_25(uint32 id10, uint32 id25) { return ThranokHeroic() ? id25 : id10; }
 
-// ---------- Spells ----------
+// ---------- Spells (převzato z Archavona) ----------
 enum Spells
 {
-    SPELL_ROCK_SHARDS             = 58678,
+    SPELL_ROCK_SHARDS             = 58678, // základní trigger (ponechán)
+    // hand vizuály NEPOUŽÍVÁME:
+    // SPELL_ROCK_SHARDS_LEFT_HAND_VISUAL  = 58689,
+    // SPELL_ROCK_SHARDS_RIGHT_HAND_VISUAL = 58692,
 
     SPELL_ROCK_SHARDS_DAMAGE_10   = 58695,
     SPELL_ROCK_SHARDS_DAMAGE_25   = 60883,
@@ -69,12 +74,12 @@ struct boss_thranok_the_unyielding : public ScriptedAI
     {
         ThranokYellsA::Aggro(me);
 
-        // Timery
+        // Timery jako Archavon (bez Leap):
         events.ScheduleEvent(EVENT_ROCK_SHARDS, 15s);
         events.ScheduleEvent(EVENT_STOMP,       45s);
         events.ScheduleEvent(EVENT_BERSERK,      5min);
 
-        me->setActive(true);
+        me->setActive(true); // OW boss – bez SetInCombatWithZone
     }
 
     void KilledUnit(Unit* v) override
@@ -101,7 +106,7 @@ struct boss_thranok_the_unyielding : public ScriptedAI
         {
             case EVENT_ROCK_SHARDS:
             {
-                // Vybrat náhodný cíl a cast trigger 58678 (viz SpellScript níže).
+                // Vyber náhodný cíl a castni trigger 58678 (viz SpellScript níže).
                 if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0))
                     me->CastSpell(target, SPELL_ROCK_SHARDS, false);
 
@@ -113,6 +118,7 @@ struct boss_thranok_the_unyielding : public ScriptedAI
 			{
 				if (Unit* v = me->GetVictim())
 				{
+					// emote řádek správným overloadem
 					std::string msg = std::string(me->GetName()) + " stomps the ground at " + v->GetName() + "!";
 					me->TextEmote(msg, v, /*isBossEmote=*/true);
 			
@@ -121,7 +127,7 @@ struct boss_thranok_the_unyielding : public ScriptedAI
 				}
 			
 				events.Repeat(45s);
-				events.ScheduleEvent(EVENT_IMPALE, 3s);
+				events.ScheduleEvent(EVENT_IMPALE, 3s); // stejný odstup jako u Archavona
 				break;
 			}
 
@@ -145,15 +151,18 @@ struct boss_thranok_the_unyielding : public ScriptedAI
 };
 
 // ===============================
-// SpellScript: Rock Shards
+// SpellScript: Rock Shards (bez hand vizuálů, jen dmg dle 10/25)
 // ===============================
 class spell_thranok_rock_shards : public SpellScript
 {
     PrepareSpellScript(spell_thranok_rock_shards);
 
-    bool Validate(SpellInfo const* /*spellInfo*/) override
+    bool Validate(SpellInfo const*) override
     {
-        return ValidateSpellInfo({ SPELL_ROCK_SHARDS_DAMAGE_10, SPELL_ROCK_SHARDS_DAMAGE_25 });
+        return ValidateSpellInfo({ /* 58941 nemá co validovat, ale ověř dmg varianty: */
+            58695, /* DAMAGE_10 */
+            60883  /* DAMAGE_25 */
+        });
     }
 
     void HandleScript(SpellEffIndex effIndex)
@@ -165,13 +174,16 @@ class spell_thranok_rock_shards : public SpellScript
         if (!caster || !target)
             return;
 
-        uint32 dmgId = R10_25(SPELL_ROCK_SHARDS_DAMAGE_10, SPELL_ROCK_SHARDS_DAMAGE_25);
+        uint32 dmgId = ThranokHeroic() ? 60883 : 58695;
         caster->CastSpell(target, dmgId, true);
     }
 
     void Register() override
     {
-        OnEffectHitTarget += SpellEffectFn(spell_thranok_rock_shards::HandleScript, EFFECT_0, SPELL_EFFECT_SCRIPT_EFFECT);
+        OnEffectHitTarget += SpellEffectFn(
+            spell_thranok_rock_shards::HandleScript,
+            EFFECT_0, SPELL_EFFECT_SCRIPT_EFFECT
+        );
     }
 };
 
