@@ -1,4 +1,4 @@
-name: Build module against Playerbot Core
+name: ubuntu-build
 
 on:
   push:
