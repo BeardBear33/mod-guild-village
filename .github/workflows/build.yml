@@ -11,7 +11,7 @@ env:
 
 jobs:
   build:
-    runs-on: ubuntu-24.04.3
+    runs-on: ubuntu-22.04
 
     steps:
     - name: Checkout this module
@@ -25,13 +25,13 @@ jobs:
       with:
         repository: mod-playerbots/azerothcore-wotlk
         ref: Playerbot
-        path: azerothcore
+        path: azerothcore-wotlk
         fetch-depth: 1
 
-    - name: Copy module into AzerothCore/modules
+    - name: Copy module into azerothcore-wotlk/modules
       run: |
-        mkdir -p azerothcore/modules
-        cp -r module-src azerothcore/modules/mod-guild-village
+        mkdir -p azerothcore-wotlk/modules
+        cp -r module-src azerothcore-wotlk/modules/mod-guild-village
 
     - name: Install build deps
       run: |
@@ -50,7 +50,7 @@ jobs:
           git
 
     - name: Configure CMake
-      working-directory: azerothcore
+      working-directory: azerothcore-wotlk
       run: |
         mkdir build
         cd build
@@ -62,11 +62,11 @@ jobs:
           -DWITH_WARNINGS=1
 
     - name: Build worldserver & authserver
-      working-directory: azerothcore/build
+      working-directory: azerothcore-wotlk/build
       run: |
         make -j"$(nproc)" worldserver authserver
 
     - name: Show worldserver version
-      working-directory: azerothcore/build/bin
+      working-directory: azerothcore-wotlk/build/bin
       run: |
         ./worldserver --version || true
