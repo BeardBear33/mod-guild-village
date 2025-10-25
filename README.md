@@ -18,7 +18,7 @@ Guild Village module adds customizable guild villages with upgrades, currency, a
 
 ----------------------------------------------------------------------------------------------------------------
 
-🔧 Tento modul je primárně vyvíjen pro jádro a OS ubuntu:  
+🔧 Tento modul je primárně vyvíjen pro jádro a <img src="https://github.com/mod-playerbots/mod-playerbots/actions/workflows/core_build.yml/badge.svg">:  
 [azerothcore-wotlk (Playerbot branch)](https://github.com/liyunfan1223/azerothcore-wotlk/tree/Playerbot)
 
 🔧 This module is primarily developed for the core and OS ubuntu:  
