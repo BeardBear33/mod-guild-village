@@ -1,8 +1,13 @@
+# ==============================
+# Build a runtime výstupy
+# ==============================
 build/
 env/
 dist/
 CMakeFiles/
 CMakeCache.txt
+
+# Soubory generované kompilátorem/linkerem
 *.o
 *.a
 *.so
@@ -10,7 +15,22 @@ CMakeCache.txt
 *.exe
 *.log
 
+# Mezipaměti kompilátoru (ccache apod.)
+*.pch
+*.obj
+*.idb
+*.pdb
+
+# ==============================
+# Vývojové prostředí
+# ==============================
 .vscode/
 .idea/
 *.swp
 *.swo
+
+# ==============================
+# OS a editorové "nepořádky"
+# ==============================
+.DS_Store
+Thumbs.db
