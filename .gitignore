@@ -1,0 +1,16 @@
+build/
+env/
+dist/
+CMakeFiles/
+CMakeCache.txt
+*.o
+*.a
+*.so
+*.dll
+*.exe
+*.log
+
+.vscode/
+.idea/
+*.swp
+*.swo
