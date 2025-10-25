@@ -56,17 +56,23 @@ jobs:
         cd build
         cmake .. \
           -DCMAKE_BUILD_TYPE=${BUILD_TYPE} \
+          -DCMAKE_INSTALL_PREFIX=env/dist \
           -DTOOLS=ON \
           -DSCRIPTS=static \
           -DWITH_PLAYERBOTS=1 \
           -DWITH_WARNINGS=1
 
-    - name: Build worldserver & authserver
+    - name: Build (full)
       working-directory: azerothcore-wotlk/build
       run: |
-        make -j"$(nproc)" worldserver authserver
+        make -j"$(nproc)"
 
-    - name: Show worldserver version
-      working-directory: azerothcore-wotlk/build/bin
+    - name: Install to env/dist
+      working-directory: azerothcore-wotlk/build
+      run: |
+        make install
+
+    - name: Show worldserver version (if built)
+      working-directory: azerothcore-wotlk/build/env/dist/bin
       run: |
         ./worldserver --version || true
