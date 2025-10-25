@@ -57,7 +57,7 @@ namespace GuildVillage
         std::string key;
         std::string label_cs;
         std::string label_en;
-        uint32 cost_tim=0, cost_sto=0, cost_iro=0, cost_crys=0;
+        uint32 cost_mat1=0, cost_mat2=0, cost_mat3=0, cost_mat4=0;
         uint8  sort=0;
     };
 
@@ -76,7 +76,7 @@ namespace GuildVillage
         }
 
         if (QueryResult r = WorldDatabase.Query(
-                "SELECT id, expansion_key, label_cs, label_en, cost_timber, cost_stone, cost_iron, cost_crystal, sort_order "
+                "SELECT id, expansion_key, label_cs, label_en, cost_material1, cost_material2, cost_material3, cost_material4, sort_order "
                 "FROM customs.gv_upgrade_catalog WHERE category='{}' ORDER BY sort_order, id", catName))
         {
             do
@@ -87,10 +87,10 @@ namespace GuildVillage
                 c.key       = f[1].Get<std::string>();
                 c.label_cs  = f[2].Get<std::string>();
                 c.label_en  = f[3].Get<std::string>();
-                c.cost_tim  = f[4].Get<uint32>();
-                c.cost_sto  = f[5].Get<uint32>();
-                c.cost_iro  = f[6].Get<uint32>();
-                c.cost_crys = f[7].Get<uint32>();
+                c.cost_mat1  = f[4].Get<uint32>();
+                c.cost_mat2  = f[5].Get<uint32>();
+                c.cost_mat3  = f[6].Get<uint32>();
+                c.cost_mat4 = f[7].Get<uint32>();
                 c.sort      = f[8].Get<uint8>();
                 c.cat       = cat;
                 out.push_back(std::move(c));
@@ -246,12 +246,12 @@ namespace GuildVillage
             Guild* g = player->GetGuild();
             if (!g)
             {
-                ChatHandler(player->GetSession()).SendSysMessage(T("Nejsi v gildě.", "You are not in a guild."));
+                ChatHandler(player->GetSession()).SendSysMessage(T("Nejsi v guildě.", "You are not in a guild."));
                 return true;
             }
             if (!LoadVillagePhase(g->GetId()).has_value())
             {
-                ChatHandler(player->GetSession()).SendSysMessage(T("Tvoje gilda nevlastní vesnici.", "Your guild does not own a village."));
+                ChatHandler(player->GetSession()).SendSysMessage(T("Tvoje guilda nevlastní vesnici.", "Your guild does not own a village."));
                 return true;
             }
 

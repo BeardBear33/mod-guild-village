@@ -1,6 +1,8 @@
-#
-# mod-guild-village – základní konfigurace
-# ---------------------------------------
+#======================================#
+# Guild Village – základní konfigurace # 
+# Guild Village – basic configuration  #
+#======================================#
+
 # CS: Přepínač jazyka pro texty (cs|en).
 #
 # EN: Language switch for texts (cs|en).
@@ -38,19 +40,82 @@ GuildVillage.RequireGuildMasterForPurchase = true
 # Hide the purchase menu for everyone except the Guild Master + Officers (true) or show it to all members (false)
 GuildVillage.HidePurchaseMenuForNonGM = true
 
-# Názvy materiálů pro chatový výpis / ceník u vendora / loot zprávy (můžeš si upravit; pouze texty).
-# České názvy – používají se pouze pokud je GuildVillage.Locale = cs
-GuildVillage.Material.Timber  = Dřevo
-GuildVillage.Material.Stone   = Kámen
-GuildVillage.Material.Iron    = Železo
-GuildVillage.Material.Crystal = Krystal
+# Default teleport in village / Místo teleportu ve vesnici 
+GuildVillage.Default.Map = 37
+GuildVillage.Default.X   = 1026.7292
+GuildVillage.Default.Y   = 289.9494
+GuildVillage.Default.Z   = 332.66083
+GuildVillage.Default.O   = 3.4305837
+GuildVillage.Default.Phase = 1
 
-# Material names for chat messages / price list at vendor / loot messages (you can customize them; text only).
+#===================================#
+# Guild Village – Nastavení měny    #
+# Guild Village – Currency settings #
+#===================================#
+
+# Názvy materiálů pro status zprávu
+# České názvy – používají se pouze pokud je GuildVillage.Locale = cs
+GuildVillage.Material.Material1 = Dřevo
+GuildVillage.Material.Material2 = Kámen
+GuildVillage.Material.Material3 = Železo
+GuildVillage.Material.Material4 = Krystal
+
+# Material names for status message
 # English versions – only used when GuildVillage.Locale = en
-GuildVillage.MaterialEN.Timber  = Timber
-GuildVillage.MaterialEN.Stone   = Stone
-GuildVillage.MaterialEN.Iron    = Iron
-GuildVillage.MaterialEN.Crystal = Crystal
+GuildVillage.MaterialEN.Material1 = Timber
+GuildVillage.MaterialEN.Material2 = Stone
+GuildVillage.MaterialEN.Material3 = Iron
+GuildVillage.MaterialEN.Material4 = Crystal
+
+# Countable material unit names (1 / 2-4 / 5+)
+#
+# Tyto názvy se používají při výpočtu ceny, získaného lootu apod.
+# (např. „1 prkno“, „3 prkna“, „5 prken“)
+
+# --- Czech singular / plural ---
+GuildVillage.MaterialUnit.Material1.Singular = Prkno
+GuildVillage.MaterialUnit.Material1.Dual     = Prkna
+GuildVillage.MaterialUnit.Material1.Plural   = Prken
+
+GuildVillage.MaterialUnit.Material2.Singular  = Kámen
+GuildVillage.MaterialUnit.Material2.Dual      = Kameny
+GuildVillage.MaterialUnit.Material2.Plural    = Kamene
+
+GuildVillage.MaterialUnit.Material3.Singular   = Železo
+GuildVillage.MaterialUnit.Material3.Dual       = Železa
+GuildVillage.MaterialUnit.Material3.Plural     = Železa
+
+GuildVillage.MaterialUnit.Material4.Singular = Krystal
+GuildVillage.MaterialUnit.Material4.Dual     = Krystaly
+GuildVillage.MaterialUnit.Material4.Plural   = Krystalu
+
+
+# --- English singular / plural ---
+GuildVillage.MaterialUnitEN.Material1.Singular = timber
+GuildVillage.MaterialUnitEN.Material1.Dual     = timbers
+GuildVillage.MaterialUnitEN.Material1.Plural   = timbers
+
+GuildVillage.MaterialUnitEN.Material2.Singular  = stone
+GuildVillage.MaterialUnitEN.Material2.Dual      = stones
+GuildVillage.MaterialUnitEN.Material2.Plural    = stones
+
+GuildVillage.MaterialUnitEN.Material3.Singular   = iron
+GuildVillage.MaterialUnitEN.Material3.Dual       = irons
+GuildVillage.MaterialUnitEN.Material3.Plural     = irons
+
+GuildVillage.MaterialUnitEN.Material4.Singular = crystal
+GuildVillage.MaterialUnitEN.Material4.Dual     = crystals
+GuildVillage.MaterialUnitEN.Material4.Plural   = crystals
+
+# === Currency caps ===
+# Povolit limity pro jednotlivé měny (0 = neomezené pro danou měnu)
+#
+# Enable per-currency caps (0 = unlimited for that currency)
+GuildVillage.CurrencyCap.Enabled  = true
+GuildVillage.CurrencyCap.Material1   = 1000
+GuildVillage.CurrencyCap.Material2    = 1000
+GuildVillage.CurrencyCap.Material3     = 1000
+GuildVillage.CurrencyCap.Material4  = 1000
 
 # === Guild Village – Purchase price ===
 # 0 = nevyžaduje se, cena ve zlatě 
@@ -67,14 +132,6 @@ GuildVillage.Price.ItemId = 0
 #
 # number of items
 GuildVillage.Price.ItemCount = 0
-
-# === Default teleport in village / Místo teleportu ve vesnici ===
-GuildVillage.Default.Map = 37
-GuildVillage.Default.X   = 1026.7292
-GuildVillage.Default.Y   = 289.9494
-GuildVillage.Default.Z   = 332.66083
-GuildVillage.Default.O   = 3.4305837
-GuildVillage.Default.Phase = 1
 
 # === Guild Village: Loot ===
 # Povolit nebo zakázat loot pro currency
@@ -97,19 +154,9 @@ GuildVillage.Loot.OnlyInVillage = 1
 # Only debug
 GuildVillage.Loot.Debug = 0
 
-# === Currency caps ===
-# Povolit limity pro jednotlivé měny (0 = neomezené pro danou měnu)
-#
-# Enable per-currency caps (0 = unlimited for that currency)
-GuildVillage.CurrencyCap.Enabled  = true
-GuildVillage.CurrencyCap.Timber   = 1000
-GuildVillage.CurrencyCap.Stone    = 1000
-GuildVillage.CurrencyCap.Iron     = 1000
-GuildVillage.CurrencyCap.Crystal  = 1000
-
-################################################################
-# Guild Village – Bot prevention
-################################################################
+#================================#
+# Guild Village – Bot prevention #
+#================================#
 # Bezpečné místo, kam se teleportují hráči nebo boti, kteří
 # nejsou členy stejné guildy při pokusu o vstup do guild village.
 # (Zabránění zneužití nebo vstupu cizích botů)
@@ -130,9 +177,9 @@ GuildVillage.Safe.Horde.Y = -4373.640137
 GuildVillage.Safe.Horde.Z = 31.549999
 GuildVillage.Safe.Horde.O = 0.000000
 
-################################################################
-# Guild Village – Boss settings
-################################################################
+#===============================#
+# Guild Village – Boss settings #
+#===============================#
 
 # === Thalgron the Earthshaker ===
 # Aktivuje Enrage po 2 minutách

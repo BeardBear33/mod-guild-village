@@ -59,7 +59,7 @@ namespace GuildVillage
 
     struct GVPhaseData : public DataMap::Base
     {
-        uint32 phaseMask = 0;
+        uint32 phaseMask = 0; // požadovaná phase po teleportu
     };
 
     // Aktuální počet vesnic
@@ -101,7 +101,7 @@ namespace GuildVillage
 
         WorldDatabase.Execute(
             "INSERT INTO customs.gv_currency "
-            "(guildId, timber, stone, iron, crystal, last_update) "
+            "(guildId, material1, material2, material3, material4, last_update) "
             "VALUES ({}, 0, 0, 0, 0, NOW())",
             guildId
         );
@@ -391,7 +391,7 @@ namespace GuildVillage
         uint32 guildId = g->GetId();
 
         if (LoadVillage(guildId).has_value())
-        { ch.SendSysMessage(T("Tvoje gilda už vesnici vlastní.", "Your guild already owns a village.")); return false; }
+        { ch.SendSysMessage(T("Tvoje guilda už vesnici vlastní.", "Your guild already owns a village.")); return false; }
 
         if (CountVillages() >= MaxVillages())
         {
@@ -422,7 +422,7 @@ namespace GuildVillage
         EnsureCurrencyRow(guildId);
         InstallBaseLayout(guildId, phaseId, "base");
 
-        ch.SendSysMessage(T("Gratuluji! Tvoje gilda zakoupila guildovní vesnici.",
+        ch.SendSysMessage(T("Gratuluji! Tvoje guilda zakoupila guildovní vesnici.",
                             "Congratulations! Your guild has purchased a village."));
         return true;
     }
@@ -461,7 +461,7 @@ namespace GuildVillage
                     ).c_str()
                 );
             }
-            ChatHandler(player->GetSession()).SendSysMessage(T("Nejsi v žádné gildě.", "You are not in a guild."));
+            ChatHandler(player->GetSession()).SendSysMessage(T("Nejsi v žádné guildě.", "You are not in a guild."));
             SendGossipMenuFor(player, 1, creature->GetGUID());
             return;
         }
@@ -517,7 +517,7 @@ namespace GuildVillage
             if (!g)
             {
                 ChatHandler(player->GetSession()).SendSysMessage(
-                    T("Nejsi v žádné gildě.", "You are not in a guild."));
+                    T("Nejsi v žádné guildě.", "You are not in a guild."));
                 CloseGossipMenuFor(player);
                 return true;
             }
@@ -530,12 +530,12 @@ namespace GuildVillage
                     if (!row.has_value())
                     {
                         ChatHandler(player->GetSession()).SendSysMessage(
-                            T("Tvoje gilda vesnici nevlastní.", "Your guild does not own a village."));
+                            T("Tvoje guilda vesnici nevlastní.", "Your guild does not own a village."));
                         CloseGossipMenuFor(player);
                         return true;
                     }
 
-                    // === jen nastavit stash a teleport ===
+                    // === KLÍČOVÉ: chovej se jako příkaz – jen nastav stash a teleportuj ===
                     auto* stash = player->CustomData.GetDefault<GVPhaseData>("gv_phase");
                     stash->phaseMask = row->phase;
 

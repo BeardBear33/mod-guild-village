@@ -9,6 +9,7 @@
 #include "Config.h"
 #include "Group.h"
 #include "Log.h"
+#include "gv_names.h"
 
 #include <unordered_map>
 #include <vector>
@@ -26,14 +27,14 @@ namespace GuildVillage
 
     // ===== Config flags =====
     static bool  CFG_ENABLED         = true;
-    static bool  CFG_ONLY_IN_VILLAGE = true;
+    static bool  CFG_ONLY_IN_VILLAGE = true;   // omezit drop jen na mapu vesnice
     static bool  CFG_DEBUG           = false;
     static bool  CFG_NOTIFY          = true;
     static bool  CFG_CAP_ENABLED     = true;
-    static uint32 CAP_TIMBER   = 1000;
-    static uint32 CAP_STONE    = 1000;
-    static uint32 CAP_IRON     = 1000;
-    static uint32 CAP_CRYSTAL  = 1000;
+    static uint32 CAP_material1   = 1000;
+    static uint32 CAP_material2    = 1000;
+    static uint32 CAP_material3     = 1000;
+    static uint32 CAP_material4  = 1000;
 
     // === Locale handling (cs|en) ===
     enum class Lang { CS, EN };
@@ -50,31 +51,8 @@ namespace GuildVillage
         return (LangOpt() == Lang::EN) ? en : cs;
     }
 
-    // === Material display names from config (localized) ===
-    struct MatNames { std::string timber, stone, iron, crystal; };
-
-    static MatNames GetMaterialNames()
-    {
-        MatNames m;
-        if (LangOpt() == Lang::EN)
-        {
-            m.timber  = sConfigMgr->GetOption<std::string>("GuildVillage.MaterialEN.Timber",  "Timber");
-            m.stone   = sConfigMgr->GetOption<std::string>("GuildVillage.MaterialEN.Stone",   "Stone");
-            m.iron    = sConfigMgr->GetOption<std::string>("GuildVillage.MaterialEN.Iron",    "Iron");
-            m.crystal = sConfigMgr->GetOption<std::string>("GuildVillage.MaterialEN.Crystal", "Crystal");
-        }
-        else
-        {
-            m.timber  = sConfigMgr->GetOption<std::string>("GuildVillage.Material.Timber",  "Dřevo");
-            m.stone   = sConfigMgr->GetOption<std::string>("GuildVillage.Material.Stone",   "Kámen");
-            m.iron    = sConfigMgr->GetOption<std::string>("GuildVillage.Material.Iron",    "Železo");
-            m.crystal = sConfigMgr->GetOption<std::string>("GuildVillage.Material.Crystal", "Krystal");
-        }
-        return m;
-    }
-
     // ===== Loot row =====
-    enum class Cur : uint8 { Timber, Stone, Iron, Crystal };
+    enum class Cur : uint8 { Material1, Material2, Material3, Material4 };
 
     struct LootRow
     {
@@ -97,10 +75,10 @@ namespace GuildVillage
 	{
 		std::transform(s.begin(), s.end(), s.begin(), ::tolower);
 	
-		if (s == "timber"  || s == "drevo"  || s == "dřevo")  { out = Cur::Timber;  return true; }
-		if (s == "stone"   || s == "kamen"  || s == "kámen")  { out = Cur::Stone;   return true; }
-		if (s == "iron"    || s == "zelezo" || s == "železo") { out = Cur::Iron;    return true; }
-		if (s == "crystal" || s == "krystal")                  { out = Cur::Crystal; return true; }
+		if (s == "material1"  || s == "material1"  || s == "material1")  { out = Cur::Material1;  return true; }
+		if (s == "material2"   || s == "material2"  || s == "material2")  { out = Cur::Material2;   return true; }
+		if (s == "material3"    || s == "material3" || s == "material3") { out = Cur::Material3;    return true; }
+		if (s == "material4" || s == "material4")                  { out = Cur::Material4; return true; }
 	
 		return false; // neznámá měna
 	}
@@ -145,10 +123,10 @@ namespace GuildVillage
         CFG_DEBUG           = sConfigMgr->GetOption<bool>("GuildVillage.Loot.Debug", false);
         CFG_NOTIFY          = sConfigMgr->GetOption<bool>("GuildVillage.Loot.Notify", true);
         CFG_CAP_ENABLED     = sConfigMgr->GetOption<bool>("GuildVillage.CurrencyCap.Enabled", true);
-        CAP_TIMBER          = sConfigMgr->GetOption<uint32>("GuildVillage.CurrencyCap.Timber",   1000);
-        CAP_STONE           = sConfigMgr->GetOption<uint32>("GuildVillage.CurrencyCap.Stone",    1000);
-        CAP_IRON            = sConfigMgr->GetOption<uint32>("GuildVillage.CurrencyCap.Iron",     1000);
-        CAP_CRYSTAL         = sConfigMgr->GetOption<uint32>("GuildVillage.CurrencyCap.Crystal",  1000);
+        CAP_material1          = sConfigMgr->GetOption<uint32>("GuildVillage.CurrencyCap.Material1",   1000);
+        CAP_material2           = sConfigMgr->GetOption<uint32>("GuildVillage.CurrencyCap.Material2",    1000);
+        CAP_material3            = sConfigMgr->GetOption<uint32>("GuildVillage.CurrencyCap.Material3",     1000);
+        CAP_material4         = sConfigMgr->GetOption<uint32>("GuildVillage.CurrencyCap.Material4",  1000);
         LoadLootTable();
     }
 
@@ -161,18 +139,18 @@ namespace GuildVillage
 
     struct Gain
     {
-        uint32 timber=0, stone=0, iron=0, crystal=0;
-        bool Any() const { return timber||stone||iron||crystal; }
+        uint32 material1=0, material2=0, material3=0, material4=0;
+        bool Any() const { return material1||material2||material3||material4; }
     };
 
     static void AddGain(Gain& g, Cur c, uint32 amount)
     {
         switch (c)
         {
-            case Cur::Timber:  g.timber  += amount; break;
-            case Cur::Stone:   g.stone   += amount; break;
-            case Cur::Iron:    g.iron    += amount; break;
-            case Cur::Crystal: g.crystal += amount; break;
+            case Cur::Material1:  g.material1  += amount; break;
+            case Cur::Material2:   g.material2   += amount; break;
+            case Cur::Material3:    g.material3    += amount; break;
+            case Cur::Material4: g.material4 += amount; break;
         }
     }
 
@@ -188,20 +166,20 @@ namespace GuildVillage
             // bez capu
             WorldDatabase.DirectExecute(Acore::StringFormat(
                 "UPDATE customs.gv_currency SET "
-                "timber=timber+{}, stone=stone+{}, iron=iron+{}, crystal=crystal+{}, last_update=NOW() "
-                "WHERE guildId={}", g.timber, g.stone, g.iron, g.crystal, guildId).c_str());
+                "material1=material1+{}, material2=material2+{}, material3=material3+{}, material4=material4+{}, last_update=NOW() "
+                "WHERE guildId={}", g.material1, g.material2, g.material3, g.material4, guildId).c_str());
 
             return g;
         }
 
         // načíst aktuální stav
-        uint32 curTim=0, curSto=0, curIro=0, curCry=0;
+        uint32 curmat1=0, curmat2=0, curmat3=0, curmat4=0;
         if (QueryResult q = WorldDatabase.Query(
-                "SELECT timber, stone, iron, crystal FROM customs.gv_currency WHERE guildId={}", guildId))
+                "SELECT material1, material2, material3, material4 FROM customs.gv_currency WHERE guildId={}", guildId))
         {
             Field* f = q->Fetch();
-            curTim=f[0].Get<uint32>(); curSto=f[1].Get<uint32>();
-            curIro=f[2].Get<uint32>(); curCry=f[3].Get<uint32>();
+            curmat1=f[0].Get<uint32>(); curmat2=f[1].Get<uint32>();
+            curmat3=f[2].Get<uint32>(); curmat4=f[3].Get<uint32>();
         }
         else
         {
@@ -215,23 +193,23 @@ namespace GuildVillage
             return cap - cur;
         };
 
-        uint32 addTim = std::min(g.timber,  room(curTim, CAP_TIMBER));
-        uint32 addSto = std::min(g.stone,   room(curSto, CAP_STONE));
-        uint32 addIro = std::min(g.iron,    room(curIro, CAP_IRON));
-        uint32 addCry = std::min(g.crystal, room(curCry, CAP_CRYSTAL));
+        uint32 addmat1 = std::min(g.material1,  room(curmat1, CAP_material1));
+        uint32 addmat2 = std::min(g.material2,   room(curmat2, CAP_material2));
+        uint32 addmat3 = std::min(g.material3,    room(curmat3, CAP_material3));
+        uint32 addmat4 = std::min(g.material4, room(curmat4, CAP_material4));
 
-        if (!(addTim || addSto || addIro || addCry))
+        if (!(addmat1 || addmat2 || addmat3 || addmat4))
             return applied;
 
         WorldDatabase.DirectExecute(Acore::StringFormat(
             "UPDATE customs.gv_currency SET "
-            "timber=timber+{}, stone=stone+{}, iron=iron+{}, crystal=crystal+{}, last_update=NOW() "
-            "WHERE guildId={}", addTim, addSto, addIro, addCry, guildId).c_str());
+            "material1=material1+{}, material2=material2+{}, material3=material3+{}, material4=material4+{}, last_update=NOW() "
+            "WHERE guildId={}", addmat1, addmat2, addmat3, addmat4, guildId).c_str());
 
-        applied.timber  = addTim;
-        applied.stone   = addSto;
-        applied.iron    = addIro;
-        applied.crystal = addCry;
+        applied.material1  = addmat1;
+        applied.material2   = addmat2;
+        applied.material3    = addmat3;
+        applied.material4 = addmat4;
         return applied;
     }
 
@@ -304,14 +282,14 @@ namespace GuildVillage
 
         // Co bylo uříznuto capem (gain - applied)
         Gain blocked{};
-        blocked.timber  = (gain.timber  > applied.timber)  ? (gain.timber  - applied.timber)  : 0;
-        blocked.stone   = (gain.stone   > applied.stone)   ? (gain.stone   - applied.stone)   : 0;
-        blocked.iron    = (gain.iron    > applied.iron)    ? (gain.iron    - applied.iron)    : 0;
-        blocked.crystal = (gain.crystal > applied.crystal) ? (gain.crystal - applied.crystal) : 0;
+        blocked.material1  = (gain.material1  > applied.material1)  ? (gain.material1  - applied.material1)  : 0;
+        blocked.material2   = (gain.material2   > applied.material2)   ? (gain.material2   - applied.material2)   : 0;
+        blocked.material3    = (gain.material3    > applied.material3)    ? (gain.material3    - applied.material3)    : 0;
+        blocked.material4 = (gain.material4 > applied.material4) ? (gain.material4 - applied.material4) : 0;
 
         if (!applied.Any())
         {
-            auto M = GetMaterialNames();
+            auto const& N = GuildVillage::Names::Get();
 
             std::string capMsg = std::string("|cffff5555[Guild Village]|r ") +
                 T("Limit dosažen: ", "Limit reached: ");
@@ -326,10 +304,10 @@ namespace GuildVillage
                 first = false;
             };
 
-            if (blocked.timber)  addCap(M.timber,  CAP_TIMBER);
-            if (blocked.stone)   addCap(M.stone,   CAP_STONE);
-            if (blocked.iron)    addCap(M.iron,    CAP_IRON);
-            if (blocked.crystal) addCap(M.crystal, CAP_CRYSTAL);
+            if (blocked.material1)  addCap(N.status.material1,  CAP_material1);
+            if (blocked.material2)   addCap(N.status.material2,   CAP_material2);
+            if (blocked.material3)    addCap(N.status.material3,    CAP_material3);
+            if (blocked.material4) addCap(N.status.material4, CAP_material4);
 
             if (first == false)
                 ChatHandler(killer->GetSession()).SendSysMessage(capMsg.c_str());
@@ -338,30 +316,34 @@ namespace GuildVillage
         }
 
         if (CFG_NOTIFY)
-        {
-            auto M = GetMaterialNames();
-            std::string msg = std::string("|cff00ff00[Guild Village]|r ") +
-                T("Získáno: ", "Gained: ");
-            bool first = true;
-            auto add = [&](std::string const& n, uint32 v)
-            {
-                if (!v) return;
-                if (!first) msg += ", ";
-                msg += n; msg += " +"; msg += std::to_string(v);
-                first = false;
-            };
-            add(M.timber,  applied.timber);
-            add(M.stone,   applied.stone);
-            add(M.iron,    applied.iron);
-            add(M.crystal, applied.crystal);
-
-            BroadcastToGroup(killer, msg);
-        }
+		{
+			using namespace GuildVillage::Names;
+		
+			std::string msg = std::string("|cff00ff00[Guild Village]|r ") +
+				T("Získáno: ", "Gained: ");
+		
+			bool first = true;
+			auto add = [&](Mat m, uint32 v)
+			{
+				if (!v) return;
+				if (!first) msg += ", ";
+				// "+3 prkna" / "+3 material1s"
+				msg += "+" + std::to_string(v) + " " + CountName(m, v);
+				first = false;
+			};
+		
+			add(Mat::Material1,  applied.material1);
+			add(Mat::Material2,   applied.material2);
+			add(Mat::Material3,    applied.material3);
+			add(Mat::Material4, applied.material4);
+		
+			BroadcastToGroup(killer, msg);
+		}
 
         // Pokud cap něco ořízl
-        if (blocked.timber || blocked.stone || blocked.iron || blocked.crystal)
+        if (blocked.material1 || blocked.material2 || blocked.material3 || blocked.material4)
         {
-            auto M = GetMaterialNames();
+            auto const& N = GuildVillage::Names::Get();
 
             std::string capMsg = std::string("|cffff5555[Guild Village]|r ") +
                 T("Limit – nepřipsáno kvůli capu: ", "Limit – not added due to cap: ");
@@ -375,32 +357,37 @@ namespace GuildVillage
                 first = false;
             };
 
-            addCut(M.timber,  blocked.timber,  CAP_TIMBER);
-            addCut(M.stone,   blocked.stone,   CAP_STONE);
-            addCut(M.iron,    blocked.iron,    CAP_IRON);
-            addCut(M.crystal, blocked.crystal, CAP_CRYSTAL);
+            addCut(N.status.material1,  blocked.material1,  CAP_material1);
+            addCut(N.status.material2,   blocked.material2,   CAP_material2);
+            addCut(N.status.material3,    blocked.material3,    CAP_material3);
+            addCut(N.status.material4, blocked.material4, CAP_material4);
 
             if (!first)
+                // původně: ChatHandler(killer->GetSession()).SendSysMessage(capMsg.c_str());
                 BroadcastToGroup(killer, capMsg);
         }
 
 		// volitelně hláška – respektuje názvy z configu
 		if (CFG_DEBUG)
 		{
-			auto M = GetMaterialNames();
+			using namespace GuildVillage::Names;
+		
 			std::string msg = T("Zisk: ", "Gain: ");
 			bool first = true;
-			auto add = [&](std::string const& n, uint32 v)
+			auto add = [&](Mat m, uint32 v)
 			{
 				if (!v) return;
 				if (!first) msg += ", ";
-				msg += n; msg += " +"; msg += std::to_string(v);
+				// "+3 prkna" / "+3 material1s"
+				msg += "+" + std::to_string(v) + " " + CountName(m, v);
 				first = false;
 			};
-			add(M.timber,  applied.timber);
-			add(M.stone,   applied.stone);
-			add(M.iron,    applied.iron);
-			add(M.crystal, applied.crystal);
+		
+			add(Mat::Material1,  applied.material1);
+			add(Mat::Material2,   applied.material2);
+			add(Mat::Material3,    applied.material3);
+			add(Mat::Material4, applied.material4);
+		
 			DebugMsg(killer, msg);
 		}
     }

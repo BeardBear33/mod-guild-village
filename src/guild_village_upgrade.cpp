@@ -19,6 +19,7 @@
 #include "GameObject.h"
 #include "Transport.h"
 #include "EventProcessor.h"
+#include "gv_names.h"
 
 #include <string>
 #include <unordered_map>
@@ -41,65 +42,42 @@ namespace GuildVillage
     {
         return (LangOpt() == Lang::EN) ? en : cs;
     }
-
-	// === Material display names from config (localized) ===
-	struct MatNames { std::string timber, stone, iron, crystal; };
-	
-	static MatNames GetMaterialNames()
-	{
-		MatNames m;
-		if (LangOpt() == Lang::EN)
-		{
-			m.timber  = sConfigMgr->GetOption<std::string>("GuildVillage.MaterialEN.Timber",  "Timber");
-			m.stone   = sConfigMgr->GetOption<std::string>("GuildVillage.MaterialEN.Stone",   "Stone");
-			m.iron    = sConfigMgr->GetOption<std::string>("GuildVillage.MaterialEN.Iron",    "Iron");
-			m.crystal = sConfigMgr->GetOption<std::string>("GuildVillage.MaterialEN.Crystal", "Crystal");
-		}
-		else
-		{
-			m.timber  = sConfigMgr->GetOption<std::string>("GuildVillage.Material.Timber",  "Dřevo");
-			m.stone   = sConfigMgr->GetOption<std::string>("GuildVillage.Material.Stone",   "Kámen");
-			m.iron    = sConfigMgr->GetOption<std::string>("GuildVillage.Material.Iron",    "Železo");
-			m.crystal = sConfigMgr->GetOption<std::string>("GuildVillage.Material.Crystal", "Krystal");
-		}
-		return m;
-	}
 	
 	// Caps
 	static inline bool CapsEnabled()
 	{
 		return sConfigMgr->GetOption<bool>("GuildVillage.CurrencyCap.Enabled", true);
 	}
-	static inline uint32 CapTimber()  { return sConfigMgr->GetOption<uint32>("GuildVillage.CurrencyCap.Timber",   1000); }
-	static inline uint32 CapStone()   { return sConfigMgr->GetOption<uint32>("GuildVillage.CurrencyCap.Stone",    1000); }
-	static inline uint32 CapIron()    { return sConfigMgr->GetOption<uint32>("GuildVillage.CurrencyCap.Iron",     1000); }
-	static inline uint32 CapCrystal() { return sConfigMgr->GetOption<uint32>("GuildVillage.CurrencyCap.Crystal",  1000); }
+	static inline uint32 CapMaterial1()  { return sConfigMgr->GetOption<uint32>("GuildVillage.CurrencyCap.Material1",   1000); }
+	static inline uint32 CapMaterial2()   { return sConfigMgr->GetOption<uint32>("GuildVillage.CurrencyCap.Material2",    1000); }
+	static inline uint32 CapMaterial3()    { return sConfigMgr->GetOption<uint32>("GuildVillage.CurrencyCap.Material3",     1000); }
+	static inline uint32 CapMaterial4() { return sConfigMgr->GetOption<uint32>("GuildVillage.CurrencyCap.Material4",  1000); }
 	
 	static void SendCurrencyStatusToChat(Player* player, uint32 guildId)
 	{
 		if (!player) return;
 	
-		uint64 tim=0, sto=0, iro=0, cry=0;
+		uint64 mat1=0, mat2=0, mat3=0, mat4=0;
 		if (QueryResult r = WorldDatabase.Query(
-				"SELECT timber, stone, iron, crystal FROM customs.gv_currency WHERE guildId={}", guildId))
+				"SELECT material1, material2, material3, material4 FROM customs.gv_currency WHERE guildId={}", guildId))
 		{
 			Field* f = r->Fetch();
-			tim = f[0].Get<uint64>();
-			sto = f[1].Get<uint64>();
-			iro = f[2].Get<uint64>();
-			cry = f[3].Get<uint64>();
+			mat1 = f[0].Get<uint64>();
+			mat2 = f[1].Get<uint64>();
+			mat3 = f[2].Get<uint64>();
+			mat4 = f[3].Get<uint64>();
 		}
 		else
 		{
 			ChatHandler(player->GetSession()).SendSysMessage(
-				T("Tvoje gilda nevlastní vesnici (žádná měnová tabulka).",
+				T("Tvoje guilda nevlastní vesnici (žádná měnová tabulka).",
 				"Your guild does not own a village (no currency table)."));
 			return;
 		}
 	
-		auto M = GetMaterialNames();
+		auto const& N = GuildVillage::Names::Get();
 		ChatHandler h(player->GetSession());
-		h.SendSysMessage(T("|cff00ff00[Gildovní vesnice]|r – materiály",
+		h.SendSysMessage(T("|cff00ff00[Guildovní vesnice]|r – materiály",
 						"|cff00ff00[Guild Village]|r – materials"));
 	
 		auto send = [&](std::string const& name, uint64 val, uint32 cap)
@@ -113,10 +91,10 @@ namespace GuildVillage
 			h.SendSysMessage(line.c_str());
 		};
 	
-		send(M.timber,  tim, CapTimber());
-		send(M.stone,   sto, CapStone());
-		send(M.iron,    iro, CapIron());
-		send(M.crystal, cry, CapCrystal());
+		send(N.status.material1,  mat1, CapMaterial1());
+		send(N.status.material2,   mat2, CapMaterial2());
+		send(N.status.material3,    mat3, CapMaterial3());
+		send(N.status.material4, mat4, CapMaterial4());
 	}
 
     // ---------- Konfigurace práv ----------
@@ -129,7 +107,7 @@ namespace GuildVillage
         return sConfigMgr->GetOption<bool>("GuildVillage.HidePurchaseMenuForNonGM", false);
     }
 
-    // Je hráč leader své gildy? (bere i Officera - rid=1)
+    // Je hráč leader své guildy? (bere i Officera - rid=1)
     static inline bool IsGuildLeader(Player* player)
     {
         if (Guild* g = player->GetGuild())
@@ -260,7 +238,7 @@ namespace GuildVillage
             while (go->NextRow());
         }
 
-        WorldDatabase.Execute(
+        WorldDatabase.DirectExecute(
             "INSERT INTO customs.gv_upgrades (guildId, expansion_key, purchased_at) "
             "VALUES ({}, '{}', UNIX_TIMESTAMP())",
             guildId, key
@@ -279,7 +257,7 @@ namespace GuildVillage
         std::string key;
         std::string label_cs;
         std::string label_en;
-        uint32 cost_tim=0, cost_sto=0, cost_iro=0, cost_crys=0;
+        uint32 cost_mat1=0, cost_mat2=0, cost_mat3=0, cost_mat4=0;
         uint8  sort=0;
     };
 
@@ -298,7 +276,7 @@ namespace GuildVillage
         }
 
         if (QueryResult r = WorldDatabase.Query(
-                "SELECT id, expansion_key, label_cs, label_en, cost_timber, cost_stone, cost_iron, cost_crystal, sort_order "
+                "SELECT id, expansion_key, label_cs, label_en, cost_material1, cost_material2, cost_material3, cost_material4, sort_order "
                 "FROM customs.gv_upgrade_catalog WHERE category='{}' ORDER BY sort_order, id", catName))
         {
             do
@@ -309,10 +287,10 @@ namespace GuildVillage
                 c.key       = f[1].Get<std::string>();
                 c.label_cs  = f[2].Get<std::string>();
                 c.label_en  = f[3].Get<std::string>();
-                c.cost_tim  = f[4].Get<uint32>();
-                c.cost_sto  = f[5].Get<uint32>();
-                c.cost_iro  = f[6].Get<uint32>();
-                c.cost_crys = f[7].Get<uint32>();
+                c.cost_mat1  = f[4].Get<uint32>();
+                c.cost_mat2  = f[5].Get<uint32>();
+                c.cost_mat3  = f[6].Get<uint32>();
+                c.cost_mat4 = f[7].Get<uint32>();
                 c.sort      = f[8].Get<uint8>();
                 c.cat       = cat;
                 out.push_back(std::move(c));
@@ -324,31 +302,20 @@ namespace GuildVillage
 
     static std::string CostLine(CatalogRow const& c)
 	{
-		auto M = GetMaterialNames();
-		std::vector<std::string> parts;
-	
-		if (c.cost_tim) parts.push_back(Acore::StringFormat("{} {}", c.cost_tim, M.timber));
-		if (c.cost_sto) parts.push_back(Acore::StringFormat("{} {}", c.cost_sto, M.stone));
-		if (c.cost_iro) parts.push_back(Acore::StringFormat("{} {}", c.cost_iro, M.iron));
-		if (c.cost_crys)parts.push_back(Acore::StringFormat("{} {}", c.cost_crys, M.crystal));
-	
-		if (parts.empty()) return T("Zdarma", "Free");
-	
-		std::string line = parts.front();
-		for (size_t i = 1; i < parts.size(); ++i) line += " + " + parts[i];
-		return line;
+		return GuildVillage::Names::CostLine(c.cost_mat1, c.cost_mat2, c.cost_mat3, c.cost_mat4);
 	}
+
 
     // ---------- Odečet měny ----------
     static bool TryDeductCurrency(uint32 guildId, CatalogRow const& c)
     {
         // 1) načíst aktuální stav
-        uint32 tim=0, sto=0, iro=0, cry=0;
+        uint32 mat1=0, mat2=0, mat3=0, mat4=0;
         if (QueryResult q = WorldDatabase.Query(
-                "SELECT timber, stone, iron, crystal FROM customs.gv_currency WHERE guildId={}", guildId))
+                "SELECT material1, material2, material3, material4 FROM customs.gv_currency WHERE guildId={}", guildId))
         {
             Field* f = q->Fetch();
-            tim=f[0].Get<uint32>(); sto=f[1].Get<uint32>(); iro=f[2].Get<uint32>(); cry=f[3].Get<uint32>();
+            mat1=f[0].Get<uint32>(); mat2=f[1].Get<uint32>(); mat3=f[2].Get<uint32>(); mat4=f[3].Get<uint32>();
         }
         else
         {
@@ -356,15 +323,15 @@ namespace GuildVillage
         }
 
         // 2) kontrola
-        if (tim < c.cost_tim || sto < c.cost_sto || iro < c.cost_iro || cry < c.cost_crys)
+        if (mat1 < c.cost_mat1 || mat2 < c.cost_mat2 || mat3 < c.cost_mat3 || mat4 < c.cost_mat4)
             return false;
 
         // 3) odečet
         WorldDatabase.Execute(
             "UPDATE customs.gv_currency SET "
-            "timber = timber - {}, stone = stone - {}, iron = iron - {}, crystal = crystal - {}, last_update = NOW() "
+            "material1 = material1 - {}, material2 = material2 - {}, material3 = material3 - {}, material4 = material4 - {}, last_update = NOW() "
             "WHERE guildId = {}",
-            c.cost_tim, c.cost_sto, c.cost_iro, c.cost_crys, guildId
+            c.cost_mat1, c.cost_mat2, c.cost_mat3, c.cost_mat4, guildId
         );
         return true;
     }
@@ -513,7 +480,7 @@ namespace GuildVillage
         SendGossipMenuFor(player, 1, creature->GetGUID());
     }
 
-	// --- Po nákupu: zavřít gossip a po 250ms znovu otevřít stejnou kategorii ---
+	// --- Po nákupu: zavřít gossip a po 50ms znovu otevřít stejnou kategorii ---
 	class ReopenCategoryEvent : public BasicEvent
 	{
 	public:
@@ -543,9 +510,9 @@ namespace GuildVillage
 	
 		ObjectGuid npcGuid = creature->GetGUID();
 		CloseGossipMenuFor(player);
-		// 250 ms odklad
+		// 50 ms odklad
 		player->m_Events.AddEvent(new ReopenCategoryEvent(player, npcGuid, cat),
-								player->m_Events.CalculateTime(250));
+								player->m_Events.CalculateTime(50));
 	}
 
     static void ShowConfirm(Player* player, Creature* creature, CatalogRow const& c)
@@ -584,12 +551,12 @@ namespace GuildVillage
             Guild* g = player->GetGuild();
             if (!g)
             {
-                ChatHandler(player->GetSession()).SendSysMessage(T("Nejsi v gildě.", "You are not in a guild."));
+                ChatHandler(player->GetSession()).SendSysMessage(T("Nejsi v guildě.", "You are not in a guild."));
                 return true;
             }
             if (!LoadVillagePhase(g->GetId()).has_value())
             {
-                ChatHandler(player->GetSession()).SendSysMessage(T("Tvoje gilda nevlastní vesnici.", "Your guild does not own a village."));
+                ChatHandler(player->GetSession()).SendSysMessage(T("Tvoje guilda nevlastní vesnici.", "Your guild does not own a village."));
                 return true;
             }
             ChatHandler(player->GetSession()).SendSysMessage(T("Správa rozšíření vesnice.", "Village upgrades manager."));
@@ -648,7 +615,7 @@ namespace GuildVillage
 					if (!player->GetGuild())
 					{
 						ChatHandler(player->GetSession()).SendSysMessage(
-							T("Nejsi v gildě.", "You are not in a guild."));
+							T("Nejsi v guildě.", "You are not in a guild."));
 						ShowRoot(player, creature);
 						return true;
 					}

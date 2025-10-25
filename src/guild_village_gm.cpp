@@ -344,11 +344,11 @@ namespace
         {
             handler->SendSysMessage(T(
                 R"(|cffffd000[GV]|r Dostupné příkazy:
-  |cff00ff00.gv create [GUILDID] [ignorecap]|r - vytvoří vesnici pro gildy
+  |cff00ff00.gv create [GUILDID] [ignorecap]|r - vytvoří vesnici pro guildy
   |cff00ff00.gv delete <GUILDID>|r           - kompletní odstranění vesnice
   |cff00ff00.gv reset <GUILDID>|r            - wipe + reinstall base layout
   |cff00ff00.gv list [PAGE]|r                - vypíše 10 vesnic na stránku
-  |cff00ff00.gv teleport <GUILDID>|r         - portne tě do vesnice dané gildy (alias: .gv tp)
+  |cff00ff00.gv teleport <GUILDID>|r         - portne tě do vesnice dané guildy (alias: .gv tp)
   |cff00ff00.gv creature <ENTRY> [MOVEMENTTYPE SPAWNDIST SPAWNTIMESECS]|r
   |cff00ff00.gv object <ENTRY> [SPAWNTIMESECS]|r
   |cff00ff00.gv excreature <EXPKEY> <ENTRY> <FACTION> [MOVEMENTTYPE SPAWNDIST SPAWNTIMESECS]|r
@@ -403,7 +403,7 @@ namespace
                     guildId = gg->GetId();
                 else
                 {
-                    handler->SendSysMessage(T("|cffff5555[GV-GM]|r Nejsi v gildě a GUILDID nebylo zadáno.",
+                    handler->SendSysMessage(T("|cffff5555[GV-GM]|r Nejsi v guildě a GUILDID nebylo zadáno.",
                                               "|cffff5555[GV-GM]|r You are not in a guild and GUILDID was not provided."));
                     return true;
                 }
@@ -411,7 +411,7 @@ namespace
 
             if (GuildVillage::GuildHasVillage(guildId))
             {
-                handler->SendSysMessage(T("|cffffaa00[GV-GM]|r Tato gilda už vesnici má.",
+                handler->SendSysMessage(T("|cffffaa00[GV-GM]|r Tato guilda už vesnici má.",
                                           "|cffffaa00[GV-GM]|r This guild already has a village."));
                 return true;
             }
@@ -439,7 +439,7 @@ namespace
 
             if (!GuildVillage::GuildHasVillage(guildId))
             {
-                handler->SendSysMessage(T("|cffffaa00[GV-GM]|r Tato gilda nemá vesnici.",
+                handler->SendSysMessage(T("|cffffaa00[GV-GM]|r Tato guilda nemá vesnici.",
                                           "|cffffaa00[GV-GM]|r This guild does not have a village."));
                 return true;
             }

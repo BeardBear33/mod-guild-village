@@ -10,6 +10,7 @@
 #include "DataMap.h"
 #include "gv_common.h"
 #include "GameTime.h"
+#include "gv_names.h"
 
 #include <string>
 #include <algorithm>
@@ -152,46 +153,23 @@ namespace
         return IsGuildMaster(player);
     }
 
-    // === Material display names from config (localized) ===
-    struct MatNames { std::string timber, stone, iron, crystal; };
-
-    static MatNames GetMaterialNames()
-    {
-        MatNames m;
-        if (LangOpt() == Lang::EN)
-        {
-            m.timber  = sConfigMgr->GetOption<std::string>("GuildVillage.MaterialEN.Timber",  "Timber");
-            m.stone   = sConfigMgr->GetOption<std::string>("GuildVillage.MaterialEN.Stone",   "Stone");
-            m.iron    = sConfigMgr->GetOption<std::string>("GuildVillage.MaterialEN.Iron",    "Iron");
-            m.crystal = sConfigMgr->GetOption<std::string>("GuildVillage.MaterialEN.Crystal", "Crystal");
-        }
-        else
-        {
-            m.timber  = sConfigMgr->GetOption<std::string>("GuildVillage.Material.Timber",  "Dřevo");
-            m.stone   = sConfigMgr->GetOption<std::string>("GuildVillage.Material.Stone",   "Kámen");
-            m.iron    = sConfigMgr->GetOption<std::string>("GuildVillage.Material.Iron",    "Železo");
-            m.crystal = sConfigMgr->GetOption<std::string>("GuildVillage.Material.Crystal", "Krystal");
-        }
-        return m;
-    }
-
     // === Currency caps from config ===
     static inline bool CapsEnabled()
     {
         return sConfigMgr->GetOption<bool>("GuildVillage.CurrencyCap.Enabled", true);
     }
-    static inline uint32 CapTimber()  { return sConfigMgr->GetOption<uint32>("GuildVillage.CurrencyCap.Timber",   1000); }
-    static inline uint32 CapStone()   { return sConfigMgr->GetOption<uint32>("GuildVillage.CurrencyCap.Stone",    1000); }
-    static inline uint32 CapIron()    { return sConfigMgr->GetOption<uint32>("GuildVillage.CurrencyCap.Iron",     1000); }
-    static inline uint32 CapCrystal() { return sConfigMgr->GetOption<uint32>("GuildVillage.CurrencyCap.Crystal",  1000); }
+    static inline uint32 CapMaterial1()  { return sConfigMgr->GetOption<uint32>("GuildVillage.CurrencyCap.Material1",   1000); }
+    static inline uint32 CapMaterial2()   { return sConfigMgr->GetOption<uint32>("GuildVillage.CurrencyCap.Material2",    1000); }
+    static inline uint32 CapMaterial3()    { return sConfigMgr->GetOption<uint32>("GuildVillage.CurrencyCap.Material3",     1000); }
+    static inline uint32 CapMaterial4() { return sConfigMgr->GetOption<uint32>("GuildVillage.CurrencyCap.Material4",  1000); }
 
     // === Data holders ===
-    struct GuildCurrency { uint64 timber=0, stone=0, iron=0, crystal=0; };
+    struct GuildCurrency { uint64 material1=0, material2=0, material3=0, material4=0; };
 
     static std::optional<GuildCurrency> LoadGuildCurrency(uint32 guildId)
     {
         std::string sql =
-            "SELECT timber, stone, iron, crystal "
+            "SELECT material1, material2, material3, material4 "
             "FROM customs.gv_currency "
             "WHERE guildId=" + std::to_string(guildId);
 
@@ -199,10 +177,10 @@ namespace
         {
             Field* f = res->Fetch();
             GuildCurrency c;
-            c.timber  = f[0].Get<uint64>();
-            c.stone   = f[1].Get<uint64>();
-            c.iron    = f[2].Get<uint64>();
-            c.crystal = f[3].Get<uint64>();
+            c.material1  = f[0].Get<uint64>();
+            c.material2   = f[1].Get<uint64>();
+            c.material3    = f[2].Get<uint64>();
+            c.material4 = f[3].Get<uint64>();
             return c;
         }
         return std::nullopt;
@@ -308,7 +286,7 @@ namespace
             }
             else
             {
-                handler->SendSysMessage("|cff00ff00[Gildovní vesnice]|r – příkazy:");
+                handler->SendSysMessage("|cff00ff00[Guildovní vesnice]|r – příkazy:");
                 handler->SendSysMessage("  .village status      – zobrazí informace o vesnici (materiály + bossové)");
                 handler->SendSysMessage("  .village teleport    – teleportuje tě do guild vesnice");
                 handler->SendSysMessage("  Alias: .village tp | .v teleport | .v tp");
@@ -321,7 +299,7 @@ namespace
         {
             if (!player->GetGuild())
             {
-                handler->SendSysMessage(T("Nejsi v žádné gildě.", "You are not in a guild."));
+                handler->SendSysMessage(T("Nejsi v žádné guildě.", "You are not in a guild."));
                 return true;
             }
 
@@ -357,7 +335,7 @@ namespace
             }
             else
             {
-                handler->SendSysMessage(T("Tvá gilda nevlastní guildovní vesnici.",
+                handler->SendSysMessage(T("Tvá guilda nevlastní guildovní vesnici.",
                                           "Your guild does not own a guild village."));
             }
             return true;
@@ -368,7 +346,7 @@ namespace
         {
             if (!player->GetGuild())
             {
-                handler->SendSysMessage(T("Nejsi v žádné gildě.", "You are not in a guild."));
+                handler->SendSysMessage(T("Nejsi v žádné guildě.", "You are not in a guild."));
                 return true;
             }
 
@@ -382,16 +360,16 @@ namespace
             auto curOpt = LoadGuildCurrency(player->GetGuildId());
             if (!curOpt)
             {
-                handler->SendSysMessage(T("Tvá gilda nevlastní guildovní vesnici.",
+                handler->SendSysMessage(T("Tvá guilda nevlastní guildovní vesnici.",
                                           "Your guild does not own a guild village."));
                 return true;
             }
 
             auto cur = *curOpt;
-            auto M = GetMaterialNames();
+            auto const& N = GuildVillage::Names::Get();
 
             // --- hlavička + currency
-            handler->SendSysMessage(T("|cff00ff00[Gildovní vesnice]|r – informace (materiály + bossové)",
+            handler->SendSysMessage(T("|cff00ff00[Guildovní vesnice]|r – informace (materiály + bossové)",
                                       "|cff00ff00[Guild Village]|r – info (materials + bosses)"));
             auto sendLine = [&](std::string const& name, uint64 curVal, uint32 cap)
             {
@@ -404,10 +382,10 @@ namespace
                 handler->SendSysMessage(line.c_str());
             };
 
-            sendLine(M.timber,  cur.timber,  CapTimber());
-            sendLine(M.stone,   cur.stone,   CapStone());
-            sendLine(M.iron,    cur.iron,    CapIron());
-            sendLine(M.crystal, cur.crystal, CapCrystal());
+            sendLine(N.status.material1,  cur.material1,  CapMaterial1());
+			sendLine(N.status.material2,   cur.material2,   CapMaterial2());
+			sendLine(N.status.material3,    cur.material3,    CapMaterial3());
+			sendLine(N.status.material4, cur.material4, CapMaterial4());
 
             // --- Boss statusy
             handler->SendSysMessage(T("|cff00ff00[Bossové]|r", "|cff00ff00[Bosses]|r"));
@@ -427,7 +405,7 @@ namespace
         }
         else
         {
-            handler->SendSysMessage("|cff00ff00[Gildovní vesnice]|r – příkazy:");
+            handler->SendSysMessage("|cff00ff00[Guildovní vesnice]|r – příkazy:");
             handler->SendSysMessage("  .village status   – zobrazí informace o vesnici (materiály + bossové)");
             handler->SendSysMessage("  .village teleport – teleportuje tě do guild vesnice");
             handler->SendSysMessage("  Alias: .village tp | .v teleport | .v tp");

@@ -31,7 +31,7 @@ namespace GuildVillage
         d.x   = sConfigMgr->GetOption<float>("GuildVillage.Safe.Alliance.X", -8833.38f);    // Stormwind
         d.y   = sConfigMgr->GetOption<float>("GuildVillage.Safe.Alliance.Y",   628.62f);
         d.z   = sConfigMgr->GetOption<float>("GuildVillage.Safe.Alliance.Z",    94.00f);
-        d.o   = sConfigMgr->GetOption<float>("GuildVillage.Safe.Alliance.O",     0.0f);
+        d.o   = sConfigMgr->GetOption<float>("GuildVillage.Safe.Alliance.O",     1.06f);
         return d;
     }
 
@@ -42,7 +42,7 @@ namespace GuildVillage
         d.x   = sConfigMgr->GetOption<float>("GuildVillage.Safe.Horde.X",   1629.85f);      // Orgrimmar
         d.y   = sConfigMgr->GetOption<float>("GuildVillage.Safe.Horde.Y",  -4373.64f);
         d.z   = sConfigMgr->GetOption<float>("GuildVillage.Safe.Horde.Z",    31.55f);
-        d.o   = sConfigMgr->GetOption<float>("GuildVillage.Safe.Horde.O",     0.0f);
+        d.o   = sConfigMgr->GetOption<float>("GuildVillage.Safe.Horde.O",     3.69f);
         return d;
     }
 
