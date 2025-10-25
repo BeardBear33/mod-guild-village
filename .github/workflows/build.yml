@@ -1,4 +1,4 @@
-name: Build module against AzerothCore
+name: Build module against Playerbot Core
 
 on:
   push:
@@ -11,20 +11,22 @@ env:
 
 jobs:
   build:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04.3
 
     steps:
-    - name: Checkout module repo (this repo)
+    - name: Checkout this module
       uses: actions/checkout@v4
       with:
         path: module-src
+        fetch-depth: 1
 
-    - name: Checkout AzerothCore
+    - name: Checkout AzerothCore (Playerbot branch)
       uses: actions/checkout@v4
       with:
-        repository: azerothcore/azerothcore-wotlk
-        ref: playerbots
+        repository: mod-playerbots/azerothcore-wotlk
+        ref: Playerbot
         path: azerothcore
+        fetch-depth: 1
 
     - name: Copy module into AzerothCore/modules
       run: |
@@ -56,6 +58,7 @@ jobs:
           -DCMAKE_BUILD_TYPE=${BUILD_TYPE} \
           -DTOOLS=ON \
           -DSCRIPTS=static \
+          -DWITH_PLAYERBOTS=1 \
           -DWITH_WARNINGS=1
 
     - name: Build worldserver & authserver
@@ -63,7 +66,7 @@ jobs:
       run: |
         make -j"$(nproc)" worldserver authserver
 
-    - name: Show worldserver version (sanity check link succeeded)
+    - name: Show worldserver version
       working-directory: azerothcore/build/bin
       run: |
         ./worldserver --version || true
