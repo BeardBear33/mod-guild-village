@@ -1,8 +1,10 @@
 **Guild Village**
 
 Guild Village modul přidává vlastní gildovní vesnice s upgrady, měnou a NPC. Spravuj, rozšiřuj a rozvíjej svou guild vesnici.
+Stačí přidat pouze jedno NPC pro nákup vesnice. ".npc add 987454"
  
 Guild Village module adds customizable guild villages with upgrades, currency, and NPCs. Manage, expand, and develop your guild settlement.
+Add only one NPC for village purchase. ".npc add 987454"
 
 🌍 Vyber jazyk / Choose language:
 - [Čeština](https://github.com/BeardBear33/mod-guild-village/blob/main/README_CS.md)
