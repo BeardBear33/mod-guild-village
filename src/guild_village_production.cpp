@@ -16,7 +16,7 @@
 #include "GameTime.h"
 #include "EventProcessor.h"
 
-#include "guild_village_production.h"
+#include "gv_production.h"
 #include "gv_names.h"
 
 #include <string>

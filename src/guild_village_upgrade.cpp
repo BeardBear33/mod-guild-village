@@ -20,7 +20,7 @@
 #include "Transport.h"
 #include "EventProcessor.h"
 #include "gv_names.h"
-#include "guild_village_production.h"
+#include "gv_production.h"
 
 #include <string>
 #include <unordered_map>

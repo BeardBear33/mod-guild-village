@@ -11,7 +11,7 @@
 #include "gv_common.h"
 #include "GameTime.h"
 #include "gv_names.h"
-#include "guild_village_production.h"
+#include "gv_production.h"
 
 #include <string>
 #include <algorithm>
