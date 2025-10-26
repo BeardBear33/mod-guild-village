@@ -26,14 +26,14 @@ Je nutné zajistit, že tato ID nejsou v `acore_world` již obsazená jiným obs
   - `990203`
 
 - **lastní creatures (`creature_template.entry`):**
-  - `987400`-`987421`, `987450`-`987454`
+  - `987400`-`987430`, `987440`-`987454`
 
 - **Vlastni PoI (`points_of_interest.Entry`):**
-  - `1200`-`1246`
+  - `1200`-`1250`
  
 - **Vlastni Graveyard (`game_graveyard.Entry`):**
   - `2000`
-  - 
+  
 Pokud máš v databázi již jiné záznamy s těmito ID, je potřeba čísla v modulu i v SQL posunout na jiný volný rozsah.
 
 Odebrán smartAI pro cooking trenéra a ridding trenéra (pouze pohyb)
@@ -50,9 +50,9 @@ Odebrán smartAI pro cooking trenéra a ridding trenéra (pouze pohyb)
 .v tp
 ➝ Teleportuje do guild vesnice.
 
-.village status
-.v status
-➝ Zobrazí stav currency+boss pro guildu.
+.village i / in / inf / info
+.v i / in / inf / info
+➝ Zobrazí stav currency+boss+produkci pro guildu.
 
 ### Admin Příkazy
 .gv list [PAGE]
