@@ -20,6 +20,7 @@
 #include "Transport.h"
 #include "EventProcessor.h"
 #include "gv_names.h"
+#include "guild_village_production.h"
 
 #include <string>
 #include <unordered_map>
@@ -619,7 +620,11 @@ namespace GuildVillage
 						ShowRoot(player, creature);
 						return true;
 					}
+				
+					GuildVillageProduction::SyncGuildProduction(player->GetGuildId());
+				
 					SendCurrencyStatusToChat(player, player->GetGuildId());
+				
 					ShowRoot(player, creature);
 					return true;
 				}

@@ -335,22 +335,88 @@ namespace GuildVillage
         return true;
     }
 
-    // ===== Helper: kompletní wipe =====
-    static void CleanupVillageForGuild(uint32 guildId)
+// helper na batch mazání respawnů z characters DB
+static void DeleteRespawnsByGuids(std::string const& table, std::vector<uint32> const& guids, size_t batch = 500)
+{
+    if (guids.empty())
+        return;
+
+    for (size_t i = 0; i < guids.size(); i += batch)
     {
-        uint32 phaseId = 0;
-        if (QueryResult r = WorldDatabase.Query("SELECT phase FROM customs.gv_guild WHERE guild={}", guildId))
-            phaseId = (*r)[0].Get<uint32>();
-        if (!phaseId) phaseId = PhaseIdForGuild(guildId);
+        size_t j = std::min(i + batch, guids.size());
+        std::ostringstream inlist;
+        for (size_t k = i; k < j; ++k)
+        {
+            if (k != i)
+                inlist << ',';
+            inlist << guids[k];
+        }
 
-        WorldDatabase.Execute("DELETE FROM customs.gv_currency WHERE guildId={}", guildId);
-        WorldDatabase.Execute("DELETE FROM customs.gv_upgrades WHERE guildId={}", guildId);
-        WorldDatabase.Execute("DELETE FROM creature  WHERE map={} AND phaseMask={}", DefMap(), phaseId);
-        WorldDatabase.Execute("DELETE FROM gameobject WHERE map={} AND phaseMask={}", DefMap(), phaseId);
-        WorldDatabase.Execute("DELETE FROM customs.gv_guild WHERE guild={}", guildId);
-
-        LOG_INFO("modules", "GV: Cleanup done for guild {} (phaseId={})", guildId, phaseId);
+        CharacterDatabase.Execute("DELETE FROM " + table + " WHERE guid IN (" + inlist.str() + ")");
     }
+}
+
+	// ===== Helper: kompletní wipe =====
+	static void CleanupVillageForGuild(uint32 guildId)
+	{
+		// zjisti phaseId pro tu guildu
+		uint32 phaseId = 0;
+		if (QueryResult r = WorldDatabase.Query("SELECT phase FROM customs.gv_guild WHERE guild={}", guildId))
+			phaseId = (*r)[0].Get<uint32>();
+		if (!phaseId)
+			phaseId = PhaseIdForGuild(guildId); // fallback
+	
+		// 0) smaž měny / upgrady / produkci
+		WorldDatabase.Execute("DELETE FROM customs.gv_currency           WHERE guildId={}", guildId);
+		WorldDatabase.Execute("DELETE FROM customs.gv_upgrades           WHERE guildId={}", guildId);
+		WorldDatabase.Execute("DELETE FROM customs.gv_production_active  WHERE guildId={}", guildId);
+		WorldDatabase.Execute("DELETE FROM customs.gv_production_upgrade WHERE guildId={}", guildId);
+	
+		// 0.5) smaž respawny z characters.* pro všechny spawny v téhle phase,
+		// stejně jako to děláme při disbandu
+		{
+			// seber GUIDy z world.creature
+			std::vector<uint32> creatureGuids;
+			if (QueryResult qc = WorldDatabase.Query(
+					"SELECT guid FROM creature WHERE map={} AND phaseMask={}", DefMap(), phaseId))
+			{
+				do
+				{
+					creatureGuids.emplace_back(qc->Fetch()[0].Get<uint32>());
+				}
+				while (qc->NextRow());
+			}
+	
+			// seber GUIDy z world.gameobject
+			std::vector<uint32> goGuids;
+			if (QueryResult qg = WorldDatabase.Query(
+					"SELECT guid FROM gameobject WHERE map={} AND phaseMask={}", DefMap(), phaseId))
+			{
+				do
+				{
+					goGuids.emplace_back(qg->Fetch()[0].Get<uint32>());
+				}
+				while (qg->NextRow());
+			}
+	
+			// smaž odpovídající respawny v characters DB
+			DeleteRespawnsByGuids("creature_respawn", creatureGuids);
+			DeleteRespawnsByGuids("gameobject_respawn", goGuids);
+	
+			LOG_INFO("modules",
+				"GV: Cleanup respawns for guild {} (phaseId={}, map={}, creatures={}, gos={})",
+				guildId, phaseId, DefMap(), creatureGuids.size(), goGuids.size());
+		}
+	
+		// 1) smaž samotné spawny z world.*
+		WorldDatabase.Execute("DELETE FROM creature   WHERE map={} AND phaseMask={}", DefMap(), phaseId);
+		WorldDatabase.Execute("DELETE FROM gameobject WHERE map={} AND phaseMask={}", DefMap(), phaseId);
+	
+		// 2) a nakonec záznam vesnice
+		WorldDatabase.Execute("DELETE FROM customs.gv_guild WHERE guild={}", guildId);
+	
+		LOG_INFO("modules", "GV: Cleanup done for guild {} (phaseId={})", guildId, phaseId);
+	}
 
     // ===== PUBLIC API pro GM =====
     bool GuildHasVillage(uint32 guildId) { return LoadVillage(guildId).has_value(); }

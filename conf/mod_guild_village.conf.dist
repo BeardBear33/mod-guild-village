@@ -40,6 +40,22 @@ GuildVillage.RequireGuildMasterForPurchase = true
 # Hide the purchase menu for everyone except the Guild Master + Officers (true) or show it to all members (false)
 GuildVillage.HidePurchaseMenuForNonGM = true
 
+# Guild Village – Purchase price
+# 0 = nevyžaduje se, cena ve zlatě 
+#
+# 0 = not required, price in gold
+GuildVillage.Price.Gold = 1000
+
+# item ID podmínky
+#
+# item ID requirement
+GuildVillage.Price.ItemId = 37711
+
+# množství itemů
+#
+# number of items
+GuildVillage.Price.ItemCount = 100
+
 # Default teleport in village / Místo teleportu ve vesnici 
 GuildVillage.Default.Map = 37
 GuildVillage.Default.X   = 1026.7292
@@ -55,10 +71,10 @@ GuildVillage.Default.Phase = 1
 
 # Názvy materiálů pro status zprávu
 # České názvy – používají se pouze pokud je GuildVillage.Locale = cs
-GuildVillage.Material.Material1 = Dřevo
-GuildVillage.Material.Material2 = Kámen
+GuildVillage.Material.Material1 = Prkna
+GuildVillage.Material.Material2 = Kamení
 GuildVillage.Material.Material3 = Železo
-GuildVillage.Material.Material4 = Krystal
+GuildVillage.Material.Material4 = Krystaly
 
 # Material names for status message
 # English versions – only used when GuildVillage.Locale = en
@@ -117,22 +133,6 @@ GuildVillage.CurrencyCap.Material2    = 1000
 GuildVillage.CurrencyCap.Material3     = 1000
 GuildVillage.CurrencyCap.Material4  = 1000
 
-# === Guild Village – Purchase price ===
-# 0 = nevyžaduje se, cena ve zlatě 
-#
-# 0 = not required, price in gold
-GuildVillage.Price.Gold = 5
-
-# item ID podmínky
-#
-# item ID requirement
-GuildVillage.Price.ItemId = 0
-
-# množství itemů
-#
-# number of items
-GuildVillage.Price.ItemCount = 0
-
 # === Guild Village: Loot ===
 # Povolit nebo zakázat loot pro currency
 #
@@ -153,6 +153,43 @@ GuildVillage.Loot.OnlyInVillage = 1
 #
 # Only debug
 GuildVillage.Loot.Debug = 0
+
+#=========================#
+# GuildVillage Production #
+#=========================#
+
+# Aktivní "výrobní slot" generuje materiál po čase
+# Výchozí hodnota bez jakéhokoliv upgradu
+#
+#An active "production slot" generates material over time
+#Default value without any upgrades
+GuildVillage.Production.BasePeriodHours = 8
+GuildVillage.Production.BaseAmount     = 5
+
+# Bonus k množství za rank 1/2/3 (8/10/12)
+# 
+# Bonus to production amount for rank 1/2/3 (8/10/12)
+GuildVillage.Production.AmountBonus1   = 3
+GuildVillage.Production.AmountBonus2   = 5
+GuildVillage.Production.AmountBonus3   = 7
+
+# Násobek času za rank 1/2/3 (6/4/2)
+# Finální perioda = BasePeriodHours * SpeedMultX
+#
+# Time multiplier for rank 1/2/3 (6/4/2)
+# Final period = BasePeriodHours * SpeedMultX
+GuildVillage.Production.SpeedMult1     = 0.75
+GuildVillage.Production.SpeedMult2     = 0.50
+GuildVillage.Production.SpeedMult3     = 0.25
+
+
+# Každých kolik minut má server globálně propsat pasivní produkci (pouze vizuál)
+# Tato akce se také provádí při každem otevření gossip menu a .village status
+#
+# How often (in minutes) the server should globally update passive production (visual only)
+# This action is also performed every time the gossip menu or .village status is opened
+# Default 15
+GuildVillage.Production.WorldTickMinutes = 15
 
 #================================#
 # Guild Village – Bot prevention #

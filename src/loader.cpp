@@ -13,6 +13,7 @@ void RegisterGuildVillageDisband();
 void RegisterGuildVillageWhere();
 void RegisterGuildVillageBot();
 void RegisterGuildVillageTeleporter();
+void RegisterGuildVillageProduction();
 void RegisterGuildVillageVoltrix();
 void RegisterGuildVillageThranok();
 void RegisterGuildVillageThalgron();
@@ -32,6 +33,7 @@ void Addmod_guild_villageScripts()
 	RegisterGuildVillageWhere();
 	RegisterGuildVillageBot();
 	RegisterGuildVillageTeleporter();
+	RegisterGuildVillageProduction();
 	RegisterGuildVillageVoltrix();
 	RegisterGuildVillageThranok();
 	RegisterGuildVillageThalgron();

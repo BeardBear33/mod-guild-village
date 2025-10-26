@@ -91,12 +91,19 @@ namespace GuildVillage
             LOG_INFO("modules", "GV: Cleared respawns for guild {} (phaseId={}, map={}, creatures={}, gos={})",
                      guildId, phaseId, DefMap(), creatureGuids.size(), goGuids.size());
         }
-
+		
         // 2) world spawny pro danou phase na mapě vesnice
         WorldDatabase.Execute(
             "DELETE FROM creature WHERE map={} AND phaseMask={}", DefMap(), phaseId);
         WorldDatabase.Execute(
             "DELETE FROM gameobject WHERE map={} AND phaseMask={}", DefMap(), phaseId);
+
+		// 2.5) produkce (aktivní sloty + koupené ranky produkce)
+		WorldDatabase.Execute(
+			"DELETE FROM customs.gv_production_active WHERE guildId={}", guildId);
+		
+		WorldDatabase.Execute(
+			"DELETE FROM customs.gv_production_upgrade WHERE guildId={}", guildId);
 
         // 3) AŽ NAKONEC záznam o vesnici
         WorldDatabase.Execute("DELETE FROM customs.gv_guild WHERE guild={}", guildId);

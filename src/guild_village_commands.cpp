@@ -11,6 +11,7 @@
 #include "gv_common.h"
 #include "GameTime.h"
 #include "gv_names.h"
+#include "guild_village_production.h"
 
 #include <string>
 #include <algorithm>
@@ -163,29 +164,6 @@ namespace
     static inline uint32 CapMaterial3()    { return sConfigMgr->GetOption<uint32>("GuildVillage.CurrencyCap.Material3",     1000); }
     static inline uint32 CapMaterial4() { return sConfigMgr->GetOption<uint32>("GuildVillage.CurrencyCap.Material4",  1000); }
 
-    // === Data holders ===
-    struct GuildCurrency { uint64 material1=0, material2=0, material3=0, material4=0; };
-
-    static std::optional<GuildCurrency> LoadGuildCurrency(uint32 guildId)
-    {
-        std::string sql =
-            "SELECT material1, material2, material3, material4 "
-            "FROM customs.gv_currency "
-            "WHERE guildId=" + std::to_string(guildId);
-
-        if (QueryResult res = WorldDatabase.Query(sql))
-        {
-            Field* f = res->Fetch();
-            GuildCurrency c;
-            c.material1  = f[0].Get<uint64>();
-            c.material2   = f[1].Get<uint64>();
-            c.material3    = f[2].Get<uint64>();
-            c.material4 = f[3].Get<uint64>();
-            return c;
-        }
-        return std::nullopt;
-    }
-
     // utils
     static inline std::string Trim(std::string s)
     {
@@ -204,6 +182,16 @@ namespace
     static inline bool IsTeleportArg(std::string sLower)
     {
         return sLower == "teleport" || sLower == "tp";
+    }
+	
+	    // --- info aliases helper ---
+    static inline bool IsInfoArg(std::string const& sLower)
+    {
+        // povolíme .village i / in / inf / info
+        return sLower == "i"
+            || sLower == "in"
+            || sLower == "inf"
+            || sLower == "info";
     }
 
     // === Per-player stash (sdílené jméno s ostatními částmi modu) ===
@@ -280,16 +268,24 @@ namespace
             if (LangOpt() == Lang::EN)
             {
                 handler->SendSysMessage("|cff00ff00[Guild Village]|r – commands:");
-                handler->SendSysMessage("  .village status      – show village info (materials + bosses)");
+                handler->SendSysMessage("  .village info      – show village info");
+				handler->SendSysMessage("     Aliases: .village i / in / inf / info");
+				handler->SendSysMessage("     Aliases: .v i / in / inf / info");
+				handler->SendSysMessage(" ");
                 handler->SendSysMessage("  .village teleport    – teleports you to the guild village");
-                handler->SendSysMessage("  Aliases: .village tp | .v teleport | .v tp");
+                handler->SendSysMessage("     Aliases: .village tp / teleport");
+				handler->SendSysMessage("     Aliases: .v tp / teleport");
             }
             else
             {
                 handler->SendSysMessage("|cff00ff00[Guildovní vesnice]|r – příkazy:");
-                handler->SendSysMessage("  .village status      – zobrazí informace o vesnici (materiály + bossové)");
+                handler->SendSysMessage("  .village info     – zobrazí informace o vesnici");
+				handler->SendSysMessage("     Alias: .village i / in / inf / info");
+				handler->SendSysMessage("     Alias: .v i / in / inf / info");
+				handler->SendSysMessage(" ");
                 handler->SendSysMessage("  .village teleport    – teleportuje tě do guild vesnice");
-                handler->SendSysMessage("  Alias: .village tp | .v teleport | .v tp");
+                handler->SendSysMessage("     Alias: .village tp / teleport");
+				handler->SendSysMessage("     Alias: .v tp / teleport");
             }
             return true;
         }
@@ -341,8 +337,8 @@ namespace
             return true;
         }
 
-        // ".village status"
-        if (al == "status")
+        // ".village info" (+ aliasy: i / in / inf / info)
+        if (IsInfoArg(al))
         {
             if (!player->GetGuild())
             {
@@ -357,8 +353,9 @@ namespace
                 return true;
             }
 
-            auto curOpt = LoadGuildCurrency(player->GetGuildId());
-            if (!curOpt)
+            // Syncne produkci = dopočítá tick a případně stopne při capu
+            auto curOpt = GuildVillageProduction::SyncGuildProduction(player->GetGuildId());
+            if (!curOpt.has_value())
             {
                 handler->SendSysMessage(T("Tvá guilda nevlastní guildovní vesnici.",
                                           "Your guild does not own a guild village."));
@@ -368,27 +365,95 @@ namespace
             auto cur = *curOpt;
             auto const& N = GuildVillage::Names::Get();
 
-            // --- hlavička + currency
-            handler->SendSysMessage(T("|cff00ff00[Guildovní vesnice]|r – informace (materiály + bossové)",
-                                      "|cff00ff00[Guild Village]|r – info (materials + bosses)"));
-            auto sendLine = [&](std::string const& name, uint64 curVal, uint32 cap)
+            // ---- hlavička
+            handler->SendSysMessage(
+                T("|cff00ff00[Guildovní vesnice]|r – informace",
+                  "|cff00ff00[Guild Village]|r – info")
+            );
+
+            // ---- materiály (bez produkčních detailů, jen zásoba / cap)
+            auto sendMatLine = [&](std::string const& dispName, uint64 curVal, uint32 cap)
             {
-                std::string line = "|cff00ffff" + name + ":|r " + std::to_string(curVal);
+                std::string line = "|cff00ffff" + dispName + ":|r " + std::to_string(curVal);
                 if (CapsEnabled())
                 {
-                    if (cap == 0) line += " / ∞";
-                    else          line += " / " + std::to_string(cap);
+                    if (cap == 0)
+                        line += " / ∞";
+                    else
+                        line += " / " + std::to_string(cap);
                 }
                 handler->SendSysMessage(line.c_str());
             };
 
-            sendLine(N.status.material1,  cur.material1,  CapMaterial1());
-			sendLine(N.status.material2,   cur.material2,   CapMaterial2());
-			sendLine(N.status.material3,    cur.material3,    CapMaterial3());
-			sendLine(N.status.material4, cur.material4, CapMaterial4());
+            sendMatLine(N.status.material1, cur.material1, CapMaterial1());
+            sendMatLine(N.status.material2, cur.material2, CapMaterial2());
+            sendMatLine(N.status.material3, cur.material3, CapMaterial3());
+            sendMatLine(N.status.material4, cur.material4, CapMaterial4());
 
-            // --- Boss statusy
-            handler->SendSysMessage(T("|cff00ff00[Bossové]|r", "|cff00ff00[Bosses]|r"));
+            // ---- produkce blok
+            handler->SendSysMessage(
+                T("|cff00ff00[Produkce]|r",
+                  "|cff00ff00[Production]|r")
+            );
+
+            uint8 activeMatId = GuildVillageProduction::GetCurrentlyActiveMaterial(player->GetGuildId());
+            if (activeMatId == 0)
+            {
+                handler->SendSysMessage(
+                    T("Není aktivní žádná výroba.",
+                      "No production is currently running.")
+                );
+            }
+            else
+            {
+                // jméno materiálu
+                std::string matName;
+                switch (activeMatId)
+                {
+                    case 1: matName = N.status.material1; break;
+                    case 2: matName = N.status.material2; break;
+                    case 3: matName = N.status.material3; break;
+                    case 4: matName = N.status.material4; break;
+                    default: matName = "Unknown"; break;
+                }
+
+                // detail pro ten materiál
+                GuildVillageProduction::ProdStatusForMat st =
+                    GuildVillageProduction::GetProductionStatus(player->GetGuildId(), activeMatId);
+
+                handler->SendSysMessage(
+                    Acore::StringFormat(
+                        T("Právě je aktivní produkce: {}",
+                          "Currently producing: {}"),
+                        matName
+                    ).c_str()
+                );
+
+                // hezký zápis intervalu
+                char buf[32];
+                float h = st.hoursPerTick;
+                uint32 hInt = (uint32)std::floor(h + 0.0001f);
+                if (std::fabs(h - (float)hInt) < 0.001f)
+                    std::snprintf(buf, sizeof(buf), "%uh", hInt);
+                else
+                    std::snprintf(buf, sizeof(buf), "%.2fh", h);
+
+                handler->SendSysMessage(
+                    Acore::StringFormat(
+                        T("Produkuje: +{} každých {}",
+                          "Producing: +{} every {}"),
+                        st.amountPerTick,
+                        buf
+                    ).c_str()
+                );
+            }
+
+            // ---- bossové blok
+            handler->SendSysMessage(
+                T("|cff00ff00[Bossové]|r",
+                  "|cff00ff00[Bosses]|r")
+            );
+
             for (BossDef const& b : kBosses)
                 handler->SendSysMessage(BossStatusLine(player->GetGuildId(), b).c_str());
 
@@ -399,16 +464,24 @@ namespace
         if (LangOpt() == Lang::EN)
         {
             handler->SendSysMessage("|cff00ff00[Guild Village]|r – commands:");
-            handler->SendSysMessage("  .village status   – show village info (materials + bosses)");
+            handler->SendSysMessage("  .village info   – show village info");
+			handler->SendSysMessage("     Aliases: .village i / in / inf / info");
+			handler->SendSysMessage("     Aliases: .v i / in / inf / info");
+			handler->SendSysMessage(" ");
             handler->SendSysMessage("  .village teleport – teleports you to the guild village");
-            handler->SendSysMessage("  Aliases: .village tp | .v teleport | .v tp");
+            handler->SendSysMessage("     Aliases: .village tp / teleport");
+			handler->SendSysMessage("     Aliases: .v tp / teleport");
         }
         else
         {
             handler->SendSysMessage("|cff00ff00[Guildovní vesnice]|r – příkazy:");
-            handler->SendSysMessage("  .village status   – zobrazí informace o vesnici (materiály + bossové)");
+            handler->SendSysMessage("  .village info   – zobrazí informace o vesnici");
+			handler->SendSysMessage("     Alias: .village i / in / inf / info");
+			handler->SendSysMessage("     Alias: .v i / in / inf / info");
+			handler->SendSysMessage(" ");
             handler->SendSysMessage("  .village teleport – teleportuje tě do guild vesnice");
-            handler->SendSysMessage("  Alias: .village tp | .v teleport | .v tp");
+            handler->SendSysMessage("     Alias: .village tp / teleport");
+			handler->SendSysMessage("     Alias: .v tp / teleport");
         }
         return true;
     }
