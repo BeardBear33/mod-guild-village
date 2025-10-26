@@ -31,7 +31,6 @@ Guild Village module adds customizable guild villages with upgrades, currency, a
  
 🌐 Česky
 
-- Více druhů měn
 
 - PvE event každý měsíc se spustí najézd nepřátel na vesnici.
 
@@ -45,7 +44,6 @@ Guild Village module adds customizable guild villages with upgrades, currency, a
 
 🌐 English
 
-- Multiple types of currencies
 
 - Every month, a PvE event triggers an enemy raid on the village.
 
