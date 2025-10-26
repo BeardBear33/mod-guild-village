@@ -27,10 +27,10 @@ Ensure that these IDs are not already occupied in your `acore_world` database:
   - `990203`
 
 - **Custom creatures (`creature_template.entry`):**  
-  - `987400`–`987421`, `987450`–`987454`
+  - `987400`–`987430`, `987440`–`987454`
 
 - **Custom PoI (`points_of_interest.Entry`):**  
-  - `1200`–`1246`
+  - `1200`–`1250`
 
 - **Custom Graveyard (`game_graveyard.Entry`):**  
   - `2000`
@@ -51,9 +51,9 @@ SmartAI for cooking and riding trainers has been removed (movement only).
 .v tp 
 ➝ Teleports to the guild village.
 
-.village status
-.v status
-➝ Displays guild+boss currency status.
+.village i / in / inf / info
+.v i / in / inf / info
+➝ Displays guild+boss+production status.
 
 ### Admin Commands
 .gv list [PAGE]
