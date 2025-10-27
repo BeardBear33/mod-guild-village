@@ -1,13 +1,15 @@
-# ==============================
-# Build a runtime výstupy
-# ==============================
+!.gitignore
+
+# ==========================================================
+# 📦 Build a runtime výstupy
+# ==========================================================
 build/
 env/
 dist/
 CMakeFiles/
 CMakeCache.txt
 
-# Soubory generované kompilátorem/linkerem
+# Kompilované / linkované výstupy
 *.o
 *.a
 *.so
@@ -15,22 +17,41 @@ CMakeCache.txt
 *.exe
 *.log
 
-# Mezipaměti kompilátoru (ccache apod.)
+# Mezipaměti kompilátoru
 *.pch
 *.obj
 *.idb
 *.pdb
 
-# ==============================
-# Vývojové prostředí
-# ==============================
+# ==========================================================
+# 💻 Vývojové prostředí (IDE, editory)
+# ==========================================================
 .vscode/
+.vs/
 .idea/
+.settings/
+.project
+.cproject
+
+# Dočasné soubory editorů
 *.swp
 *.swo
+*.kate-swp
+*.*~
+*.bak
 
-# ==============================
-# OS a editorové "nepořádky"
-# ==============================
+# ==========================================================
+# ⚙️ Soubory z mergů / konfliktů
+# ==========================================================
+*.orig
+*.rej
+*.REMOTE.*
+*.BACKUP.*
+*.BASE.*
+*.LOCAL.*
+
+# ==========================================================
+# 🧹 OS a editorové "nepořádky"
+# ==========================================================
 .DS_Store
 Thumbs.db
