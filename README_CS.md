@@ -44,15 +44,25 @@ Odebrán smartAI pro cooking trenéra a ridding trenéra (pouze pohyb)
 - gv_creature_template - Pokud chcete aby bylo něco vygenerováno ještě před vytvořením vesnice tak stačí přidat záznam zde. Pozor tato tabulka se aplikuje pouze jednou při zakoupení vesnice.
 
 ### Příkazy
-.village teleport
-.village tp
-.v teleport
-.v tp
+.village teleport / tp
+.v teleport / tp
 ➝ Teleportuje do guild vesnice.
 
 .village i / in / inf / info
 .v i / in / inf / info
 ➝ Zobrazí stav currency+boss+produkci pro guildu.
+
+.village production / p
+.v production /p
+➝ Zobrazí produkci
+
+.village currency / c
+.v currency / c
+➝ Zobrazí suroviny a cap
+
+.village boss / b
+.v boss / b
+➝ Zobrazí stav bossů
 
 ### Admin Příkazy
 .gv list [PAGE]
