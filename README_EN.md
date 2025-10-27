@@ -45,15 +45,25 @@ SmartAI for cooking and riding trainers has been removed (movement only).
 - `gv_creature_template` – Add records here to pre-spawn creatures **before** village creation. Applied only once during purchase.
 
 ### Commands
-.village teleport
-.village tp
-.v teleport
-.v tp 
+.village teleport / tp
+.v teleport / tp
 ➝ Teleports to the guild village.
 
 .village i / in / inf / info
 .v i / in / inf / info
 ➝ Displays guild+boss+production status.
+
+.village production / p
+.v production /p
+➝ show production status
+
+.village currency / c
+.v currency / c
+➝ show materials & caps
+
+.village boss / b
+.v boss / b
+➝ show bosses status
 
 ### Admin Commands
 .gv list [PAGE]
