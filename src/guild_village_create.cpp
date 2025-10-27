@@ -39,10 +39,29 @@ namespace GuildVillage
     static inline float  DefY()     { return sConfigMgr->GetOption<float>("GuildVillage.Default.Y", 289.9494f); }
     static inline float  DefZ()     { return sConfigMgr->GetOption<float>("GuildVillage.Default.Z", 332.66083f); }
     static inline float  DefO()     { return sConfigMgr->GetOption<float>("GuildVillage.Default.O", 3.4305837f); }
-    static inline uint32 MaxVillages()    { return sConfigMgr->GetOption<uint32>("GuildVillage.MaxVillages", 30); }
     static inline uint32 CleanupDays()    { return sConfigMgr->GetOption<uint32>("GuildVillage.Inactivity.CleanupDays", 90); }
     static inline bool   ShowCapacityMsg(){ return sConfigMgr->GetOption<bool>("GuildVillage.ShowCapacityMessage", true); }
+	static inline int32 MaxVillagesRaw()
+    {
+        return sConfigMgr->GetOption<int32>("GuildVillage.MaxVillages", 30);
+    }
 
+    static inline bool VillagesUnlimited()
+    {
+        return MaxVillagesRaw() < 0;
+    }
+
+    static inline bool VillagesDisabled()
+    {
+        return MaxVillagesRaw() == 0;
+    }
+
+    static inline uint32 VillagesLimit()
+    {
+        int32 raw = MaxVillagesRaw();
+        return raw > 0 ? uint32(raw) : 0;
+    }
+	
     enum class Lang { CS, EN };
     static inline Lang LangOpt()
     {
@@ -145,7 +164,7 @@ namespace GuildVillage
 				ObjectGuid::LowType low = map->GenerateLowGuid<HighGuid::Unit>();
 				if (!c->Create(low, map, phaseId, entry, 0, x, y, z, o)) { delete c; continue; }
 				
-				// správně: jen defaultní delay, NE absolutní čas
+				// jen defaultní delay, NE absolutní čas
 				c->SetRespawnDelay(resp);
 				c->SetWanderDistance(wander);
 				c->SetDefaultMovementType(MovementGeneratorType(mt));
@@ -154,7 +173,7 @@ namespace GuildVillage
 				c->SaveToDB(map->GetId(), (1 << map->GetSpawnMode()), phaseId);
 				uint32 spawnId = c->GetSpawnId();
 				
-				// pojistka do DB (někdy by jinak spadl na 300)
+				// pojistka do DB
 				WorldDatabase.Execute(
 					"UPDATE creature SET spawntimesecs = {}, wander_distance = {}, MovementType = {} WHERE guid = {}",
 					resp, wander, (uint32)mt, spawnId
@@ -204,7 +223,6 @@ namespace GuildVillage
 				g->SaveToDB(map->GetId(), (1 << map->GetSpawnMode()), phaseId);
 				uint32 spawnId = g->GetSpawnId();
 				
-				// POJISTKA: přepiš spawntimesecs i v DB (některé verze ho po SaveToDB() vrací na 300)
 				WorldDatabase.Execute(
 					"UPDATE gameobject SET spawntimesecs = {} WHERE guid = {}",
 					st, spawnId
@@ -257,8 +275,7 @@ namespace GuildVillage
 				ObjectGuid::LowType low = map->GenerateLowGuid<HighGuid::Unit>();
 				if (!c->Create(low, map, phaseId, entry, 0, x, y, z, o)) { delete c; continue; }
 				
-				// nastav template hodnoty (delay, wander, movement)
-				c->SetRespawnDelay(resp); // <<< delay v sekundách, ne absolutní čas
+				c->SetRespawnDelay(resp);
 				c->SetWanderDistance(wander);
 				c->SetDefaultMovementType(MovementGeneratorType(mt));
 				
@@ -266,7 +283,7 @@ namespace GuildVillage
 				c->SaveToDB(map->GetId(), (1 << map->GetSpawnMode()), phaseId);
 				uint32 spawnId = c->GetSpawnId();
 				
-				// pojistka: propsat do DB, jinak hrozí default 300
+				// pojistka
 				WorldDatabase.Execute(
 					"UPDATE creature SET spawntimesecs = {}, wander_distance = {}, MovementType = {} WHERE guid = {}",
 					resp, wander, (uint32)mt, spawnId
@@ -335,26 +352,26 @@ namespace GuildVillage
         return true;
     }
 
-// helper na batch mazání respawnů z characters DB
-static void DeleteRespawnsByGuids(std::string const& table, std::vector<uint32> const& guids, size_t batch = 500)
-{
-    if (guids.empty())
-        return;
-
-    for (size_t i = 0; i < guids.size(); i += batch)
-    {
-        size_t j = std::min(i + batch, guids.size());
-        std::ostringstream inlist;
-        for (size_t k = i; k < j; ++k)
-        {
-            if (k != i)
-                inlist << ',';
-            inlist << guids[k];
-        }
-
-        CharacterDatabase.Execute("DELETE FROM " + table + " WHERE guid IN (" + inlist.str() + ")");
-    }
-}
+	// helper na batch mazání respawnů z characters DB
+	static void DeleteRespawnsByGuids(std::string const& table, std::vector<uint32> const& guids, size_t batch = 500)
+	{
+		if (guids.empty())
+			return;
+	
+		for (size_t i = 0; i < guids.size(); i += batch)
+		{
+			size_t j = std::min(i + batch, guids.size());
+			std::ostringstream inlist;
+			for (size_t k = i; k < j; ++k)
+			{
+				if (k != i)
+					inlist << ',';
+				inlist << guids[k];
+			}
+	
+			CharacterDatabase.Execute("DELETE FROM " + table + " WHERE guid IN (" + inlist.str() + ")");
+		}
+	}
 
 	// ===== Helper: kompletní wipe =====
 	static void CleanupVillageForGuild(uint32 guildId)
@@ -366,14 +383,12 @@ static void DeleteRespawnsByGuids(std::string const& table, std::vector<uint32> 
 		if (!phaseId)
 			phaseId = PhaseIdForGuild(guildId); // fallback
 	
-		// 0) smaž měny / upgrady / produkci
+		// 0) smazat měny / upgrady / produkci
 		WorldDatabase.Execute("DELETE FROM customs.gv_currency           WHERE guildId={}", guildId);
 		WorldDatabase.Execute("DELETE FROM customs.gv_upgrades           WHERE guildId={}", guildId);
 		WorldDatabase.Execute("DELETE FROM customs.gv_production_active  WHERE guildId={}", guildId);
 		WorldDatabase.Execute("DELETE FROM customs.gv_production_upgrade WHERE guildId={}", guildId);
 	
-		// 0.5) smaž respawny z characters.* pro všechny spawny v téhle phase,
-		// stejně jako to děláme při disbandu
 		{
 			// seber GUIDy z world.creature
 			std::vector<uint32> creatureGuids;
@@ -399,7 +414,7 @@ static void DeleteRespawnsByGuids(std::string const& table, std::vector<uint32> 
 				while (qg->NextRow());
 			}
 	
-			// smaž odpovídající respawny v characters DB
+			// smazat odpovídající respawny v characters DB
 			DeleteRespawnsByGuids("creature_respawn", creatureGuids);
 			DeleteRespawnsByGuids("gameobject_respawn", goGuids);
 	
@@ -408,7 +423,7 @@ static void DeleteRespawnsByGuids(std::string const& table, std::vector<uint32> 
 				guildId, phaseId, DefMap(), creatureGuids.size(), goGuids.size());
 		}
 	
-		// 1) smaž samotné spawny z world.*
+		// 1) smazat samotné spawny z world.*
 		WorldDatabase.Execute("DELETE FROM creature   WHERE map={} AND phaseMask={}", DefMap(), phaseId);
 		WorldDatabase.Execute("DELETE FROM gameobject WHERE map={} AND phaseMask={}", DefMap(), phaseId);
 	
@@ -423,8 +438,15 @@ static void DeleteRespawnsByGuids(std::string const& table, std::vector<uint32> 
 
     bool CreateVillageForGuild_GM(uint32 guildId, bool ignoreCapacity)
     {
-        if (GuildHasVillage(guildId)) return false;
-        if (!ignoreCapacity && CountVillages() >= MaxVillages()) return false;
+        if (GuildHasVillage(guildId))
+            return false;
+
+        if (!ignoreCapacity)
+        {
+            if (!VillagesUnlimited() && CountVillages() >= VillagesLimit())
+                return false;
+        }
+
 
         uint32 phaseId = PhaseIdForGuild(guildId);
         WorldDatabase.Execute(
@@ -456,15 +478,25 @@ static void DeleteRespawnsByGuids(std::string const& table, std::vector<uint32> 
 
         uint32 guildId = g->GetId();
 
-        if (LoadVillage(guildId).has_value())
-        { ch.SendSysMessage(T("Tvoje guilda už vesnici vlastní.", "Your guild already owns a village.")); return false; }
+                if (LoadVillage(guildId).has_value())
+        {
+            ch.SendSysMessage(T("Tvoje guilda už vesnici vlastní.", "Your guild already owns a village."));
+            return false;
+        }
 
-        if (CountVillages() >= MaxVillages())
+        if (VillagesDisabled())
+        {
+            ch.SendSysMessage(T("Nákup vesnice je momentálně zakázán.", "Village purchase is currently disabled."));
+            return false;
+        }
+
+        if (!VillagesUnlimited() && CountVillages() >= VillagesLimit())
         {
             ch.SendSysMessage(T("Kapacita vesnic je plná. Počkej na uvolnění slotu.",
                                 "Village capacity is full. Please wait for a slot to free up."));
             return false;
         }
+
 
         uint64 needCopper = (uint64)PriceGold() * 10000ULL;
         if (PriceGold() > 0 && player->GetMoney() < needCopper)
@@ -517,16 +549,30 @@ static void DeleteRespawnsByGuids(std::string const& table, std::vector<uint32> 
         if (!g)
         {
             if (ShowCapacityMsg())
-            {
-                ChatHandler(player->GetSession()).SendSysMessage(
-                    Acore::StringFormat("{}{} / {} {}",
-                        T("Obsazeno vesnic: ", "Villages in use: "),
-                        CountVillages(), MaxVillages(),
-                        T("(sloty se uvolní po disband/neaktivitě).",
-                          "(slots free up after disband/inactivity).")
-                    ).c_str()
-                );
-            }
+			{
+				// neukazuj nic když je unlimited (-1)
+				if (!VillagesUnlimited())
+				{
+					if (VillagesDisabled())
+					{
+						ChatHandler(player->GetSession()).SendSysMessage(
+							T("Nákup vesnic je zakázán.", "Village purchase is disabled.")
+						);
+					}
+					else
+					{
+						ChatHandler(player->GetSession()).SendSysMessage(
+							Acore::StringFormat("{}{} / {} {}",
+								T("Obsazeno vesnic: ", "Villages in use: "),
+								CountVillages(),
+								VillagesLimit(),
+								T("(sloty se uvolní po disband/neaktivitě).",
+								"(slots free up after disband/inactivity).")
+							).c_str()
+						);
+					}
+				}
+			}
             ChatHandler(player->GetSession()).SendSysMessage(T("Nejsi v žádné guildě.", "You are not in a guild."));
             SendGossipMenuFor(player, 1, creature->GetGUID());
             return;
@@ -536,14 +582,27 @@ static void DeleteRespawnsByGuids(std::string const& table, std::vector<uint32> 
 
         if (!row.has_value() && ShowCapacityMsg())
         {
-            ChatHandler(player->GetSession()).SendSysMessage(
-                Acore::StringFormat("{}{} / {} {}",
-                    T("Obsazeno vesnic: ", "Villages in use: "),
-                    CountVillages(), MaxVillages(),
-                    T("(sloty se uvolní po disband/neaktivitě).",
-                      "(slots free up after disband/inactivity).")
-                ).c_str()
-            );
+            if (!VillagesUnlimited())
+			{
+				if (VillagesDisabled())
+				{
+					ChatHandler(player->GetSession()).SendSysMessage(
+						T("Nákup vesnic je zakázán.", "Village purchase is disabled.")
+					);
+				}
+				else
+				{
+					ChatHandler(player->GetSession()).SendSysMessage(
+						Acore::StringFormat("{}{} / {} {}",
+							T("Obsazeno vesnic: ", "Villages in use: "),
+							CountVillages(),
+							VillagesLimit(),
+							T("(sloty se uvolní po disband/neaktivitě).",
+							"(slots free up after disband/inactivity).")
+						).c_str()
+					);
+				}
+			}
         }
 
         if (row.has_value())
@@ -554,10 +613,14 @@ static void DeleteRespawnsByGuids(std::string const& table, std::vector<uint32> 
         }
         else
         {
-            AddGossipItemFor(player, GOSSIP_ICON_VENDOR,
-                             T("Zakoupit guild vesnici", "Purchase guild village"),
-                             GOSSIP_SENDER_MAIN, 1002);
+            if (!VillagesDisabled())
+            {
+                AddGossipItemFor(player, GOSSIP_ICON_VENDOR,
+                                 T("Zakoupit guild vesnici", "Purchase guild village"),
+                                 GOSSIP_SENDER_MAIN, 1002);
+            }
         }
+
         SendGossipMenuFor(player, 1, creature->GetGUID());
     }
 
@@ -601,7 +664,6 @@ static void DeleteRespawnsByGuids(std::string const& table, std::vector<uint32> 
                         return true;
                     }
 
-                    // === KLÍČOVÉ: chovej se jako příkaz – jen nastav stash a teleportuj ===
                     auto* stash = player->CustomData.GetDefault<GVPhaseData>("gv_phase");
                     stash->phaseMask = row->phase;
 

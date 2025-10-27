@@ -15,7 +15,7 @@ set(scripts_STAT_SRCS
   src/guild_village_bot.cpp
   src/guild_village_teleporter.cpp
   src/guild_village_production.cpp
-  src/gv_names.cpp
+  src/guild_village_names.cpp
   src/boss/boss_voltrix_the_unbound.cpp
   src/boss/boss_thranok_the_unyielding.cpp
   src/boss/boss_thalgron_the_earthshaker.cpp

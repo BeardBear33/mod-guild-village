@@ -302,19 +302,6 @@ namespace GuildVillageProduction
 
     static std::string CostLineProd(CatalogProdRow const& c)
     {
-        // použijeme stejné barvy/format jako u upgrade vendoru
-        // materiály 1-4, i když třeba některé jsou 0
-        // výstup např: "M1:10 M2:0 M3:0 M4:0"
-        // nebo pokud už máš v Names::CostLine hotový helper, můžeš použít ten.
-        // Ideál je zrecyklovat Names::CostLine aby to vizuálně sedělo se zbytkem modu.
-        // pokud už máš GuildVillage::Names::CostLine(...) (jako v upgrade kódu),
-        // můžeš rovnou udělat:
-        //
-        // return GuildVillage::Names::CostLine(
-        //     c.cost_mat1, c.cost_mat2, c.cost_mat3, c.cost_mat4
-        // );
-        //
-        // takže finálně:
         return GuildVillage::Names::CostLine(
             c.cost_mat1, c.cost_mat2, c.cost_mat3, c.cost_mat4);
     }
@@ -341,9 +328,6 @@ namespace GuildVillageProduction
     // =========================
     // Měna / cap
     // =========================
-    //
-    // vrací true = po tomhle přičtení jsme na capu (nebo nad capem a museli jsme oříznout)
-    // vrací false = ještě nejsme na capu
 
     static bool AddCurrencyWithCap(uint32 guildId, uint8 materialId, uint32 amountToAdd)
     {
@@ -367,7 +351,6 @@ namespace GuildVillageProduction
 
         auto applyCapRet = [&](uint64 cur, uint32 add, uint32 cap, bool& hitCapOut) -> uint64
         {
-            // cap == 0 => nekonečno, nemůžeš ho trefit
             if (cap == 0)
             {
                 hitCapOut = false;
@@ -385,7 +368,7 @@ namespace GuildVillageProduction
             return wanted;
         };
 
-        bool hitCapMat = false; // zaznamenáme jestli zrovna TEN material narazil cap
+        bool hitCapMat = false;
 
         switch (materialId)
         {
@@ -422,7 +405,7 @@ namespace GuildVillageProduction
                 break;
             }
             default:
-                // neznámý materialId? neřešíme
+
                 break;
         }
 
@@ -561,12 +544,11 @@ namespace GuildVillageProduction
         return "Unknown";
     }
 
-    // dopředné deklarace, aby je znala ReopenRootEvent
     static void ShowRoot(Player* player, Creature* creature);
     static void ShowUpgradeMenu(Player* player, Creature* creature, uint8 materialId);
 
     // =========================
-    // Po start/stop produkce chceme refresh gossipu jako u upgradu
+    // Po start/stop produkce refresh gossipu
     // =========================
 
     class ReopenRootEvent : public BasicEvent
@@ -631,7 +613,7 @@ namespace GuildVillageProduction
 
         if (anyActive)
         {
-            // LOCK MODE: ukážeme jen stop tlačítka
+            // LOCK MODE
             for (auto const& row : activeList)
             {
                 uint8 m = row.materialId;
@@ -668,7 +650,7 @@ namespace GuildVillageProduction
                 ACT_PROD_TOGGLE_BASE + m);
         }
 
-        // 2) separator (klik dělá jen refresh rootu, nevadí)
+        // 2) separator
         AddGossipItemFor(
             player,
             0,
@@ -691,7 +673,6 @@ namespace GuildVillageProduction
                 ACT_UPGRADE_MENU_BASE + m);
         }
 
-        // v rootu už NENÍ "Zpět"
         SendGossipMenuFor(player, 1, creature->GetGUID());
     }
 
@@ -710,7 +691,6 @@ namespace GuildVillageProduction
             return;
         }
 
-        // zpracuj tick
         ProcessTicksForGuild(g->GetId());
 
         UpgradeRanks ur = GetOrInitUpgradeRanks(g->GetId(), materialId);
@@ -765,7 +745,6 @@ namespace GuildVillageProduction
             }
         }
 
-        // tady "Zpět" být má → zpátky do rootu
         AddGossipItemFor(
             player,
             GOSSIP_ICON_TAXI,
@@ -826,7 +805,7 @@ namespace GuildVillageProduction
 
             bool leader = IsGuildLeader(player);
 
-            // separator v rootu / tlačítko "Zpět" v submenu → vždy ukáže root
+            // separator v rootu
             if (action == ACT_BACK_ROOT)
             {
                 ShowRoot(player, creature);
@@ -1006,7 +985,7 @@ namespace GuildVillageProduction
 	// ===== helper: projede všechny guildy, které právě něco produkují
 	static void TickAllGuilds()
 	{
-		// vytáhneme DISTINCT guildId z aktivní produkce
+
 		if (QueryResult r = WorldDatabase.Query(
 			"SELECT DISTINCT guildId FROM customs.gv_production_active"))
 		{
@@ -1070,7 +1049,7 @@ namespace GuildVillageProduction
 
     uint8 GetCurrentlyActiveMaterial(uint32 guildId)
     {
-        // pokud máš design "jen jeden materiál najednou", bereme první řádek
+
         if (QueryResult r = WorldDatabase.Query(
                 "SELECT material_id FROM customs.gv_production_active "
                 "WHERE guildId={} LIMIT 1",
@@ -1078,17 +1057,16 @@ namespace GuildVillageProduction
         {
             return r->Fetch()[0].Get<uint8>(); // 1..4
         }
-        return 0; // nic neběží
+        return 0;
     }
 
     // === Public API pro ostatní moduly ===
 
     std::optional<GuildCurrency> SyncGuildProduction(uint32 guildId)
     {
-        // dopočítej tick (připíše do gv_currency + případně stopne produkci při capu)
+
         ProcessTicksForGuild(guildId);
 
-        // a hned načti čerstvá data z DB
         return LoadGuildCurrencyNow(guildId);
     }
 

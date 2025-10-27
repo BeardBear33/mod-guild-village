@@ -24,8 +24,6 @@ static void Load()
         return sConfigMgr->GetOption<std::string>(en ? enKey : csKey, en ? defEN : defCS);
     };
 
-    // --- Statusové názvy měn jako celků (zobrazují se ve .v status / gossip status)
-    // Např. "Dřevo", "Kámen", "Železo", "Krystaly"
     g_all.status.material1 = G(
         "GuildVillage.Material.Material1",
         "GuildVillage.MaterialEN.Material1",
@@ -54,20 +52,11 @@ static void Load()
         "Material4"
     );
 
-    // --- Jednotkové názvy pro loot/cenu ---
-    // Tohle jsou kusové tvary ("1 prkno" / "2 prkna" / "5 prken")
-    // Každý materiál má 3 config keys:
-    //   Singular = tvar pro 1
-    //   Dual     = tvar pro 2-4
-    //   Plural   = tvar pro 5+
-    //
-    // V EN klidně nastavíš Dual == Plural ("crystals", "stones"...)
     auto GS = [&](char const* csKey, char const* enKey, char const* defCS, char const* defEN) -> std::string
     {
         return sConfigMgr->GetOption<std::string>(en ? enKey : csKey, en ? defEN : defCS);
     };
 
-    // Material1
     g_all.units.material1.sg = GS(
         "GuildVillage.MaterialUnit.Material1.Singular",
         "GuildVillage.MaterialUnitEN.Material1.Singular",
@@ -147,16 +136,12 @@ static void Load()
         "Material4"
     );
 
-    // --- bezpečné fallbacky, kdyby něco chybělo v configu ---
     auto fixUnit = [](Unit& u)
     {
-        // pokud není dual, použij plural
         if (u.du.empty())
             u.du = u.pl;
-        // pokud není plural, použij dual
         if (u.pl.empty())
             u.pl = u.du;
-        // pokud by chyběl sg, prostě ho nastavíme na du/pl, ať se to nikdy nerozbije
         if (u.sg.empty())
             u.sg = !u.du.empty() ? u.du : u.pl;
     };
@@ -186,7 +171,6 @@ static std::string const& StatusOf(Mat m)
         case Mat::Material3: return S.material3;
         case Mat::Material4: return S.material4;
     }
-    // never hit, just silence compiler
     return S.material1;
 }
 
@@ -212,12 +196,9 @@ std::string CountName(Mat m, uint64 n)
 {
     auto const& u = UnitOf(m);
 
-    // 1 → sg
     if (n == 1 && !u.sg.empty())
         return u.sg;
 
-    // 2-4 → du (české tvary "2 kameny", "3 krystaly")
-    // v EN prostě nastavíš du == pl, takže to bude jednotný
     if (n >= 2 && n <= 4 && !u.du.empty())
         return u.du;
 
@@ -225,7 +206,6 @@ std::string CountName(Mat m, uint64 n)
     if (!u.pl.empty())
         return u.pl;
 
-    // ultimate fallback: label materiálu (z .v status)
     return Label(m);
 }
 
@@ -255,4 +235,4 @@ std::string CostLine(uint32 mat1, uint32 mat2, uint32 mat3, uint32 mat4)
     return out;
 }
 
-}} // namespace GuildVillage::Names
+}}

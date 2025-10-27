@@ -135,7 +135,7 @@ namespace GuildVillage
     // factionFilter: 0=oboje, 1=Alliance, 2=Horde
     static bool ApplyUpgradeByKey(uint32 guildId, uint32 phaseId, std::string const& key, uint8 factionFilter)
     {
-        // Duplicitní nákup blokuj
+        // Duplicitní nákup blok
         if (QueryResult q = WorldDatabase.Query(
                 "SELECT 1 FROM customs.gv_upgrades WHERE guildId={} AND expansion_key='{}'", guildId, key))
             return false;
@@ -477,7 +477,7 @@ namespace GuildVillage
         }
 
         // Tlačítko Zpět (jen v kategoriích)
-        AddGossipItemFor(player, GOSSIP_ICON_TAXI, T("Zpet", "Back"), GOSSIP_SENDER_MAIN, ACT_BACK_CATEGORY);
+        AddGossipItemFor(player, GOSSIP_ICON_TAXI, T("Zpátky", "Back"), GOSSIP_SENDER_MAIN, ACT_BACK_CATEGORY);
         SendGossipMenuFor(player, 1, creature->GetGUID());
     }
 

@@ -66,7 +66,6 @@ namespace GuildVillage
 
         // 1.5) Vyčistit respawny v characters.* pro GUIDy této phase (než smažeme world.*)
         {
-            // posbírej GUIDy z world.creature pro tuhle mapu+phase
             std::vector<uint32> creatureGuids;
             if (QueryResult qc = WorldDatabase.Query(
                     "SELECT guid FROM creature WHERE map={} AND phaseMask={}", DefMap(), phaseId))
@@ -75,7 +74,6 @@ namespace GuildVillage
                 while (qc->NextRow());
             }
 
-            // posbírej GUIDy z world.gameobject pro tuhle mapu+phase
             std::vector<uint32> goGuids;
             if (QueryResult qg = WorldDatabase.Query(
                     "SELECT guid FROM gameobject WHERE map={} AND phaseMask={}", DefMap(), phaseId))
@@ -84,7 +82,6 @@ namespace GuildVillage
                 while (qg->NextRow());
             }
 
-            // smaž odpovídající respawny v characters DB
             DeleteByGuidBatches("creature_respawn", creatureGuids);
             DeleteByGuidBatches("gameobject_respawn", goGuids);
 

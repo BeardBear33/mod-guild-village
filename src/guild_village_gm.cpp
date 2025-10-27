@@ -126,7 +126,6 @@ namespace
     }
 
     // === Live instalace BASE layoutu (převzato z create.cpp) ===
-    // Pozn.: používáme "phaseId" = přesné ID fáze (žádná bitová maska).
     static void InstallBaseLayout_Live(uint32 /*guildId*/, uint32 phaseId, std::string const& layout_key = "base")
     {
         uint32 cCount = 0, goCount = 0;
@@ -266,7 +265,7 @@ namespace
                  layout_key, cCount, goCount, phaseId);
     }
 
-    // Pomocné: stránkovaný výpis z customs.gv_guild (jména dotáhneme z characters.guild)
+    // Pomocné: stránkovaný výpis z customs.gv_guild
     static void CmdListVillages(ChatHandler* handler, uint32 page)
     {
         constexpr uint32 kPageSize = 10;
@@ -289,7 +288,6 @@ namespace
 
         uint32 offset = (page - 1) * kPageSize;
 
-        // vyzvedni guild ID a phase (limit/offset)
         std::vector<uint32> guildIds;
         if (QueryResult rl = WorldDatabase.Query(
                 "SELECT guild FROM customs.gv_guild ORDER BY guild LIMIT {} OFFSET {}",
@@ -301,7 +299,6 @@ namespace
         handler->SendSysMessage(Acore::StringFormat(T("Stránka {}/{}", "Page {}/{}"),
                                                     page, totalPages).c_str());
 
-        // pro každé guildId načti jméno z characters.guild
         uint32 idxOnPage = 1;
         for (uint32 gid : guildIds)
         {
@@ -444,7 +441,6 @@ namespace
                 return true;
             }
 
-            // 1.5) Před despawnem/mazáním – vyčisti respawny pro GUIDy téhle phase v characters DB
             if (phaseId)
             {
                 // posbírat GUIDy z world.creature (mapa vesnice + phase)
