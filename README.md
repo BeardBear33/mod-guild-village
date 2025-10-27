@@ -35,9 +35,9 @@ Add only one NPC for village purchase. ".npc add 987454"
 
 - Odměna v guild materiál currency za PvP kill a BG výhru
 
-- Rozdělení příkazů na .village info, .village currency, .village production, .village boss
+✅ ~~Rozdělení příkazů na .village info, .village currency, .village production, .village boss~~
 
-- Lepší nastavení pro limit vesnic v configu (-1 = Neomezeně, 0 = Skryje nákup u NPC ale zůstane povolen GM příkaz, 1+ = Maximalní limit na vesnice)
+✅ ~~Lepší nastavení pro limit vesnic v configu (-1 = Neomezeně, 0 = Skryje nákup u NPC ale zůstane povolen GM příkaz, 1+ = Maximalní limit na vesnice)~~
 
 - PvE event každý měsíc se spustí najézd nepřátel na vesnici.
 
@@ -52,11 +52,11 @@ Add only one NPC for village purchase. ".npc add 987454"
 
 🌐 English
 
-- Reward in guild material currency for PvP kill and BG victory
+[ ]- Reward in guild material currency for PvP kill and BG victory
 
-- Split of commands into .village info, .village currency, .village production, .village boss
+✅ ~~Split of commands into .village info, .village currency, .village production, .village boss~~
 
-- Better village limit setting (-1 = Unlimited, 0 = Hides NPC purchase but keeps GM command, 1+ = Max allowed villages)
+✅ ~~Better village limit setting (-1 = Unlimited, 0 = Hides NPC purchase but keeps GM command, 1+ = Max allowed villages)~~
 
 - Every month, a PvE event triggers an enemy raid on the village.
 
