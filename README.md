@@ -52,7 +52,7 @@ Add only one NPC for village purchase. ".npc add 987454"
 
 🌐 English
 
-[ ]- Reward in guild material currency for PvP kill and BG victory
+- Reward in guild material currency for PvP kill and BG victory
 
 ✅ ~~Split of commands into .village info, .village currency, .village production, .village boss~~
 
