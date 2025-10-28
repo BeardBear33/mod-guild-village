@@ -557,10 +557,10 @@ namespace
             }
         }
 
-        // fallback = neznámý příkaz, ale žádný auto-help
+        // fallback
         handler->SendSysMessage(
-            T("Neznámý pod-příkaz. Použij .village help",
-              "Unknown subcommand. Use .village help")
+            T("Špatný příkaz. Použij .village help",
+              "Wrong command. Use .village help")
         );
         return true;
     }

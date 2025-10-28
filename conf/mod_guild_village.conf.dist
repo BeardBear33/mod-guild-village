@@ -184,7 +184,6 @@ GuildVillage.Production.SpeedMult1     = 0.75
 GuildVillage.Production.SpeedMult2     = 0.50
 GuildVillage.Production.SpeedMult3     = 0.25
 
-
 # Každých kolik minut má server globálně propsat pasivní produkci (pouze vizuál)
 # Tato akce se také provádí při každem otevření gossip menu a .village status
 #
@@ -192,29 +191,6 @@ GuildVillage.Production.SpeedMult3     = 0.25
 # This action is also performed every time the gossip menu or .village status is opened
 # Default 15
 GuildVillage.Production.WorldTickMinutes = 15
-
-#================================#
-# Guild Village – Bot prevention #
-#================================#
-# Bezpečné místo, kam se teleportují hráči nebo boti, kteří
-# nejsou členy stejné guildy při pokusu o vstup do guild village.
-# (Zabránění zneužití nebo vstupu cizích botů)
-#
-# Safe location where players or bots are teleported if they are
-# not members of the same guild when trying to enter the guild village.
-# (Prevents unauthorized access or bot abuse)
-
-GuildVillage.Safe.Alliance.Map = 0
-GuildVillage.Safe.Alliance.X = -8833.379883
-GuildVillage.Safe.Alliance.Y = 628.619995
-GuildVillage.Safe.Alliance.Z = 94.000000
-GuildVillage.Safe.Alliance.O = 0.000000
-
-GuildVillage.Safe.Horde.Map = 1
-GuildVillage.Safe.Horde.X = 1629.849976
-GuildVillage.Safe.Horde.Y = -4373.640137
-GuildVillage.Safe.Horde.Z = 31.549999
-GuildVillage.Safe.Horde.O = 0.000000
 
 #===============================#
 # Guild Village – Boss settings #
@@ -243,3 +219,97 @@ Thranok.Heroic = 0
 #
 # Stronger Solar Flare and Unstable Sun Damage
 Thalor.Heroic = 0
+
+#==============================#
+# Guild Village – PvP settings #
+#==============================#
+
+# Zapíná/vypíná celý PvP systém odměn
+# 
+# Enable/Disable all PvP rewards
+GuildVillage.PvP.Enable = 0
+
+# Zobrazí hráčům oznámení o currency do chatu
+#
+# Show currency notify in chat
+GuildVillage.PvP.Notify = 1
+
+# Když je 0 guilda dostane odměnu za vyhrané BG jen 1x za instanci toho BG
+# Když je 1 každému členovi guildy, který je na vítězné straně
+# 
+# When this is 0, the guild receives the battleground win reward only once per instance of that battleground.
+# When this is 1, every guild member who is on the winning team receives the reward.
+GuildVillage.PvP.MultipleSameGuildReward = 0
+
+# World PvP kill reward
+GuildVillage.PvP.WorldKill.Enable = 1
+GuildVillage.PvP.WorldKill.Mat1 = 1
+GuildVillage.PvP.WorldKill.Mat2 = 1
+GuildVillage.PvP.WorldKill.Mat3 = 1
+GuildVillage.PvP.WorldKill.Mat4 = 1
+
+# BG rewards
+# Alterac Valley
+GuildVillage.PvP.AlteracValley.Mat1 = 1
+GuildVillage.PvP.AlteracValley.Mat2 = 1
+GuildVillage.PvP.AlteracValley.Mat3 = 1
+GuildVillage.PvP.AlteracValley.Mat4 = 1
+
+# Warsong Gulch
+GuildVillage.PvP.WarsongGulch.Mat1 = 1
+GuildVillage.PvP.WarsongGulch.Mat2 = 1
+GuildVillage.PvP.WarsongGulch.Mat3 = 1
+GuildVillage.PvP.WarsongGulch.Mat4 = 1
+
+# Arathi Basin
+GuildVillage.PvP.ArathiBasin.Mat1 = 1
+GuildVillage.PvP.ArathiBasin.Mat2 = 1
+GuildVillage.PvP.ArathiBasin.Mat3 = 1
+GuildVillage.PvP.ArathiBasin.Mat4 = 1
+
+# Eye of the Storm
+GuildVillage.PvP.EyeOfTheStorm.Mat1 = 1
+GuildVillage.PvP.EyeOfTheStorm.Mat2 = 1
+GuildVillage.PvP.EyeOfTheStorm.Mat3 = 1
+GuildVillage.PvP.EyeOfTheStorm.Mat4 = 1
+
+# Strand of the Ancients
+GuildVillage.PvP.StrandOfTheAncients.Mat1 = 1
+GuildVillage.PvP.StrandOfTheAncients.Mat2 = 1
+GuildVillage.PvP.StrandOfTheAncients.Mat3 = 1
+GuildVillage.PvP.StrandOfTheAncients.Mat4 = 1
+
+# Isle of Conquest
+GuildVillage.PvP.IsleOfConquest.Mat1 = 1
+GuildVillage.PvP.IsleOfConquest.Mat2 = 1
+GuildVillage.PvP.IsleOfConquest.Mat3 = 1
+GuildVillage.PvP.IsleOfConquest.Mat4 = 1
+
+# Random Battleground
+GuildVillage.PvP.RandomBattleground.Mat1 = 1
+GuildVillage.PvP.RandomBattleground.Mat2 = 1
+GuildVillage.PvP.RandomBattleground.Mat3 = 1
+GuildVillage.PvP.RandomBattleground.Mat4 = 1
+
+#================================#
+# Guild Village – Bot prevention #
+#================================#
+# Bezpečné místo, kam se teleportují hráči nebo boti, kteří
+# nejsou členy stejné guildy při pokusu o vstup do guild village.
+# (Zabránění zneužití nebo vstupu cizích botů)
+#
+# Safe location where players or bots are teleported if they are
+# not members of the same guild when trying to enter the guild village.
+# (Prevents unauthorized access or bot abuse)
+
+GuildVillage.Safe.Alliance.Map = 0
+GuildVillage.Safe.Alliance.X = -8833.379883
+GuildVillage.Safe.Alliance.Y = 628.619995
+GuildVillage.Safe.Alliance.Z = 94.000000
+GuildVillage.Safe.Alliance.O = 0.000000
+
+GuildVillage.Safe.Horde.Map = 1
+GuildVillage.Safe.Horde.X = 1629.849976
+GuildVillage.Safe.Horde.Y = -4373.640137
+GuildVillage.Safe.Horde.Z = 31.549999
+GuildVillage.Safe.Horde.O = 0.000000
