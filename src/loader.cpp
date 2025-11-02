@@ -15,6 +15,8 @@ void RegisterGuildVillageBot();
 void RegisterGuildVillageTeleporter();
 void RegisterGuildVillageProduction();
 void RegisterGuildVillagePvP();
+void RegisterGuildVillageExpeditions();
+void RegisterGuildVillageExpeditionsMissions();
 void RegisterGuildVillageVoltrix();
 void RegisterGuildVillageThranok();
 void RegisterGuildVillageThalgron();
@@ -36,6 +38,8 @@ void Addmod_guild_villageScripts()
 	RegisterGuildVillageTeleporter();
 	RegisterGuildVillageProduction();
 	RegisterGuildVillagePvP();
+	RegisterGuildVillageExpeditions();
+	RegisterGuildVillageExpeditionsMissions();
 	RegisterGuildVillageVoltrix();
 	RegisterGuildVillageThranok();
 	RegisterGuildVillageThalgron();

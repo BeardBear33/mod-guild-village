@@ -64,6 +64,10 @@ Odebrán smartAI pro cooking trenéra a ridding trenéra (pouze pohyb)
 .v boss / b
 ➝ Zobrazí stav bossů
 
+.village expedition / exp / e
+.v expedition / exp / e
+➝ Zobrazí stav expedice
+
 ### Admin Příkazy
 .gv list [PAGE]
 ➝ Vypíše název guildy a její ID

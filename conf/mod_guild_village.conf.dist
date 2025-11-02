@@ -1,315 +1,749 @@
-#======================================#
-# Guild Village – základní konfigurace # 
-# Guild Village – basic configuration  #
-#======================================#
+#=============================================================#
+# Guild Village – základní konfigurace / basic configuration  #
+#=============================================================#
 
-# CS: Přepínač jazyka pro texty (cs|en).
-#
-# EN: Language switch for texts (cs|en).
+# CS: Přepínač jazyka pro texty z modulů (cs | en).
+# EN: Language used for module text output (cs | en).
 GuildVillage.Locale = cs
 
-# Max počet současně existujících vesnic (min-max 1-30)
-# -1 = Neomezeně / Unlimited
-# 0 = Vypnuto, jen GM příkaz / Disabled only GM command
-# 1+ = Limitované množství / Limited amount
-# Maximum number of villages that can exist at the same time (min-max 1-30)
-GuildVillage.MaxVillages = 30
+# CS: Maximální počet současně existujících vesnic.
+#     -1 = neomezeně
+#      0 = zakázáno (vesnici jde vytvořit jen GM příkazem)
+#      1+ = tvrdý limit (1–30)
+# EN: Maximum number of active villages.
+#     -1 = unlimited
+#      0 = disabled (villages can only be created by GM command)
+#      1+ = hard cap (1–30)
+GuildVillage.MaxVillages = -1
 
-# Dny neaktivity Guild Mastera pro auto-úklid (0 = vypnuto)
-#
-# Days of Guild Master's inactivity before automatic cleanup (0 = disabled)
+# CS: Auto-úklid neaktivních guild: po kolika dnech neaktivity Guild Mastera
+#     se má vesnice smazat. 0 = vypnuto.
+# EN: Automatic cleanup: after how many days of Guild Master inactivity
+#     the village should be deleted. 0 = disabled.
 GuildVillage.Inactivity.CleanupDays = 90
 
-# Zobrazit hlášku "X / Max" při otevření gossipu
-#
-# Show the "X / Max" message when opening the gossip
+# CS: Při otevření gossipu zobrazit "X / Max" (obsazené / limit)?
+#     1 = ano, 0 = ne
+# EN: Show "X / Max" (used / limit) when opening the gossip?
+#     1 = yes, 0 = no
 GuildVillage.ShowCapacityMessage = 1
 
-# Kdo může spustit .village status?
-#     0 = pouze Guild Master, 1 = všichni členové gildy
-#
-# Who may use .village status?
-#     0 = Guild Master only, 1 = all guild members
-GuildVillage.Status.AllowAllMembers = 0
+# CS: Kdo může použít .village info ?
+#     0 = pouze Guild Master
+#     1 = kdokoliv z guildy
+# EN: Who may use .village info ?
+#     0 = Guild Master only
+#     1 = any guild member
+GuildVillage.Status.AllowAllMembers = 1
 
-# Povolit nákup jen pro Guild Mastera+Officier (true) nebo všem členům (false)
-#
-# Allow purchases only for Guild Master + Officers (true) or for all members (false)
+# CS: Omezit nákup a správu vesnice jen na Guild Mastera + Officery?
+#     true  = kupovat mohou pouze GM + Officer
+#     false = kupovat může kdokoliv z guildy
+# EN: Restrict village purchasing/management to Guild Master + Officers?
+#     true  = only GM + Officer can buy
+#     false = any guild member can buy
 GuildVillage.RequireGuildMasterForPurchase = true
 
-# Schovat nákupní menu všem kromě Guild Mastera+Officier (true) nebo ho zobrazit všem (false)
-#
-# Hide the purchase menu for everyone except the Guild Master + Officers (true) or show it to all members (false)
+# CS: Skrýt nákupní menu (buy / upgrade) hráčům, kteří nejsou GM/Officer?
+#     true  = zobrazit jen GM + Officer
+#     false = ukázat všem členům guildy
+# EN: Hide the purchase/upgrade menu from non-GM/Officer players?
+#     true  = show only to GM + Officer
+#     false = show to everyone
 GuildVillage.HidePurchaseMenuForNonGM = true
 
-# Guild Village – Purchase price
-# 0 = nevyžaduje se, cena ve zlatě 
-#
-# 0 = not required, price in gold
+
+#-----------------------------#
+#  CENA ZA ZALOŽENÍ VESNICE   #
+#  VILLAGE PURCHASE COST      #
+#-----------------------------#
+
+# CS: Cena ve zlatě (0 = zlato se nevyžaduje).
+# EN: Price in gold (0 = gold not required).
 GuildVillage.Price.Gold = 1000
 
-# item ID podmínky
-#
-# item ID requirement
-GuildVillage.Price.ItemId = 37711
+# CS: Item, který je nutný k zakoupení vesnice (0 = žádný požadavek).
+# EN: Required item to purchase the village (0 = no requirement).
+GuildVillage.Price.ItemId = 0
 
-# množství itemů
-#
-# number of items
-GuildVillage.Price.ItemCount = 100
+# CS: Kolik kusů požadovaného itemu je potřeba (pouze pokud ItemId > 0).
+# EN: How many of that required item is needed (only if ItemId > 0).
+GuildVillage.Price.ItemCount = 0
 
-# Default teleport in village / Místo teleportu ve vesnici 
-GuildVillage.Default.Map = 37
-GuildVillage.Default.X   = 1026.7292
-GuildVillage.Default.Y   = 289.9494
-GuildVillage.Default.Z   = 332.66083
-GuildVillage.Default.O   = 3.4305837
+
+#-------------------------------------------#
+#  VÝCHOZÍ TELEPORT DO VESNICE / TELEPORT   #
+#-------------------------------------------#
+
+# CS: Souřadnice pro teleport do zakoupené vesnice.
+# EN: Default teleport coordinates inside the purchased village.
+GuildVillage.Default.Map   = 37
+GuildVillage.Default.X     = 1026.7292
+GuildVillage.Default.Y     = 289.9494
+GuildVillage.Default.Z     = 332.66083
+GuildVillage.Default.O     = 3.4305837
 GuildVillage.Default.Phase = 1
 
-#===================================#
-# Guild Village – Nastavení měny    #
-# Guild Village – Currency settings #
-#===================================#
 
-# Názvy materiálů pro status zprávu
-# České názvy – používají se pouze pokud je GuildVillage.Locale = cs
+#=====================================================#
+# Guild Village – MĚNA & NÁZVY MATERIÁLŮ / CURRENCY   #
+#=====================================================#
+
+# ---------- Názvy měn (statické labely) ----------
+
+# CS: České názvy měn (použije se pokud GuildVillage.Locale = cs).
+# EN: Czech material labels (used if GuildVillage.Locale = cs).
 GuildVillage.Material.Material1 = Prkna
 GuildVillage.Material.Material2 = Kamení
 GuildVillage.Material.Material3 = Železo
 GuildVillage.Material.Material4 = Krystaly
+GuildVillage.Material.Gold      = Zlato
 
-# Material names for status message
-# English versions – only used when GuildVillage.Locale = en
+# CS: Anglické názvy měn (použije se pokud GuildVillage.Locale = en).
+# EN: English material labels (used if GuildVillage.Locale = en).
 GuildVillage.MaterialEN.Material1 = Timber
 GuildVillage.MaterialEN.Material2 = Stone
 GuildVillage.MaterialEN.Material3 = Iron
 GuildVillage.MaterialEN.Material4 = Crystal
+GuildVillage.MaterialEN.Gold      = Gold
 
-# Countable material unit names (1 / 2-4 / 5+)
-#
-# Tyto názvy se používají při výpočtu ceny, získaného lootu apod.
-# (např. „1 prkno“, „3 prkna“, „5 prken“)
 
-# --- Czech singular / plural ---
+# ---------- Skloňování / množné číslo ----------
+
+# CS: Jednotky pro počítání materiálů v češtině:
+#     Singular = 1 kus ("1 prkno")
+#     Dual     = 2-4 kusy ("3 prkna")
+#     Plural   = 5+ kusů ("5 prken")
+# EN: Czech declension forms used when displaying amounts.
+
 GuildVillage.MaterialUnit.Material1.Singular = Prkno
 GuildVillage.MaterialUnit.Material1.Dual     = Prkna
 GuildVillage.MaterialUnit.Material1.Plural   = Prken
 
-GuildVillage.MaterialUnit.Material2.Singular  = Kámen
-GuildVillage.MaterialUnit.Material2.Dual      = Kameny
-GuildVillage.MaterialUnit.Material2.Plural    = Kamene
+GuildVillage.MaterialUnit.Material2.Singular = Kámen
+GuildVillage.MaterialUnit.Material2.Dual     = Kameny
+GuildVillage.MaterialUnit.Material2.Plural   = Kamene
 
-GuildVillage.MaterialUnit.Material3.Singular   = Železo
-GuildVillage.MaterialUnit.Material3.Dual       = Železa
-GuildVillage.MaterialUnit.Material3.Plural     = Železa
+GuildVillage.MaterialUnit.Material3.Singular = Železo
+GuildVillage.MaterialUnit.Material3.Dual     = Železa
+GuildVillage.MaterialUnit.Material3.Plural   = Železa
 
 GuildVillage.MaterialUnit.Material4.Singular = Krystal
 GuildVillage.MaterialUnit.Material4.Dual     = Krystaly
 GuildVillage.MaterialUnit.Material4.Plural   = Krystalu
 
+GuildVillage.MaterialUnit.Gold.Singular = Zlata
+GuildVillage.MaterialUnit.Gold.Dual     = Zlaté
+GuildVillage.MaterialUnit.Gold.Plural   = Zlatých
 
-# --- English singular / plural ---
+# EN: English unit names for materials:
+#     (English mostly uses the same plural form.)
+# CS: Anglické varianty jednotek.
+
 GuildVillage.MaterialUnitEN.Material1.Singular = timber
 GuildVillage.MaterialUnitEN.Material1.Dual     = timbers
 GuildVillage.MaterialUnitEN.Material1.Plural   = timbers
 
-GuildVillage.MaterialUnitEN.Material2.Singular  = stone
-GuildVillage.MaterialUnitEN.Material2.Dual      = stones
-GuildVillage.MaterialUnitEN.Material2.Plural    = stones
+GuildVillage.MaterialUnitEN.Material2.Singular = stone
+GuildVillage.MaterialUnitEN.Material2.Dual     = stones
+GuildVillage.MaterialUnitEN.Material2.Plural   = stones
 
-GuildVillage.MaterialUnitEN.Material3.Singular   = iron
-GuildVillage.MaterialUnitEN.Material3.Dual       = irons
-GuildVillage.MaterialUnitEN.Material3.Plural     = irons
+GuildVillage.MaterialUnitEN.Material3.Singular = iron
+GuildVillage.MaterialUnitEN.Material3.Dual     = irons
+GuildVillage.MaterialUnitEN.Material3.Plural   = irons
 
 GuildVillage.MaterialUnitEN.Material4.Singular = crystal
 GuildVillage.MaterialUnitEN.Material4.Dual     = crystals
 GuildVillage.MaterialUnitEN.Material4.Plural   = crystals
 
-# === Currency caps ===
-# Povolit limity pro jednotlivé měny (0 = neomezené pro danou měnu)
-#
-# Enable per-currency caps (0 = unlimited for that currency)
-GuildVillage.CurrencyCap.Enabled  = true
-GuildVillage.CurrencyCap.Material1   = 1000
-GuildVillage.CurrencyCap.Material2    = 1000
-GuildVillage.CurrencyCap.Material3     = 1000
+GuildVillage.MaterialUnitEN.Gold.Singular = gold
+GuildVillage.MaterialUnitEN.Gold.Dual     = gold
+GuildVillage.MaterialUnitEN.Gold.Plural   = gold
+
+
+# ---------- Limity měny (cap) ----------
+
+# CS: Limity pro jednotlivé měny.
+#     0 = bez limitu.
+#     Pokud je Enabled = false, limity se ignorují.
+# EN: Per-currency caps.
+#     0 = unlimited.
+#     If Enabled = false, caps are ignored.
+GuildVillage.CurrencyCap.Enabled    = true
+GuildVillage.CurrencyCap.Material1  = 1000
+GuildVillage.CurrencyCap.Material2  = 1000
+GuildVillage.CurrencyCap.Material3  = 1000
 GuildVillage.CurrencyCap.Material4  = 1000
 
-# === Guild Village: Loot ===
-# Povolit nebo zakázat loot pro currency
-#
-# Enable or disable loot for currency
+
+#=================================================#
+# Guild Village – LOOT ZA AKTIVITY / LOOT SYSTEM  #
+#=================================================#
+
+# CS: Povolit drop měn z custom obsahu?
+#     1 = povoleno, 0 = zakázáno
+# EN: Enable currency loot from custom sources?
+#     1 = enabled, 0 = disabled
 GuildVillage.Loot.Enabled = 1
 
-# Povolit nebo zakázat info o lootu currency
-#
-# Enable or disable currency loot info
+# CS: Hlásit hráči získanou měnu ("+X materiálu") v okamžiku dropu?
+# EN: Notify player about gained currency ("+X material") on drop?
 GuildVillage.Loot.Notify = 1
 
-# 1 = loot padá jen na map 37 / zone 268
-#
-# 1 = loot drops only on map 37 / zone 268
+# CS: Omezit drop jen na lokaci vesnice
+#     1 = padá jen v rámci mapy 37 / zóny 268
+#     0 = padá všude (podle tabulek)
+# EN: Restrict currency drops to the village zone only
+#     1 = drop only on map 37 / zone 268
+#     0 = global (subject to DB)
 GuildVillage.Loot.OnlyInVillage = 1
 
-# Pouze pro debug
-#
-# Only debug
+# CS: Debug výpisy pro loot systém (spam do logu / chatu).
+# EN: Verbose debug output for loot system (log / chat spam).
 GuildVillage.Loot.Debug = 0
 
-#=========================#
-# GuildVillage Production #
-#=========================#
 
-# Aktivní "výrobní slot" generuje materiál po čase
-# Výchozí hodnota bez jakéhokoliv upgradu
-#
-#An active "production slot" generates material over time
-#Default value without any upgrades
+#====================================================#
+# Guild Village – PRODUKCE MATERIÁLŮ / PRODUCTION    #
+#====================================================#
+
+# CS: Základní produkce bez jakéhokoliv upgradu.
+#     Jeden "aktivní slot" generuje materiál po určité době.
+# EN: Base production without any upgrades.
+#     One "active slot" generates material over time.
 GuildVillage.Production.BasePeriodHours = 8
-GuildVillage.Production.BaseAmount     = 5
+GuildVillage.Production.BaseAmount      = 5
 
-# Bonus k množství za rank 1/2/3 (8/10/12)
-# 
-# Bonus to production amount for rank 1/2/3 (8/10/12)
-GuildVillage.Production.AmountBonus1   = 3
-GuildVillage.Production.AmountBonus2   = 5
-GuildVillage.Production.AmountBonus3   = 7
+# CS: Bonus k množství za upgrade rank 1 / 2 / 3.
+#     (Výsledné množství = BaseAmount + BonusX)
+# EN: Extra produced amount for upgrade rank 1 / 2 / 3.
+#     (Final amount = BaseAmount + BonusX)
+GuildVillage.Production.AmountBonus1    = 3
+GuildVillage.Production.AmountBonus2    = 5
+GuildVillage.Production.AmountBonus3    = 7
 
-# Násobek času za rank 1/2/3 (6/4/2)
-# Finální perioda = BasePeriodHours * SpeedMultX
-#
-# Time multiplier for rank 1/2/3 (6/4/2)
-# Final period = BasePeriodHours * SpeedMultX
-GuildVillage.Production.SpeedMult1     = 0.75
-GuildVillage.Production.SpeedMult2     = 0.50
-GuildVillage.Production.SpeedMult3     = 0.25
+# CS: Zrychlení produkce podle ranku 1 / 2 / 3.
+#     Finální perioda = BasePeriodHours * SpeedMultX
+#     SpeedMult1 = 6 hodin
+#     SpeedMult2 = 4 hodiny
+#     SpeedMult3 = 2 hodiny
+# EN: Production speed multiplier for upgrade rank 1 / 2 / 3.
+#     Final period = BasePeriodHours * SpeedMultX
+#     SpeedMult1 = 6 hours
+#     SpeedMult2 = 4 hours
+#     SpeedMult3 = 2 hours
+GuildVillage.Production.SpeedMult1      = 0.75
+GuildVillage.Production.SpeedMult2      = 0.50
+GuildVillage.Production.SpeedMult3      = 0.25
 
-# Každých kolik minut má server globálně propsat pasivní produkci (pouze vizuál)
-# Tato akce se také provádí při každem otevření gossip menu a .village status
-#
-# How often (in minutes) the server should globally update passive production (visual only)
-# This action is also performed every time the gossip menu or .village status is opened
-# Default 15
+# CS: Jak často (v minutách) server přepočítá pasivní produkci
+#     a uloží ji pro zobrazení (vizuální sync).
+#     Spouští se také při otevření gossip menu a při .village info.
+# EN: How often (in minutes) the server syncs passive production amounts
+#     for display. Also executed on gossip open and .village info.
 GuildVillage.Production.WorldTickMinutes = 15
 
-#===============================#
-# Guild Village – Boss settings #
-#===============================#
 
-# === Thalgron the Earthshaker ===
-# Aktivuje Enrage po 2 minutách
+#================================================#
+# Guild Village – EXPEDICE / EXPEDITIONS (PVE)   #
+#================================================#
+
+# CS: Povolit expedice (nábor hrdinů, posílání na mise)?
+# EN: Enable expeditions (hire heroes, send on missions)?
+GuildVillage.Expeditions.Enable = 1
+
+# CS: Posílat hráčům hlášky (úspěch, chyba, loot atd.)?
+# EN: Send feedback messages to players (success, error, loot etc.)?
+GuildVillage.Expeditions.Notify = 1
+
+# CS: Kdo může spravovat expedice (kupovat hrdiny, posílat mise)?
+#     1 = GM + Officer
+#     0 = pouze Guild Master
+# EN: Who can manage expeditions (buy heroes, send missions)?
+#     1 = GM + Officer
+#     0 = Guild Master only
+GuildVillage.Expeditions.OfficersCanManage = 1
+
+# CS: Vyžadovat, aby guildě už patřila vesnice?
+#     1 = ano (doporučeno)
+#     0 = expedice lze řešit i bez vlastnictví vesnice
+# EN: Require that the guild already owns a village?
+#     1 = yes (recommended)
+#     0 = expeditions work even without a village
+GuildVillage.Expeditions.RequireVillage = 1
+
+# CS: Minimální stáří člena v guildě (dny),
+#     aby mu šel odeslat loot z guild loot banky.
+#     0 = bez omezení.
+# EN: Minimum member age in guild (days)
+#     required before they can receive loot from the guild loot bank.
+#     0 = no restriction.
+GuildVillage.Expeditions.LootMinMemberAgeDays = 28
+
+
+# ----------------------------------------------------------#
+# Každá expedice má vlastní blok:                           #
+# Each expedition has its own block:                        #
+# ----------------------------------------------------------#
+# CS:
+# - amount      = kolik kusů lootu se uloží do guild loot banky
+# - itemids     = comma-separated seznam možných itemů
+# - time        = délka mise v sekundách
+# - extrachance = bonusová šance na úspěch při splnění podmínek (0–100)
 #
-# Activates Enrage after 2 minutes
-Thalgron.Heroic = 1
-
-# === Voltrix the Unbound ===
-# Silnější Gravity Bomb a Searing Light
+# EN:
+# - amount      = how many items will be stored in the guild loot bank
+# - itemids     = comma-separated list of possible itemIDs
+# - time        = mission duration in seconds
+# - extrachance = bonus success chance if requirements are met (0–100)
 #
-# Stronger Gravity Bomb and Searing Ligh
-Voltrix.Heroic = 0
+# Bonus podmínky pro celé skupiny (full group bonus / ilvl req):
+# CS: požadavky pro extra šanci u normálních 5man / heroic 5man / raidů
+# EN: requirements for extra chance for full 5man / heroic / raids
+# ----------------------------------------------------------#
 
-# === Thranok the Unyielding ===
-# Silnější Rock Shard, Stomp, Impale
-#
-# Stronger Rock Shard, Stomp, and Impale
-Thranok.Heroic = 0
 
-# === Thalor the Lifebinder ===
-# Silnější Solar Flare a Unstable Sun Damage 
-#
-# Stronger Solar Flare and Unstable Sun Damage
-Thalor.Heroic = 0
+#--------------------#
+# 5M NORMAL DUNGEONS #
+#--------------------#
 
-#==============================#
-# Guild Village – PvP settings #
-#==============================#
+# CS: Extra šance na úspěch pro full 5man normální dungy:
+#     Požadavek na průměrný iLvl a počet hrdinů.
+# EN: Extra success chance for full 5man normal dungeons:
+#     Required avg iLvl and hero count.
+GuildVillage.Expeditions.normal.extrachance.req.ilvl = 200
+GuildVillage.Expeditions.normal.extrachance.req.hero = 5
 
-# Zapíná/vypíná celý PvP systém odměn
-# 
-# Enable/Disable all PvP rewards
-GuildVillage.PvP.Enable = 0
+# Utgarde Keep
+GuildVillage.Expeditions.Utgarde_Keep.amount = 2
+GuildVillage.Expeditions.Utgarde_Keep.itemids = 35572,35571,35570,35575,35574,35573,35577,35578,35576
+GuildVillage.Expeditions.Utgarde_Keep.time = 43200
+GuildVillage.Expeditions.Utgarde_Keep.extrachance = 10
 
-# Zobrazí hráčům oznámení o currency do chatu
-#
-# Show currency notify in chat
+# Utgarde Pinnacle
+GuildVillage.Expeditions.Utgarde_Pinnacle.amount = 2
+GuildVillage.Expeditions.Utgarde_Pinnacle.itemids = 37043,37040,37037,37038,37048,37052,37051,37050,37055,37057,37056,37053,37067,37062,37066,37058,37064,37060,37065,37061
+GuildVillage.Expeditions.Utgarde_Pinnacle.time = 43200
+GuildVillage.Expeditions.Utgarde_Pinnacle.extrachance = 10
+
+# The Nexus
+GuildVillage.Expeditions.The_Nexus.amount = 2
+GuildVillage.Expeditions.The_Nexus.itemids = 35602,35603,35601,35599,35600,35598,35605,35604,35617,35596,35595,35597
+GuildVillage.Expeditions.The_Nexus.time = 43200
+GuildVillage.Expeditions.The_Nexus.extrachance = 10
+
+# The Oculus
+GuildVillage.Expeditions.The_Oculus.amount = 2
+GuildVillage.Expeditions.The_Oculus.itemids = 36945,36946,36943,36944,36947,36949,36948,36950,36954,36951,36953,36952,36973,36971,36969,36974,36961,36972,36962,36975
+GuildVillage.Expeditions.The_Oculus.time = 43200
+GuildVillage.Expeditions.The_Oculus.extrachance = 10
+
+# Culling of Stratholme
+GuildVillage.Expeditions.Culling_of_Stratholme.amount = 2
+GuildVillage.Expeditions.Culling_of_Stratholme.itemids = 37083,37082,37079,37081,37084,37095,37088,37086,37106,37105,37096,37099,37113,37114,37110,37109,37111,37108,37112,37107
+GuildVillage.Expeditions.Culling_of_Stratholme.time = 43200
+GuildVillage.Expeditions.Culling_of_Stratholme.extrachance = 10
+
+# Drak'Tharon Keep
+GuildVillage.Expeditions.Drak_Tharon_Keep.amount = 2
+GuildVillage.Expeditions.Drak_Tharon_Keep.itemids = 35620,35619,35618,35632,35631,35630,35635,35634,35633,35638,35637,35636
+GuildVillage.Expeditions.Drak_Tharon_Keep.time = 43200
+GuildVillage.Expeditions.Drak_Tharon_Keep.extrachance = 10
+
+# Halls of Stone
+GuildVillage.Expeditions.Halls_of_Stone.amount = 2
+GuildVillage.Expeditions.Halls_of_Stone.itemids = 38614,38613,38611,35673,35672,35670,35677,35676,35675,35679,35678,35680
+GuildVillage.Expeditions.Halls_of_Stone.time = 43200
+GuildVillage.Expeditions.Halls_of_Stone.extrachance = 10
+
+# Azjol-Nerub
+GuildVillage.Expeditions.Azjol_Nerub.amount = 2
+GuildVillage.Expeditions.Azjol_Nerub.itemids = 35657,35656,35655,35660,35659,35658,35663,35662,35661
+GuildVillage.Expeditions.Azjol_Nerub.time = 43200
+GuildVillage.Expeditions.Azjol_Nerub.extrachance = 10
+
+# Halls of Lightning
+GuildVillage.Expeditions.Halls_of_Lightning.amount = 2
+GuildVillage.Expeditions.Halls_of_Lightning.itemids = 36982,36979,36980,36981,36983,36985,36986,36984,39536,39657,39534,39535,36991,36996,36992,36995,36988,36993,36994,36989
+GuildVillage.Expeditions.Halls_of_Lightning.time = 43200
+GuildVillage.Expeditions.Halls_of_Lightning.extrachance = 10
+
+# Gundrak
+GuildVillage.Expeditions.Gundrak.amount = 2
+GuildVillage.Expeditions.Gundrak.itemids = 35584,35585,35583,35591,35592,35590,35588,35589,35587,43305,43309,43306
+GuildVillage.Expeditions.Gundrak.time = 43200
+GuildVillage.Expeditions.Gundrak.extrachance = 10
+
+# Violet Hold
+GuildVillage.Expeditions.Violet_Hold.amount = 2
+GuildVillage.Expeditions.Violet_Hold.itemids = 43363,43375,43353,43358,35644,35642,35647,35643,43387,43382,35646,35645,35650,35651,35649
+GuildVillage.Expeditions.Violet_Hold.time = 43200
+GuildVillage.Expeditions.Violet_Hold.extrachance = 10
+
+# Ahn'Kahet
+GuildVillage.Expeditions.Ahn_Kahet.amount = 2
+GuildVillage.Expeditions.Ahn_Kahet.itemids = 35607,35608,35606,35611,35610,35609,43278,43279,43277,35612,35613,35614
+GuildVillage.Expeditions.Ahn_Kahet.time = 43200
+GuildVillage.Expeditions.Ahn_Kahet.extrachance = 10
+
+# Trial of the Champion
+GuildVillage.Expeditions.Trial_of_the_Champion.amount = 1
+GuildVillage.Expeditions.Trial_of_the_Champion.itemids = 47173,47170,47174,47175,47172,47171,47181,47218,47185,47217,47177,47178,47211,47176,47212,47219,47213,47214,47210,47202,47197,47201,47199,47200,47232,47226,47230,47221,47231,47228,47220,47229,47227,47222,47215,47216
+GuildVillage.Expeditions.Trial_of_the_Champion.time = 43200
+GuildVillage.Expeditions.Trial_of_the_Champion.extrachance = 5
+
+# ICC 5-man trio
+GuildVillage.Expeditions.Forge_of_Souls.amount = 1
+GuildVillage.Expeditions.Forge_of_Souls.itemids = 49788,49785,49786,49787,49784,49783,49792,49796,49798,49791,49797,49794,49795,49799,49800,49789,49790,49793
+GuildVillage.Expeditions.Forge_of_Souls.time = 86400
+GuildVillage.Expeditions.Forge_of_Souls.extrachance = 5
+
+GuildVillage.Expeditions.Halls_of_Reflection.amount = 1
+GuildVillage.Expeditions.Halls_of_Reflection.itemids = 49832,49828,49830,49831,49829,49827,49834,49838,49837,49836,49833,49835,49842,49849,49848,49841,49847,49851,49843,49846,49839,49840,49845,49844
+GuildVillage.Expeditions.Halls_of_Reflection.time = 86400
+GuildVillage.Expeditions.Halls_of_Reflection.extrachance = 5
+
+GuildVillage.Expeditions.Pit_of_Saron.amount = 1
+GuildVillage.Expeditions.Pit_of_Saron.itemids = 49805,49806,49804,49803,49802,49801,49809,49810,49811,49808,49812,49807,49823,49825,49822,49817,49824,49826,49820,49819,49816,49818,49821,49813
+GuildVillage.Expeditions.Pit_of_Saron.time = 86400
+GuildVillage.Expeditions.Pit_of_Saron.extrachance = 5
+
+
+#--------------------#
+# 5M HEROIC DUNGEONS #
+#--------------------#
+
+# CS: Extra šance na úspěch pro full 5man heroic dungy:
+# EN: Extra success chance for full 5man heroic dungeons:
+GuildVillage.Expeditions.hc.extrachance.req.ilvl = 213
+GuildVillage.Expeditions.hc.extrachance.req.hero = 5
+
+# Utgarde Keep (HC)
+GuildVillage.Expeditions.Utgarde_Keep_HC.amount = 2
+GuildVillage.Expeditions.Utgarde_Keep_HC.itemids = 37180,37178,37179,37177,37183,37184,37182,37181,37194,37193,37192,37191,37189,37188,37186,37190
+GuildVillage.Expeditions.Utgarde_Keep_HC.time = 86400
+GuildVillage.Expeditions.Utgarde_Keep_HC.extrachance = 10
+
+# Utgarde Pinnacle (HC)
+GuildVillage.Expeditions.Utgarde_Pinnacle_HC.amount = 2
+GuildVillage.Expeditions.Utgarde_Pinnacle_HC.itemids = 37370,37369,37368,37367,37374,37373,37376,37371,37384,37377,37379,37389,37390,37397,37395,37398,37407,37409,37408
+GuildVillage.Expeditions.Utgarde_Pinnacle_HC.time = 127000
+GuildVillage.Expeditions.Utgarde_Pinnacle_HC.extrachance = 10
+
+# The Nexus (HC)
+GuildVillage.Expeditions.The_Nexus_HC.amount = 2
+GuildVillage.Expeditions.The_Nexus_HC.itemids = 37153,37155,37152,37151,37149,37144,37150,37141,37134,37135,37138,37139,37729,37730,37731,37728,37172,37170,37171,37169,37165,37167,37166,37162
+GuildVillage.Expeditions.The_Nexus_HC.time = 86400
+GuildVillage.Expeditions.The_Nexus_HC.extrachance = 10
+
+# The Oculus (HC)
+GuildVillage.Expeditions.The_Oculus_HC.amount = 2
+GuildVillage.Expeditions.The_Oculus_HC.itemids = 37258,37256,37257,37255,37260,37263,37262,37261,37264,37195,37288,37289,37292,37293,37294,37291,37360,37362,37363,37361
+GuildVillage.Expeditions.The_Oculus_HC.time = 86400
+GuildVillage.Expeditions.The_Oculus_HC.extrachance = 10
+
+# Culling of Stratholme (HC)
+GuildVillage.Expeditions.Culling_of_Stratholme_HC.amount = 2
+GuildVillage.Expeditions.Culling_of_Stratholme_HC.itemids = 37680,37678,37679,37675,37684,37682,37683,37681,37687,37686,37688,37685,37696,37695,37694,37693,43085,37691,37690,37689,37692
+GuildVillage.Expeditions.Culling_of_Stratholme_HC.time = 2700
+GuildVillage.Expeditions.Culling_of_Stratholme_HC.extrachance = 10
+
+# Drak'Tharon Keep (HC)
+GuildVillage.Expeditions.Drak_Tharon_Keep_HC.amount = 2
+GuildVillage.Expeditions.Drak_Tharon_Keep_HC.itemids = 37715,37714,37717,37712,37722,37718,37721,37725,37724,37726,37723,37733,37734,37732,37735,37784,37788,37791,37798
+GuildVillage.Expeditions.Drak_Tharon_Keep_HC.time = 86400
+GuildVillage.Expeditions.Drak_Tharon_Keep_HC.extrachance = 10
+
+# Halls of Stone (HC)
+GuildVillage.Expeditions.Halls_of_Stone_HC.amount = 2
+GuildVillage.Expeditions.Halls_of_Stone_HC.itemids = 38616,38615,38617,38618,37652,37650,37651,37655,37656,37654,37653,37660,37657,37658,37666,37667,37670,37668,37669
+GuildVillage.Expeditions.Halls_of_Stone_HC.time = 86400
+GuildVillage.Expeditions.Halls_of_Stone_HC.extrachance = 10
+
+# Azjol-Nerub (HC)
+GuildVillage.Expeditions.Azjol_Nerub_HC.amount = 2
+GuildVillage.Expeditions.Azjol_Nerub_HC.itemids = 37218,37219,37217,37216,37222,37230,37221,37220,37242,37240,37241,37238,37236,37237,37232,37235
+GuildVillage.Expeditions.Azjol_Nerub_HC.time = 86400
+GuildVillage.Expeditions.Azjol_Nerub_HC.extrachance = 10
+
+# Halls of Lightning (HC)
+GuildVillage.Expeditions.Halls_of_Lightning_HC.amount = 2
+GuildVillage.Expeditions.Halls_of_Lightning_HC.itemids = 37825,37818,37814,37826,37840,37843,37842,37841,37846,37845,37844,37854,37853,37855,37852,37851,37850,37849,37848
+GuildVillage.Expeditions.Halls_of_Lightning_HC.time = 86400
+GuildVillage.Expeditions.Halls_of_Lightning_HC.extrachance = 10
+
+# Gundrak (HC)
+GuildVillage.Expeditions.Gundrak_HC.amount = 2
+GuildVillage.Expeditions.Gundrak_HC.itemids = 37629,37628,37627,37626,37637,37636,37634,37635,37630,37633,37632,37631,43313,43312,43311,43310,37643,37644,37645,37642,37641,37640,37639,37638
+GuildVillage.Expeditions.Gundrak_HC.time = 86400
+GuildVillage.Expeditions.Gundrak_HC.extrachance = 10
+
+# Violet Hold (HC)
+GuildVillage.Expeditions.Violet_Hold_HC.amount = 2
+GuildVillage.Expeditions.Violet_Hold_HC.itemids = 43406,43405,43407,43403,43402,43404,37867,37868,37861,43401,37862,37869,43410,43408,43409,37871,37872,37870,37884,37886,43500,37883,37876,37875,37874,37873
+GuildVillage.Expeditions.Violet_Hold_HC.time = 86400
+GuildVillage.Expeditions.Violet_Hold_HC.extrachance = 10
+
+# Ahn'Kahet (HC)
+GuildVillage.Expeditions.Ahn_Kahet_HC.amount = 2
+GuildVillage.Expeditions.Ahn_Kahet_HC.itemids = 37594,37593,37592,37591,37613,37614,37612,37595,43287,43286,43285,43284,43283,43280,43282,43281,37622,37623,37620,37619,37616,37618,37617,37615
+GuildVillage.Expeditions.Ahn_Kahet_HC.time = 86400
+GuildVillage.Expeditions.Ahn_Kahet_HC.extrachance = 10
+
+# Trial of the Champion (HC) (ilvl 219+)
+GuildVillage.Expeditions.Trial_of_the_Champion_HC.amount = 1
+GuildVillage.Expeditions.Trial_of_the_Champion_HC.itemids = 47249,47248,47250,47244,47243,47493,47498,47496,47245,47497,47514,47510,47495,47511,47494,47512,47500,47522,47501,47504,47502,47503,47509,47508,47564,47527,47560,47529,47561,47563,47565,47567,47562,47566,47569,49682,47568
+GuildVillage.Expeditions.Trial_of_the_Champion_HC.time = 86400
+GuildVillage.Expeditions.Trial_of_the_Champion_HC.extrachance = 5
+
+# ICC heroic 5-man trio (ilvl 232+)
+GuildVillage.Expeditions.Halls_of_Reflection_HC.amount = 1
+GuildVillage.Expeditions.Halls_of_Reflection_HC.itemids = 50292,50293,50295,50294,50290,50291,50298,50299,50300,50297,50260,50296,50314,50312,50308,50304,50311,50305,50310,50313,50306,50309,50302,50303
+GuildVillage.Expeditions.Halls_of_Reflection_HC.time = 172800
+GuildVillage.Expeditions.Halls_of_Reflection_HC.extrachance = 5
+
+GuildVillage.Expeditions.Forge_of_Souls_HC.amount = 1
+GuildVillage.Expeditions.Forge_of_Souls_HC.itemids = 50193,50197,50194,50196,50191,50169,50213,50206,50212,50214,50209,50208,50207,50215,50211,50198,50203,50210
+GuildVillage.Expeditions.Forge_of_Souls_HC.time = 172800
+GuildVillage.Expeditions.Forge_of_Souls_HC.extrachance = 5
+
+GuildVillage.Expeditions.Pit_of_Saron_HC.amount = 1
+GuildVillage.Expeditions.Pit_of_Saron_HC.itemids = 50233,50234,50230,50229,50228,50227,50266,50263,50264,50265,50235,50262,50286,50269,50270,50283,50272,50285,50284,50271,50259,50268,50267,50273
+GuildVillage.Expeditions.Pit_of_Saron_HC.time = 172800
+GuildVillage.Expeditions.Pit_of_Saron_HC.extrachance = 5
+
+
+#----------------#
+# 10M RAID LOOT  #
+#----------------#
+
+# CS: Extra šance na úspěch pro "full" 10man raid.
+# EN: Extra success chance for full 10man raid group.
+GuildVillage.Expeditions.10m.extrachance.req.ilvl = 219
+GuildVillage.Expeditions.10m.extrachance.req.hero = 11
+
+# The Eye of Eternity (10)
+GuildVillage.Expeditions.The_Eye_of_Eternity_10.amount = 1
+GuildVillage.Expeditions.The_Eye_of_Eternity_10.itemids = 40526,40519,40511,40486,40474,40491,40488,40489,40497,40475
+GuildVillage.Expeditions.The_Eye_of_Eternity_10.time = 604800
+GuildVillage.Expeditions.The_Eye_of_Eternity_10.extrachance = 10
+
+# The Obsidian Sanctum (10)
+GuildVillage.Expeditions.The_Obsidian_Sanctum_10.amount = 1
+GuildVillage.Expeditions.The_Obsidian_Sanctum_10.itemids = 40428,40427,40426,40433,40430,40429,43988,43990,43991,43989,43992,40613,40614,40615,43995,43998,43996,43994,43993
+GuildVillage.Expeditions.The_Obsidian_Sanctum_10.time = 604800
+GuildVillage.Expeditions.The_Obsidian_Sanctum_10.extrachance = 10
+
+# Naxxramas (10)
+GuildVillage.Expeditions.Naxxramas_10.amount = 1
+GuildVillage.Expeditions.Naxxramas_10.itemids = 39272,39275,39274,39267,39262,39261,39271,39270,39284,39285,39283,39279,39278,39280,39282,39277,39281,39276,39396,39309,39237,39191,39215,39294,39248,39194,39251,39379,39188,39345,39146,39232,39193,39388,39200,39344,40622,40623,40624,40610,40611,40612,40619,40620,40621,39295,39249,39293,39292,39291,39192,39190,39189,39139,39141,39140,39216,39196,39217,39198,39195,39197,39199,39225,39230,39224,39228,39231,39229,39226,39221,39233,39297,39310,39299,39308,39307,39306,39298,39311,39296,39390,39386,39391,39369,39392,39389,39395,39393,39241,39242,39240,39243,39236,39239,39235,39234,39244,39252,39254,39247,39246,39250,39245,39255,39259,39260,39258,39257,39256,39415,39404,39409,39408,39399,39405,39403,39398,39401,39407,39425,39421,39416,39424,39420,39417,39423,39422,39426,39419,40616,40617,40618
+GuildVillage.Expeditions.Naxxramas_10.time = 604800
+GuildVillage.Expeditions.Naxxramas_10.extrachance = 10
+
+# Ulduar (10)
+GuildVillage.Expeditions.Ulduar_10.amount = 1
+GuildVillage.Expeditions.Ulduar_10.itemids = 45289,45291,45288,45283,45285,45292,45286,45284,45287,45282,45306,45302,45301,45307,45299,45305,45304,45303,45308,45298,45317,45318,45312,45316,45321,45310,45313,45314,45311,45309,45694,45677,45686,45687,45679,45676,45680,45675,45685,45682,45322,45423,45324,45378,45329,45333,45330,45418,45332,45331,45704,45701,45697,45698,45696,45699,45702,45703,45700,45695,46042,46045,46050,46043,46049,46044,46037,46039,46041,46047,46040,46048,46046,46038,46051,45832,45865,45864,45709,45711,45712,45708,45866,45707,45713,45873,45464,45874,45458,45872,45650,45651,45652,45893,45927,45894,45895,45892,45659,45660,45661,45940,45941,45935,45936,45934,45644,45645,45646,45973,45976,45974,45975,45972,45647,45648,45649,46014,46013,46012,46009,46346,45997,46008,46015,46010,46011,45996,46030,46019,46028,46022,46021,46024,46016,46031,46025,46018,45635,45636,45637
+GuildVillage.Expeditions.Ulduar_10.time = 604800
+GuildVillage.Expeditions.Ulduar_10.extrachance = 10
+
+# Trial of the Crusader (10)
+GuildVillage.Expeditions.Trial_of_the_Crusader_10.amount = 1
+GuildVillage.Expeditions.Trial_of_the_Crusader_10.itemids = 47855,47857,47853,47860,47850,47852,47851,47859,47858,47849,47854,47856,47861,47865,47863,47866,49236,47867,47869,47870,47872,47864,47862,47868,47871,47873,47878,47875,47876,47877,47880,47882,47879,47881,47874,47889,49232,47891,47887,47893,47885,47890,47888,47913,47886,47884,47892,47883,47906,47909,47904,47897,47901,47896,47902,47908,47899,47903,47898,47894,47905,47911,47900,47910,47895,47907
+GuildVillage.Expeditions.Trial_of_the_Crusader_10.time = 604800
+GuildVillage.Expeditions.Trial_of_the_Crusader_10.extrachance = 10
+
+# Icecrown Citadel (10)
+GuildVillage.Expeditions.IceCrown_Citadel_10.amount = 1
+GuildVillage.Expeditions.IceCrown_Citadel_10.itemids = 50764,50773,50774,50762,50775,50772,50763,50339,50771,50761,50759,50760,50785,50782,50780,50778,50783,50777,50784,50779,50786,50342,50781,50776,50791,50795,50797,50792,50789,50796,50788,50790,50340,50793,50787,50794,50807,50804,50799,50806,50800,50801,50802,50808,50809,50803,50798,50805,50859,50988,50990,50985,50858,50812,50967,50811,50852,50986,50810,50966,51007,51005,51009,51002,51006,51000,51008,51001,51003,51004,50998,50999,51020,51017,51013,51015,51019,51014,51018,51012,51016,50341,51011,51010,51382,51379,51380,51023,51325,51383,51025,51381,51024,51021,51022,51326,51554,51552,51550,51551,51386,51556,51555,51548,51387,51384,51385,51553,51584,51777,51585,51565,51583,51566,51586,51563,51564,51562,51582,51561,51790,51783,51789,51792,51785,51782,51786,51787,51779,51784,51788,51791,51801,51803,51800,51795,51798,51796,51799,51797,51802
+GuildVillage.Expeditions.IceCrown_Citadel_10.time = 604800
+GuildVillage.Expeditions.IceCrown_Citadel_10.extrachance = 10
+
+# The Ruby Sanctum (10)
+GuildVillage.Expeditions.The_Ruby_Sanctum_10.amount = 1
+GuildVillage.Expeditions.The_Ruby_Sanctum_10.itemids = 53115,53118,53114,53117,53113,53119,53112,53121,53111,53103,53116,53110
+GuildVillage.Expeditions.The_Ruby_Sanctum_10.time = 604800
+GuildVillage.Expeditions.The_Ruby_Sanctum_10.extrachance = 10
+
+
+#----------------#
+# 25M RAID LOOT  #
+#----------------#
+
+# CS: Extra šance na úspěch pro "full" 25man raid.
+# EN: Extra success chance for full 25man raid group.
+GuildVillage.Expeditions.25m.extrachance.req.ilvl = 271
+GuildVillage.Expeditions.25m.extrachance.req.hero = 25
+
+# The Eye of Eternity (25)
+GuildVillage.Expeditions.The_Eye_of_Eternity_25.amount = 1
+GuildVillage.Expeditions.The_Eye_of_Eternity_25.itemids = 40562,40555,40194,40561,40560,40558,40594,40539,40541,40566,40543,40588,40564,40549,40590,40589,40592,40591,40532,40531
+GuildVillage.Expeditions.The_Eye_of_Eternity_25.time = 604800
+GuildVillage.Expeditions.The_Eye_of_Eternity_25.extrachance = 15
+
+# The Obsidian Sanctum (25)
+GuildVillage.Expeditions.The_Obsidian_Sanctum_25.amount = 1
+GuildVillage.Expeditions.The_Obsidian_Sanctum_25.itemids = 40437,40439,40451,40438,40453,40446,40433,40431,40432,40455,40628,40629,40630,44002,44003,44004,44000,44005,44008,44007,44011,44006
+GuildVillage.Expeditions.The_Obsidian_Sanctum_25.time = 604800
+GuildVillage.Expeditions.The_Obsidian_Sanctum_25.extrachance = 15
+
+# Naxxramas (25)
+GuildVillage.Expeditions.Naxxramas_25.amount = 1
+GuildVillage.Expeditions.Naxxramas_25.itemids = 40271,40269,40260,40270,40262,40272,40261,40263,40259,40071,40065,40069,40064,40080,40075,40107,40074,40273,40267,40268,40264,40266,40265,40250,40254,40252,40253,40251,40287,40286,40351,40289,40277,40285,40288,40283,40282,40275,40279,40274,40278,40257,40255,40258,40256,40281,40280,40284,40247,40602,39733,40303,40326,40296,39768,40319,40205,40193,40209,40302,39718,40242,39760,40185,40203,40332,40188,40204,39717,40206,40297,40350,40191,39714,39730,40343,40239,40346,40637,40638,40639,40625,40626,40627,40634,40635,40636,40301,40304,40299,40298,40294,40300,39721,39720,39722,39701,39702,39704,39703,39706,40208,39712,39732,39731,39735,39756,39727,39724,39734,39723,39725,39729,39726,40108,40047,39757,39728,40062,40060,40063,39765,39761,40061,39762,39767,39764,39759,39766,39763,39758,40325,40305,40323,40315,40324,40327,40306,40316,40317,40318,40320,40321,40322,40339,40338,40329,40341,40333,40340,40331,40328,40334,40330,40342,40337,40336,40335,40349,40344,40352,40347,40345,40348,40198,40197,40186,40200,40196,40184,40192,40189,40190,40234,40236,40238,40235,40201,40237,40210,40207,40233,40246,40249,40243,40241,40240,40244,40245,40381,40380,40376,40362,40379,40367,40366,40377,40365,40363,40378,40374,40369,40370,40375,40371,40373,40372,40368,40405,40403,40398,40387,40399,40383,40386,40396,40402,40384,40395,40388,40401,40400,40385,40631,40632,40633
+GuildVillage.Expeditions.Naxxramas_25.time = 604800
+GuildVillage.Expeditions.Naxxramas_25.extrachance = 15
+
+# Ulduar (25)
+GuildVillage.Expeditions.Ulduar_25.amount = 1
+GuildVillage.Expeditions.Ulduar_25.itemids = 45117,45119,45108,45118,45109,45107,45111,45116,45113,45106,45112,45115,45114,45110,45086,45138,45150,45146,45149,45141,45151,45143,45140,45139,45148,45510,45144,45142,45147,45137,45186,45185,45162,45164,45187,45167,45161,45166,45157,45168,45158,45169,45165,45171,45170,45253,45258,45260,45259,45249,45251,45252,45248,45250,45247,45254,45255,45246,45256,45257,45224,45240,45238,45237,45232,45227,45239,45226,45225,45228,45193,45236,45235,45233,45234,45272,45275,45273,45265,45274,45264,45269,45268,45267,45262,45263,45271,45270,45266,45261,45665,45619,45611,45616,45610,45615,45594,45599,45617,45620,45607,45612,45613,45587,45570,45609,45319,45435,45441,45439,45325,45440,45320,45334,45434,45326,45438,45436,45437,45315,45327,45453,45454,45452,45451,45450,45632,45633,45634,45468,45467,45469,45466,45463,45638,45639,45640,45483,45482,45481,45480,45479,45653,45654,45655,45493,45492,45491,45490,45489,45641,45642,45643,45514,45508,45512,45504,45513,45502,45505,45501,45503,45515,45507,45509,45145,45498,45511,45529,45532,45523,45524,45531,45525,45530,45522,45527,45521,45656,45657,45658
+GuildVillage.Expeditions.Ulduar_25.time = 604800
+GuildVillage.Expeditions.Ulduar_25.extrachance = 15
+
+# Trial of the Crusader (25)
+GuildVillage.Expeditions.Trial_of_the_Crusader_25.amount = 1
+GuildVillage.Expeditions.Trial_of_the_Crusader_25.itemids = 47257,47256,47264,47258,47259,47262,47251,47265,47254,47253,47263,47252,47261,47255,47260,47275,47274,47270,47277,47280,47268,47279,47273,47269,47272,47278,47271,47276,47266,47267,47291,47286,27293,47292,47284,47281,47289,47295,47288,47294,47283,47282,47290,47285,47287,47301,47306,47308,47299,47296,47310,47298,47304,47307,47305,47297,47303,47309,47300,47302,47328,47320,47324,47326,47317,47321,47313,47318,47325,47311,47319,47330,47323,47312,47315,47327,47316,47314,47322,47329
+GuildVillage.Expeditions.Trial_of_the_Crusader_25.time = 604800
+GuildVillage.Expeditions.Trial_of_the_Crusader_25.extrachance = 15
+
+# Icecrown Citadel (25)
+GuildVillage.Expeditions.IceCrown_Citadel_25.amount = 1
+GuildVillage.Expeditions.IceCrown_Citadel_25.itemids = 49978,49979,49950,49952,49980,49951,49960,49964,49975,49949,49977,49967,49968,50415,49976,49991,49994,49987,49996,49988,49986,49995,49983,49989,49985,49990,49982,49992,50034,49998,50006,50011,50001,50009,50000,50003,50002,50010,50005,50008,49999,50359,50352,50411,50014,50333,50015,50362,50412,52027,52026,52025,50063,50056,50062,50042,50041,50059,50038,50064,50413,50060,50037,50036,50061,50414,50035,50040,50019,50032,50026,50021,50022,50030,50020,50024,50027,50023,50025,50353,50028,50016,50033,50067,50069,50351,50179,50068,50074,50172,50176,50073,50171,50177,50071,50072,50175,50075,50174,50170,50173,50184,49919,50182,50180,50354,50178,50181,50065,50205,50418,50417,50202,50188,50187,50199,50192,50416,50190,50195,50185,50186,50183,50472,50421,50424,50360,50361,50423,50426,50427,50070,50012,50428,49997,50425,50429,49981
+GuildVillage.Expeditions.IceCrown_Citadel_25.time = 604800
+GuildVillage.Expeditions.IceCrown_Citadel_25.extrachance = 15
+
+# The Ruby Sanctum (25)
+GuildVillage.Expeditions.The_Ruby_Sanctum_25.amount = 1
+GuildVillage.Expeditions.The_Ruby_Sanctum_25.itemids = 53489,53486,53134,53126,53488,53127,53125,53487,53129,53132,53490,53133,54572,54573,54571,54569
+GuildVillage.Expeditions.The_Ruby_Sanctum_25.time = 604800
+GuildVillage.Expeditions.The_Ruby_Sanctum_25.extrachance = 15
+
+
+#==============================================#
+# Guild Village – PvP ODMĚNY / PvP REWARDS     #
+#==============================================#
+
+# CS: Zapnout/vypnout PvP odměny za BG / world PvP.
+# EN: Enable/disable PvP reward system for BG / world PvP.
+GuildVillage.PvP.Enable = 1
+
+# CS: Zobrazovat hráčům hlášky typu
+#     "[Guild Village] Získáno: +X ..."
+# EN: Show chat feedback like
+#     "[Guild Village] Gained: +X ..."
 GuildVillage.PvP.Notify = 1
 
-# Když je 0 guilda dostane odměnu za vyhrané BG jen 1x za instanci toho BG
-# Když je 1 každému členovi guildy, který je na vítězné straně
-# 
-# When this is 0, the guild receives the battleground win reward only once per instance of that battleground.
-# When this is 1, every guild member who is on the winning team receives the reward.
+# CS: Jak počítat odměnu za vyhrané BG?
+#     0 = guildě se započítá jen jednou za dané BG (bez ohledu na počet členů v týmu)
+#     1 = odměna se násobí za každého člena guildy ve vítězném týmu
+# EN: How to count BG win rewards?
+#     0 = guild gets reward once per BG instance
+#     1 = reward is applied again for each guild member on winning side
 GuildVillage.PvP.MultipleSameGuildReward = 0
 
-# World PvP kill reward
-GuildVillage.PvP.WorldKill.Enable = 1
-GuildVillage.PvP.WorldKill.Mat1 = 1
-GuildVillage.PvP.WorldKill.Mat2 = 1
-GuildVillage.PvP.WorldKill.Mat3 = 1
-GuildVillage.PvP.WorldKill.Mat4 = 1
+# ---------- World PvP kill reward ----------
 
-# BG rewards
+# CS: Odměna za zabití hráče ve volném světě (world PvP).
+#     Enable = 1/0 zapíná/vypíná tento typ odměny.
+# EN: Reward for world PvP kills.
+#     Enable = 1/0 toggles this reward type.
+GuildVillage.PvP.WorldKill.Enable = 0
+GuildVillage.PvP.WorldKill.Mat1   = 1
+GuildVillage.PvP.WorldKill.Mat2   = 1
+GuildVillage.PvP.WorldKill.Mat3   = 1
+GuildVillage.PvP.WorldKill.Mat4   = 1
+
+# ---------- Battleground rewards ----------
+
+# CS: Kolik materiálů dostane guildovní banka za výhru konkrétního BG.
+# EN: How much material is awarded to guild bank for winning each BG.
+
 # Alterac Valley
-GuildVillage.PvP.AlteracValley.Mat1 = 1
-GuildVillage.PvP.AlteracValley.Mat2 = 1
-GuildVillage.PvP.AlteracValley.Mat3 = 1
-GuildVillage.PvP.AlteracValley.Mat4 = 1
+GuildVillage.PvP.AlteracValley.Mat1 = 50
+GuildVillage.PvP.AlteracValley.Mat2 = 50
+GuildVillage.PvP.AlteracValley.Mat3 = 50
+GuildVillage.PvP.AlteracValley.Mat4 = 50
 
 # Warsong Gulch
-GuildVillage.PvP.WarsongGulch.Mat1 = 1
-GuildVillage.PvP.WarsongGulch.Mat2 = 1
-GuildVillage.PvP.WarsongGulch.Mat3 = 1
-GuildVillage.PvP.WarsongGulch.Mat4 = 1
+GuildVillage.PvP.WarsongGulch.Mat1 = 10
+GuildVillage.PvP.WarsongGulch.Mat2 = 10
+GuildVillage.PvP.WarsongGulch.Mat3 = 10
+GuildVillage.PvP.WarsongGulch.Mat4 = 10
 
 # Arathi Basin
-GuildVillage.PvP.ArathiBasin.Mat1 = 1
-GuildVillage.PvP.ArathiBasin.Mat2 = 1
-GuildVillage.PvP.ArathiBasin.Mat3 = 1
-GuildVillage.PvP.ArathiBasin.Mat4 = 1
+GuildVillage.PvP.ArathiBasin.Mat1 = 15
+GuildVillage.PvP.ArathiBasin.Mat2 = 15
+GuildVillage.PvP.ArathiBasin.Mat3 = 15
+GuildVillage.PvP.ArathiBasin.Mat4 = 15
 
 # Eye of the Storm
-GuildVillage.PvP.EyeOfTheStorm.Mat1 = 1
-GuildVillage.PvP.EyeOfTheStorm.Mat2 = 1
-GuildVillage.PvP.EyeOfTheStorm.Mat3 = 1
-GuildVillage.PvP.EyeOfTheStorm.Mat4 = 1
+GuildVillage.PvP.EyeOfTheStorm.Mat1 = 30
+GuildVillage.PvP.EyeOfTheStorm.Mat2 = 30
+GuildVillage.PvP.EyeOfTheStorm.Mat3 = 30
+GuildVillage.PvP.EyeOfTheStorm.Mat4 = 30
 
 # Strand of the Ancients
-GuildVillage.PvP.StrandOfTheAncients.Mat1 = 1
-GuildVillage.PvP.StrandOfTheAncients.Mat2 = 1
-GuildVillage.PvP.StrandOfTheAncients.Mat3 = 1
-GuildVillage.PvP.StrandOfTheAncients.Mat4 = 1
+GuildVillage.PvP.StrandOfTheAncients.Mat1 = 40
+GuildVillage.PvP.StrandOfTheAncients.Mat2 = 40
+GuildVillage.PvP.StrandOfTheAncients.Mat3 = 40
+GuildVillage.PvP.StrandOfTheAncients.Mat4 = 40
 
 # Isle of Conquest
-GuildVillage.PvP.IsleOfConquest.Mat1 = 1
-GuildVillage.PvP.IsleOfConquest.Mat2 = 1
-GuildVillage.PvP.IsleOfConquest.Mat3 = 1
-GuildVillage.PvP.IsleOfConquest.Mat4 = 1
+GuildVillage.PvP.IsleOfConquest.Mat1 = 50
+GuildVillage.PvP.IsleOfConquest.Mat2 = 50
+GuildVillage.PvP.IsleOfConquest.Mat3 = 50
+GuildVillage.PvP.IsleOfConquest.Mat4 = 50
 
 # Random Battleground
-GuildVillage.PvP.RandomBattleground.Mat1 = 1
-GuildVillage.PvP.RandomBattleground.Mat2 = 1
-GuildVillage.PvP.RandomBattleground.Mat3 = 1
-GuildVillage.PvP.RandomBattleground.Mat4 = 1
+GuildVillage.PvP.RandomBattleground.Mat1 = 25
+GuildVillage.PvP.RandomBattleground.Mat2 = 25
+GuildVillage.PvP.RandomBattleground.Mat3 = 25
+GuildVillage.PvP.RandomBattleground.Mat4 = 25
 
-#================================#
-# Guild Village – Bot prevention #
-#================================#
-# Bezpečné místo, kam se teleportují hráči nebo boti, kteří
-# nejsou členy stejné guildy při pokusu o vstup do guild village.
-# (Zabránění zneužití nebo vstupu cizích botů)
-#
-# Safe location where players or bots are teleported if they are
-# not members of the same guild when trying to enter the guild village.
-# (Prevents unauthorized access or bot abuse)
+
+#====================================#
+# Guild Village – BOSS DIFFICULTY    #
+#====================================#
+
+# CS: Následující přepínače mění sílu bossů (Heroic režim).
+# EN: The following toggles control boss strength (Heroic mode).
+
+# Thalgron the Earthshaker
+# CS: Zapíná Enrage po ~2 minutách.
+# EN: Enables Enrage after ~2 minutes.
+Thalgron.Heroic = 1
+
+# Voltrix the Unbound
+# CS: Silnější Gravity Bomb a Searing Light.
+# EN: Stronger Gravity Bomb and Searing Light.
+Voltrix.Heroic = 0
+
+# Thranok the Unyielding
+# CS: Silnější Rock Shard, Stomp, Impale.
+# EN: Stronger Rock Shard, Stomp, Impale.
+Thranok.Heroic = 0
+
+# Thalor the Lifebinder
+# CS: Silnější Solar Flare a Unstable Sun Damage.
+# EN: Stronger Solar Flare and Unstable Sun Damage.
+Thalor.Heroic = 0
+
+
+#===========================================#
+# Guild Village – OCHRANA PŘED BOTY / SAFE  #
+#===========================================#
+
+# CS: Bezpečné lokace: pokud se hráč/bot pokusí vstoupit do cizí vesnice
+#     a není členem stejné guildy, je portnut sem.
+# EN: Safe locations: if a player/bot tries to enter a foreign village
+#     without guild access, they get teleported here.
 
 GuildVillage.Safe.Alliance.Map = 0
-GuildVillage.Safe.Alliance.X = -8833.379883
-GuildVillage.Safe.Alliance.Y = 628.619995
-GuildVillage.Safe.Alliance.Z = 94.000000
-GuildVillage.Safe.Alliance.O = 0.000000
+GuildVillage.Safe.Alliance.X   = -8833.379883
+GuildVillage.Safe.Alliance.Y   = 628.619995
+GuildVillage.Safe.Alliance.Z   = 94.000000
+GuildVillage.Safe.Alliance.O   = 0.000000
 
 GuildVillage.Safe.Horde.Map = 1
-GuildVillage.Safe.Horde.X = 1629.849976
-GuildVillage.Safe.Horde.Y = -4373.640137
-GuildVillage.Safe.Horde.Z = 31.549999
-GuildVillage.Safe.Horde.O = 0.000000
+GuildVillage.Safe.Horde.X   = 1629.849976
+GuildVillage.Safe.Horde.Y   = -4373.640137
+GuildVillage.Safe.Horde.Z   = 31.549999
+GuildVillage.Safe.Horde.O   = 0.000000

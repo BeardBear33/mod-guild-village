@@ -18,7 +18,7 @@
 #include "ObjectAccessor.h"
 #include "Creature.h"
 #include "Guild.h"
-#include "DataMap.h" // per-player stash
+#include "DataMap.h"
 
 #include <string>
 #include <algorithm>
@@ -39,7 +39,7 @@ static inline uint32 DefMap() { return sConfigMgr->GetOption<uint32>("GuildVilla
 
 namespace
 {
-    // per-player stash stejného jména/typu jako jinde (.commands/.respawn…)
+    // per-player stash stejného jména/typu (.commands/.respawn…)
     struct GVPhaseData : public DataMap::Base { uint32 phaseMask = 0; };
 
     enum class Lang { CS, EN };
@@ -430,9 +430,14 @@ namespace
             }
 
             uint32 guildId = std::stoul(rest);
+
+            // vytáhneme phaseId (kvůli despawnu ze světa a respawn tabulkám)
             uint32 phaseId = 0;
-            if (QueryResult pr = WorldDatabase.Query("SELECT phase FROM customs.gv_guild WHERE guild = {} LIMIT 1", guildId))
+            if (QueryResult pr = WorldDatabase.Query(
+                    "SELECT phase FROM customs.gv_guild WHERE guild = {} LIMIT 1", guildId))
+            {
                 phaseId = (*pr)[0].Get<uint32>();
+            }
 
             if (!GuildVillage::GuildHasVillage(guildId))
             {
@@ -441,6 +446,49 @@ namespace
                 return true;
             }
 
+            //
+            // 0) Lokální pre-clean ve všech customs tabulkách vázaných na guildId
+            //    (tohle je duplicitní ochrana + čitelnost; CleanupVillageForGuild to stejně smaže taky)
+            //
+            WorldDatabase.Execute(
+                "DELETE FROM customs.gv_currency WHERE guildId={}",
+                guildId
+            );
+
+            WorldDatabase.Execute(
+                "DELETE FROM customs.gv_upgrades WHERE guildId={}",
+                guildId
+            );
+
+            WorldDatabase.Execute(
+                "DELETE FROM customs.gv_production_active WHERE guildId={}",
+                guildId
+            );
+
+            WorldDatabase.Execute(
+                "DELETE FROM customs.gv_production_upgrade WHERE guildId={}",
+                guildId
+            );
+
+            // expedice
+            WorldDatabase.Execute(
+                "DELETE FROM customs.gv_expedition_active WHERE guildId={}",
+                guildId
+            );
+
+            WorldDatabase.Execute(
+                "DELETE FROM customs.gv_expedition_loot WHERE guildId={}",
+                guildId
+            );
+
+            WorldDatabase.Execute(
+                "DELETE FROM customs.gv_expedition_guild WHERE guildId={}",
+                guildId
+            );
+
+            //
+            // 1) Respawn tabulky v characters DB - aby tam nezůstaly sirotčí cooldowny a dead body
+            //
             if (phaseId)
             {
                 // posbírat GUIDy z world.creature (mapa vesnice + phase)
@@ -465,14 +513,23 @@ namespace
                 DeleteRespawnsByGuids("creature_respawn", creatureGuids);
                 DeleteRespawnsByGuids("gameobject_respawn", goGuids);
 
-                LOG_INFO("modules", "GV: GM delete cleared respawns (guild={}, phaseId={}, creatures={}, gos={})",
+                LOG_INFO("modules",
+                         "GV: GM delete cleared respawns (guild={}, phaseId={}, creatures={}, gos={})",
                          guildId, phaseId, creatureGuids.size(), goGuids.size());
             }
 
+            //
+            // 2) Instantní despawn ze světa (aby objekty zmizely hráčům bez restartu)
+            //
             if (phaseId)
                 DespawnPhaseObjects(DefMap(), phaseId);
 
+            //
+            // 3) A nakonec nechat doběhnout oficiální mazání vesnice
+            //    (tohle volá CleanupVillageForGuild uvnitř GuildVillage::DeleteVillageForGuild_GM)
+            //
             bool ok = GuildVillage::DeleteVillageForGuild_GM(guildId);
+
             handler->SendSysMessage(ok ?
                 T("|cff00ff00[GV-GM]|r Vesnice odstraněna (DB + despawn).",
                   "|cff00ff00[GV-GM]|r Village removed (DB + despawn).") :

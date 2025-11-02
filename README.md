@@ -24,7 +24,7 @@ Add only one NPC for village purchase. ".npc add 987454"
 🔧 Tento modul je primárně vyvíjen pro jádro:  
 [azerothcore-wotlk (Playerbot branch)](https://github.com/liyunfan1223/azerothcore-wotlk/tree/Playerbot)
 
-🔧 This module is primarily developed for the core and OS ubuntu:  
+🔧 This module is primarily developed for the core:  
 [azerothcore-wotlk (Playerbot branch)](https://github.com/liyunfan1223/azerothcore-wotlk/tree/Playerbot)
 
 ----------------------------------------------------------------------------------------------------------------
@@ -43,11 +43,9 @@ Add only one NPC for village purchase. ".npc add 987454"
 
 - Možnost rozšířit vesnici o defenzivní prvky pro měsíční event s možností opětovného nákupu (např. miny, harpuny apod.)
 
-- Možnost přemístit stráže dle vlastního uvážení přes Gossip menu
-
 - NPC, které by z guildovní měny vyrábělo náhodné materiály pro profese nebo hotové předměty do určitého ilvl
 
-- Expedice – možnost zakoupit hrdiny, které lze vysílat do dungeonů nebo raidů
+✅ ~~Expedice – možnost zakoupit hrdiny, které lze vysílat do dungeonů nebo raidů~~
 
 
 🌐 English
@@ -62,8 +60,6 @@ Add only one NPC for village purchase. ".npc add 987454"
 
 - Ability to expand the village with defensive structures for the monthly event, with repeatable purchases (e.g. mines, harpoons, etc.)
 
-- Option to reposition guards through a Gossip menu
-
 - An NPC that converts guild currency into random crafting materials or finished items up to a certain item level
 
-- Expedition – purchase heroes that can be sent into dungeons or raids
+✅ ~~Expedition – purchase heroes that can be sent into dungeons or raids~~

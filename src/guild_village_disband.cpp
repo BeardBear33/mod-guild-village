@@ -48,7 +48,7 @@ namespace GuildVillage
                 inlist << guids[k];
             }
 
-            // slož hotový SQL string pro pool (žádné {} placeholdery)
+            // složit hotový SQL string pro pool (žádné {} placeholdery)
             std::string sql = "DELETE FROM " + table + " WHERE guid IN (" + inlist.str() + ")";
             CharacterDatabase.Execute(sql);
         }
@@ -63,8 +63,24 @@ namespace GuildVillage
         // 1) customs: měny a upgrady
         WorldDatabase.Execute("DELETE FROM customs.gv_currency WHERE guildId={}", guildId);
         WorldDatabase.Execute("DELETE FROM customs.gv_upgrades WHERE guildId={}", guildId);
+		
+		// 1.1) expedice: aktivní mise, loot, stav expedic pro guildu
+		WorldDatabase.Execute(
+			"DELETE FROM customs.gv_expedition_active WHERE guildId={}",
+			guildId
+		);
+	
+		WorldDatabase.Execute(
+			"DELETE FROM customs.gv_expedition_loot WHERE guildId={}",
+			guildId
+		);
+	
+		WorldDatabase.Execute(
+			"DELETE FROM customs.gv_expedition_guild WHERE guildId={}",
+			guildId
+		);
 
-        // 1.5) Vyčistit respawny v characters.* pro GUIDy této phase (než smažeme world.*)
+        // 1.5) Vyčistit respawny v characters.* pro GUIDy této phase
         {
             std::vector<uint32> creatureGuids;
             if (QueryResult qc = WorldDatabase.Query(

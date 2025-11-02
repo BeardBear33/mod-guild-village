@@ -19,6 +19,18 @@
 #include <vector>
 #include <cctype>
 #include <ctime>
+#include <cmath>
+
+namespace GuildVillageMissions
+{
+    struct ExpeditionLine
+    {
+        std::string mission;
+        std::string remain;
+    };
+
+    std::vector<ExpeditionLine> BuildExpeditionLinesForGuild(uint32 guildId);
+}
 
 namespace
 {
@@ -158,9 +170,9 @@ namespace
         return sConfigMgr->GetOption<bool>("GuildVillage.CurrencyCap.Enabled", true);
     }
     static inline uint32 CapMaterial1()  { return sConfigMgr->GetOption<uint32>("GuildVillage.CurrencyCap.Material1",   1000); }
-    static inline uint32 CapMaterial2()   { return sConfigMgr->GetOption<uint32>("GuildVillage.CurrencyCap.Material2",    1000); }
-    static inline uint32 CapMaterial3()    { return sConfigMgr->GetOption<uint32>("GuildVillage.CurrencyCap.Material3",     1000); }
-    static inline uint32 CapMaterial4() { return sConfigMgr->GetOption<uint32>("GuildVillage.CurrencyCap.Material4",  1000); }
+    static inline uint32 CapMaterial2()  { return sConfigMgr->GetOption<uint32>("GuildVillage.CurrencyCap.Material2",    1000); }
+    static inline uint32 CapMaterial3()  { return sConfigMgr->GetOption<uint32>("GuildVillage.CurrencyCap.Material3",     1000); }
+    static inline uint32 CapMaterial4()  { return sConfigMgr->GetOption<uint32>("GuildVillage.CurrencyCap.Material4",  1000); }
 
     // utils
     static inline std::string Trim(std::string s)
@@ -181,14 +193,24 @@ namespace
     {
         return sLower == "teleport" || sLower == "tp";
     }
-	
-	    // --- info aliases helper ---
+
+    // --- info aliases helper ---
     static inline bool IsInfoArg(std::string const& sLower)
     {
         return sLower == "i"
             || sLower == "in"
             || sLower == "inf"
             || sLower == "info";
+    }
+
+    // --- expedition aliases helper ---
+    static inline bool IsExpeditionArg(std::string const& sLower)
+    {
+        return sLower == "e"
+            || sLower == "exp"
+            || sLower == "expe"
+            || sLower == "exped"
+            || sLower == "expedition";
     }
 
     // === Per-player stash (sdílené jméno s ostatními částmi modu) ===
@@ -282,6 +304,46 @@ namespace
         return true;
     }
 
+    // ---- blok [Expedice] (probíhající expedice)
+    static void SendExpeditionBlock(Player* player, ChatHandler* handler)
+    {
+        handler->SendSysMessage(
+            T("|cff00ff00[Expedice]|r",
+              "|cff00ff00[Expeditions]|r")
+        );
+
+        if (!player->GetGuild())
+        {
+            handler->SendSysMessage(
+                T("Nejsi v guildě.", "You are not in a guild.")
+            );
+            return;
+        }
+
+        std::vector<GuildVillageMissions::ExpeditionLine> lines =
+            GuildVillageMissions::BuildExpeditionLinesForGuild(player->GetGuildId());
+
+        if (lines.empty())
+        {
+            handler->SendSysMessage(
+                T("Žádná aktivní expedice.",
+                  "No active expeditions.")
+            );
+            return;
+        }
+
+        for (auto const& L : lines)
+        {
+            // "Utgarde Keep - 1h 23m 15s"
+            std::string row = Acore::StringFormat(
+                "{} - {}",
+                L.mission,
+                L.remain
+            );
+            handler->SendSysMessage(row.c_str());
+        }
+    }
+
     // ---- blok [Bossové]
     static void SendBossBlock(Player* player, ChatHandler* handler)
     {
@@ -363,11 +425,11 @@ namespace
                                   GuildVillage::Names::All const& N)
     {
 
-		handler->SendSysMessage(
-			T("|cff00ff00[Materiál]|r",
-			"|cff00ff00[Materials]|r")
-		);
-	
+        handler->SendSysMessage(
+            T("|cff00ff00[Materiál]|r",
+              "|cff00ff00[Materials]|r")
+        );
+
         auto sendMatLine = [&](std::string const& dispName, uint64 curVal, uint32 cap)
         {
             std::string line = "|cff00ffff" + dispName + ":|r " + std::to_string(curVal);
@@ -407,6 +469,10 @@ namespace
                 handler->SendSysMessage("    Aliases: .village i / in / inf / info");
                 handler->SendSysMessage("              .v i / in / inf / info");
 
+                handler->SendSysMessage(" .village expedition – show active expeditions");
+                handler->SendSysMessage("    Aliases: .village e / exp / expedition");
+                handler->SendSysMessage("              .v e / exp / expedition");
+
                 handler->SendSysMessage(" .village boss – show bosses status");
                 handler->SendSysMessage("    Aliases: .village b / boss");
                 handler->SendSysMessage("              .v b / boss");
@@ -429,6 +495,10 @@ namespace
                 handler->SendSysMessage(" .village info – zobrazí kompletní info");
                 handler->SendSysMessage("    Alias: .village i / in / inf / info");
                 handler->SendSysMessage("            .v i / in / inf / info");
+
+                handler->SendSysMessage(" .village expedition – ukáže probíhající expedice");
+                handler->SendSysMessage("    Alias: .village e / exp / expedition");
+                handler->SendSysMessage("            .v e / exp / expedition");
 
                 handler->SendSysMessage(" .village boss – zobrazí stav bossů");
                 handler->SendSysMessage("    Alias: .village b / boss");
@@ -497,6 +567,9 @@ namespace
         bool isInfo =
             (al == "i" || al == "in" || al == "inf" || al == "info");
 
+        bool isExpedition =
+            (IsExpeditionArg(al));
+
         bool isBoss =
             (al == "b" || al == "boss");
 
@@ -507,14 +580,14 @@ namespace
             (al == "p" || al == "prod" || al == "production");
 
 
-        if (isInfo || isBoss || isCurrency || isProduction)
+        if (isInfo || isExpedition || isBoss || isCurrency || isProduction)
         {
             GuildVillageProduction::GuildCurrency cur;
             GuildVillage::Names::All const* names = nullptr;
             if (!PrepareVillageStatus(player, handler, cur, names))
                 return true;
 
-
+            // === info (všechno dohromady) ===
             if (isInfo)
             {
                 handler->SendSysMessage(
@@ -522,16 +595,25 @@ namespace
                       "|cff00ff00[Guild Village]|r – info")
                 );
 
-                // materiály
+                // suroviny
                 SendCurrencyBlock(handler, cur, *names);
 
                 // produkce
                 SendProductionBlock(player, handler, cur, *names);
 
+                // expedice
+                SendExpeditionBlock(player, handler);
+
                 // bossové
                 SendBossBlock(player, handler);
 
+                return true;
+            }
 
+            // === jen expedice ===
+            if (isExpedition)
+            {
+                SendExpeditionBlock(player, handler);
                 return true;
             }
 

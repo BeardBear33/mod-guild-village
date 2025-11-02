@@ -43,60 +43,21 @@ namespace GuildVillage
     {
         return (LangOpt() == Lang::EN) ? en : cs;
     }
-	
-	// Caps
-	static inline bool CapsEnabled()
-	{
-		return sConfigMgr->GetOption<bool>("GuildVillage.CurrencyCap.Enabled", true);
-	}
-	static inline uint32 CapMaterial1()  { return sConfigMgr->GetOption<uint32>("GuildVillage.CurrencyCap.Material1",   1000); }
-	static inline uint32 CapMaterial2()   { return sConfigMgr->GetOption<uint32>("GuildVillage.CurrencyCap.Material2",    1000); }
-	static inline uint32 CapMaterial3()    { return sConfigMgr->GetOption<uint32>("GuildVillage.CurrencyCap.Material3",     1000); }
-	static inline uint32 CapMaterial4() { return sConfigMgr->GetOption<uint32>("GuildVillage.CurrencyCap.Material4",  1000); }
-	
-	static void SendCurrencyStatusToChat(Player* player, uint32 guildId)
-	{
-		if (!player) return;
-	
-		uint64 mat1=0, mat2=0, mat3=0, mat4=0;
-		if (QueryResult r = WorldDatabase.Query(
-				"SELECT material1, material2, material3, material4 FROM customs.gv_currency WHERE guildId={}", guildId))
-		{
-			Field* f = r->Fetch();
-			mat1 = f[0].Get<uint64>();
-			mat2 = f[1].Get<uint64>();
-			mat3 = f[2].Get<uint64>();
-			mat4 = f[3].Get<uint64>();
-		}
-		else
-		{
-			ChatHandler(player->GetSession()).SendSysMessage(
-				T("Tvoje guilda nevlastní vesnici (žádná měnová tabulka).",
-				"Your guild does not own a village (no currency table)."));
-			return;
-		}
-	
-		auto const& N = GuildVillage::Names::Get();
-		ChatHandler h(player->GetSession());
-		h.SendSysMessage(T("|cff00ff00[Guildovní vesnice]|r – materiály",
-						"|cff00ff00[Guild Village]|r – materials"));
-	
-		auto send = [&](std::string const& name, uint64 val, uint32 cap)
-		{
-			std::string line = "|cff00ffff" + name + ":|r " + std::to_string(val);
-			if (CapsEnabled())
-			{
-				if (cap == 0) line += " / ∞";
-				else          line += " / " + std::to_string(cap);
-			}
-			h.SendSysMessage(line.c_str());
-		};
-	
-		send(N.status.material1,  mat1, CapMaterial1());
-		send(N.status.material2,   mat2, CapMaterial2());
-		send(N.status.material3,    mat3, CapMaterial3());
-		send(N.status.material4, mat4, CapMaterial4());
-	}
+
+    static inline char const* SeparatorLine()
+    {
+        return "|cff808080---------------------------|r";
+    }
+
+    // Caps
+    static inline bool CapsEnabled()
+    {
+        return sConfigMgr->GetOption<bool>("GuildVillage.CurrencyCap.Enabled", true);
+    }
+    static inline uint32 CapMaterial1()  { return sConfigMgr->GetOption<uint32>("GuildVillage.CurrencyCap.Material1",   1000); }
+    static inline uint32 CapMaterial2()  { return sConfigMgr->GetOption<uint32>("GuildVillage.CurrencyCap.Material2",    1000); }
+    static inline uint32 CapMaterial3()  { return sConfigMgr->GetOption<uint32>("GuildVillage.CurrencyCap.Material3",     1000); }
+    static inline uint32 CapMaterial4()  { return sConfigMgr->GetOption<uint32>("GuildVillage.CurrencyCap.Material4",  1000); }
 
     // ---------- Konfigurace práv ----------
     static inline bool Cfg_PurchaseGMOnly()
@@ -156,42 +117,38 @@ namespace GuildVillage
                 Map* map = sMapMgr->FindMap(mapId, 0);
                 if (!map) { sMapMgr->CreateBaseMap(mapId); map = sMapMgr->FindMap(mapId, 0); }
 
-				if (map)
-				{
-					Creature* c = new Creature();
-					ObjectGuid::LowType low = map->GenerateLowGuid<HighGuid::Unit>();
-					if (!c->Create(low, map, phaseId, entry, 0, x, y, z, o))
-					{ delete c; continue; }
-				
-					// defaultní delay, ne absolutní čas
-					c->SetRespawnDelay(resp);
-					c->SetWanderDistance(wander);
-					c->SetDefaultMovementType(MovementGeneratorType(mt));
-				
-					// uložit do DB
-					c->SaveToDB(map->GetId(), (1 << map->GetSpawnMode()), phaseId);
-					uint32 spawnId = c->GetSpawnId();
-				
-					// pojistka – propsat hodnoty do tabulky
-					WorldDatabase.Execute(
-						"UPDATE creature SET spawntimesecs = {}, wander_distance = {}, MovementType = {} WHERE guid = {}",
-						resp, wander, (uint32)mt, spawnId
-					);
-				
-					// reload + grid
-					c->CleanupsBeforeDelete(); delete c;
-					c = new Creature();
-					if (!c->LoadCreatureFromDB(spawnId, map, /*addToMap=*/true)) { delete c; continue; }
-					sObjectMgr->AddCreatureToGrid(spawnId, sObjectMgr->GetCreatureData(spawnId));
-				}
-				else
-				{
-					WorldDatabase.Execute(
-						"INSERT INTO creature (id1,map,spawnMask,phaseMask,position_x,position_y,position_z,orientation,spawntimesecs,wander_distance,MovementType) "
-						"VALUES ({}, {}, 1, {}, {}, {}, {}, {}, {}, {}, {})",
-						entry, mapId, phaseId, x, y, z, o, resp, wander, (uint32)mt
-					);
-				}
+                if (map)
+                {
+                    Creature* c = new Creature();
+                    ObjectGuid::LowType low = map->GenerateLowGuid<HighGuid::Unit>();
+                    if (!c->Create(low, map, phaseId, entry, 0, x, y, z, o))
+                    { delete c; continue; }
+
+                    c->SetRespawnDelay(resp);
+                    c->SetWanderDistance(wander);
+                    c->SetDefaultMovementType(MovementGeneratorType(mt));
+
+                    c->SaveToDB(map->GetId(), (1 << map->GetSpawnMode()), phaseId);
+                    uint32 spawnId = c->GetSpawnId();
+
+                    WorldDatabase.Execute(
+                        "UPDATE creature SET spawntimesecs = {}, wander_distance = {}, MovementType = {} WHERE guid = {}",
+                        resp, wander, (uint32)mt, spawnId
+                    );
+
+                    c->CleanupsBeforeDelete(); delete c;
+                    c = new Creature();
+                    if (!c->LoadCreatureFromDB(spawnId, map, /*addToMap=*/true)) { delete c; continue; }
+                    sObjectMgr->AddCreatureToGrid(spawnId, sObjectMgr->GetCreatureData(spawnId));
+                }
+                else
+                {
+                    WorldDatabase.Execute(
+                        "INSERT INTO creature (id1,map,spawnMask,phaseMask,position_x,position_y,position_z,orientation,spawntimesecs,wander_distance,MovementType) "
+                        "VALUES ({}, {}, 1, {}, {}, {}, {}, {}, {}, {})",
+                        entry, mapId, phaseId, x, y, z, o, resp, wander, (uint32)mt
+                    );
+                }
             }
             while (cr->NextRow());
         }
@@ -248,18 +205,22 @@ namespace GuildVillage
     }
 
     // ---------- Katalog položek ----------
-    // faction v šablonách (0=oboje, 1=Alliance, 2=Horde). Katalog zůstává společný.
     enum class Cat : uint8 { Trainers=1, Professions, Vendor, Portal, Objects, Others };
 
     struct CatalogRow
     {
-        uint32    id;
-        Cat       cat;
+        uint32      id;
+        Cat         cat;
         std::string key;
         std::string label_cs;
         std::string label_en;
-        uint32 cost_mat1=0, cost_mat2=0, cost_mat3=0, cost_mat4=0;
-        uint8  sort=0;
+        std::string info_cs;
+        std::string info_en;
+        uint32      cost_mat1 = 0;
+        uint32      cost_mat2 = 0;
+        uint32      cost_mat3 = 0;
+        uint32      cost_mat4 = 0;
+        uint8       sort = 0;
     };
 
     static std::vector<CatalogRow> LoadCatalog(Cat cat)
@@ -268,32 +229,35 @@ namespace GuildVillage
         char const* catName = "";
         switch (cat)
         {
-            case Cat::Trainers:    catName = "trainers"; break;
+            case Cat::Trainers:    catName = "trainers";    break;
             case Cat::Professions: catName = "professions"; break;
-            case Cat::Vendor:      catName = "vendor"; break;
-            case Cat::Portal:      catName = "portal"; break;
-            case Cat::Objects:     catName = "objects"; break;
-            case Cat::Others:      catName = "others"; break;
+            case Cat::Vendor:      catName = "vendor";      break;
+            case Cat::Portal:      catName = "portal";      break;
+            case Cat::Objects:     catName = "objects";     break;
+            case Cat::Others:      catName = "others";      break;
         }
 
         if (QueryResult r = WorldDatabase.Query(
-                "SELECT id, expansion_key, label_cs, label_en, cost_material1, cost_material2, cost_material3, cost_material4, sort_order "
+                "SELECT id, expansion_key, label_cs, label_en, info_cs, info_en, "
+                "cost_material1, cost_material2, cost_material3, cost_material4, sort_order "
                 "FROM customs.gv_upgrade_catalog WHERE category='{}' ORDER BY sort_order, id", catName))
         {
             do
             {
                 Field* f = r->Fetch();
                 CatalogRow c;
-                c.id        = f[0].Get<uint32>();
-                c.key       = f[1].Get<std::string>();
-                c.label_cs  = f[2].Get<std::string>();
-                c.label_en  = f[3].Get<std::string>();
-                c.cost_mat1  = f[4].Get<uint32>();
-                c.cost_mat2  = f[5].Get<uint32>();
-                c.cost_mat3  = f[6].Get<uint32>();
-                c.cost_mat4 = f[7].Get<uint32>();
-                c.sort      = f[8].Get<uint8>();
-                c.cat       = cat;
+                c.id         = f[0].Get<uint32>();
+                c.key        = f[1].Get<std::string>();
+                c.label_cs   = f[2].Get<std::string>();
+                c.label_en   = f[3].Get<std::string>();
+                c.info_cs    = f[4].Get<std::string>();
+                c.info_en    = f[5].Get<std::string>();
+                c.cost_mat1  = f[6].Get<uint32>();
+                c.cost_mat2  = f[7].Get<uint32>();
+                c.cost_mat3  = f[8].Get<uint32>();
+                c.cost_mat4  = f[9].Get<uint32>();
+                c.sort       = f[10].Get<uint8>();
+                c.cat        = cat;
                 out.push_back(std::move(c));
             }
             while (r->NextRow());
@@ -302,15 +266,23 @@ namespace GuildVillage
     }
 
     static std::string CostLine(CatalogRow const& c)
-	{
-		return GuildVillage::Names::CostLine(c.cost_mat1, c.cost_mat2, c.cost_mat3, c.cost_mat4);
-	}
+    {
+        return GuildVillage::Names::CostLine(c.cost_mat1, c.cost_mat2, c.cost_mat3, c.cost_mat4);
+    }
 
+    static std::string LocalizedLabel(CatalogRow const& c)
+    {
+        return (LangOpt() == Lang::EN ? c.label_en : c.label_cs);
+    }
+
+    static std::string LocalizedInfo(CatalogRow const& c)
+    {
+        return (LangOpt() == Lang::EN ? c.info_en : c.info_cs);
+    }
 
     // ---------- Odečet měny ----------
     static bool TryDeductCurrency(uint32 guildId, CatalogRow const& c)
     {
-        // 1) načíst aktuální stav
         uint32 mat1=0, mat2=0, mat3=0, mat4=0;
         if (QueryResult q = WorldDatabase.Query(
                 "SELECT material1, material2, material3, material4 FROM customs.gv_currency WHERE guildId={}", guildId))
@@ -323,11 +295,9 @@ namespace GuildVillage
             return false;
         }
 
-        // 2) kontrola
         if (mat1 < c.cost_mat1 || mat2 < c.cost_mat2 || mat3 < c.cost_mat3 || mat4 < c.cost_mat4)
             return false;
 
-        // 3) odečet
         WorldDatabase.Execute(
             "UPDATE customs.gv_currency SET "
             "material1 = material1 - {}, material2 = material2 - {}, material3 = material3 - {}, material4 = material4 - {}, last_update = NOW() "
@@ -345,7 +315,6 @@ namespace GuildVillage
     };
     static std::unordered_map<ObjectGuid::LowType, MenuState> s_menu;
 
-    // Vrátí množinu už zakoupených klíčů (používá se pro skrytí již koupených)
     static std::unordered_set<std::string> LoadPurchasedKeys(uint32 guildId)
     {
         std::unordered_set<std::string> out;
@@ -358,7 +327,6 @@ namespace GuildVillage
         return out;
     }
 
-    // Dostupnost obsahu pro frakci (pro zobrazení i nákup)
     static bool HasFactionContent(std::string const& key, uint8 factionFilter)
     {
         if (QueryResult r = WorldDatabase.Query(
@@ -376,7 +344,7 @@ namespace GuildVillage
         return false;
     }
 
-    // ---------- Gossip akce (bez WHERE) ----------
+    // ---------- Gossip akce ----------
     enum GossipAction : uint32
     {
         ACT_ROOT = 100,
@@ -388,20 +356,94 @@ namespace GuildVillage
         ACT_CAT_OTHERS,
 
         ACT_ITEM_BASE    = 1000, // ACT_ITEM_BASE + index
-        ACT_CONFIRM_BASE = 5000, // ACT_CONFIRM_BASE + index
+        ACT_CONFIRM_BASE = 5000, // ACT_CONFIRM_BASE + index (používá se pro potvrzení nákupu)
 
-        ACT_BACK_CATEGORY = 9000,       // zpět na hlavní rozcestník
-        ACT_BACK_TO_CATEGORY = 9001,     // zpět do poslední otevřené kategorie (po potvrzení)
-		ACT_SHOW_STATUS = 9100,
-		ACT_SEPARATOR        = 9199
+        ACT_BACK_CATEGORY     = 9000, // zpět na hlavní rozcestník
+        ACT_BACK_TO_CATEGORY  = 9001, // zpět do poslední otevřené kategorie (po potvrzení)
+        ACT_SEPARATOR         = 9199   // univerzální
     };
 
     static void ShowRoot(Player* player, Creature* creature)
     {
         ClearGossipMenuFor(player);
 
-        const bool allowPurchaseMenu = !Cfg_HidePurchaseForNonGM() || IsGuildLeader(player);
+        Guild* g = player->GetGuild();
+        if (!g)
+        {
+            SendGossipMenuFor(player, 1, creature->GetGUID());
+            return;
+        }
 
+        // materiály pro konkrátní guildu
+        uint64 mat1=0, mat2=0, mat3=0, mat4=0;
+        if (QueryResult r = WorldDatabase.Query(
+                "SELECT material1, material2, material3, material4 FROM customs.gv_currency WHERE guildId={}",
+                g->GetId()))
+        {
+            Field* f = r->Fetch();
+            mat1 = f[0].Get<uint64>();
+            mat2 = f[1].Get<uint64>();
+            mat3 = f[2].Get<uint64>();
+            mat4 = f[3].Get<uint64>();
+        }
+
+        auto const& N = GuildVillage::Names::Get();
+
+        auto buildLine = [&](std::string const& name, uint64 val, uint32 cap)
+        {
+		std::string out = name + ": " + std::to_string(val);
+
+            if (CapsEnabled())
+            {
+                if (cap == 0)
+                    out += " / ∞";
+                else
+                    out += " / " + std::to_string(cap);
+            }
+
+            return out;
+        };
+
+        AddGossipItemFor(
+            player,
+            0,
+            buildLine(N.status.material1, mat1, CapMaterial1()),
+            GOSSIP_SENDER_MAIN,
+            ACT_SEPARATOR
+        );
+        AddGossipItemFor(
+            player,
+            0,
+            buildLine(N.status.material2, mat2, CapMaterial2()),
+            GOSSIP_SENDER_MAIN,
+            ACT_SEPARATOR
+        );
+        AddGossipItemFor(
+            player,
+            0,
+            buildLine(N.status.material3, mat3, CapMaterial3()),
+            GOSSIP_SENDER_MAIN,
+            ACT_SEPARATOR
+        );
+        AddGossipItemFor(
+            player,
+            0,
+            buildLine(N.status.material4, mat4, CapMaterial4()),
+            GOSSIP_SENDER_MAIN,
+            ACT_SEPARATOR
+        );
+
+        // separator hned pod materiálama
+        AddGossipItemFor(
+            player,
+            0,
+            SeparatorLine(),
+            GOSSIP_SENDER_MAIN,
+            ACT_SEPARATOR
+        );
+
+        // teprve pak zbytek menu (kategorie)
+        const bool allowPurchaseMenu = !Cfg_HidePurchaseForNonGM() || IsGuildLeader(player);
         if (allowPurchaseMenu)
         {
             AddGossipItemFor(player, GOSSIP_ICON_BATTLE,     T("Trenér", "Trainers"),      GOSSIP_SENDER_MAIN, ACT_CAT_TRAINERS);
@@ -410,8 +452,6 @@ namespace GuildVillage
             AddGossipItemFor(player, GOSSIP_ICON_INTERACT_1, T("Portály", "Portal"),       GOSSIP_SENDER_MAIN, ACT_CAT_PORTAL);
             AddGossipItemFor(player, GOSSIP_ICON_INTERACT_1, T("Objekty", "Objects"),      GOSSIP_SENDER_MAIN, ACT_CAT_OBJECTS);
             AddGossipItemFor(player, GOSSIP_ICON_TABARD,     T("Ostatní", "Others"),       GOSSIP_SENDER_MAIN, ACT_CAT_OTHERS);
-			AddGossipItemFor(player, 0, "|cff808080---------------------------|r",         GOSSIP_SENDER_MAIN, ACT_SEPARATOR);
-			AddGossipItemFor(player, 0, T("|cff5519FAZobrazit stav materiálu:|r", "|cff5519FAShow currency status:|r"), GOSSIP_SENDER_MAIN, ACT_SHOW_STATUS);
         }
         else
         {
@@ -437,11 +477,9 @@ namespace GuildVillage
         // 1=Alliance, 2=Horde
         uint8 factionFilter = (player->GetTeamId() == TEAM_ALLIANCE) ? 1 : 2;
 
-        // Načíst katalog + set již zakoupených klíčů
-        auto listAll = LoadCatalog(cat);
+        auto listAll   = LoadCatalog(cat);
         auto purchased = LoadPurchasedKeys(g->GetId());
 
-        // Filtrování: musí existovat obsah pro frakci a NESMÍ být již zakoupeno
         std::vector<CatalogRow> list;
         list.reserve(listAll.size());
         for (auto const& c : listAll)
@@ -449,7 +487,7 @@ namespace GuildVillage
             if (!HasFactionContent(c.key, factionFilter))
                 continue;
             if (purchased.find(c.key) != purchased.end())
-                continue; // už vlastněno → nezobrazovat
+                continue;
             list.push_back(c);
         }
 
@@ -459,8 +497,7 @@ namespace GuildVillage
         {
             ChatHandler(player->GetSession()).SendSysMessage(
                 T("V této kategorii teď nemáš co kupovat.", "No available upgrades left in this category."));
-            // Zpět na rozcestník
-            AddGossipItemFor(player, GOSSIP_ICON_TAXI, T("Zpet", "Back"), GOSSIP_SENDER_MAIN, ACT_BACK_CATEGORY);
+            AddGossipItemFor(player, GOSSIP_ICON_TAXI, T("Zpět", "Back"), GOSSIP_SENDER_MAIN, ACT_BACK_CATEGORY);
             SendGossipMenuFor(player, 1, creature->GetGUID());
             return;
         }
@@ -471,64 +508,116 @@ namespace GuildVillage
         for (uint32 i = 0; i < list.size(); ++i)
         {
             auto const& c = list[i];
-            std::string label = (LangOpt() == Lang::EN ? c.label_en : c.label_cs);
-            std::string line = Acore::StringFormat("{} — {}", label, CostLine(c));
-            AddGossipItemFor(player, GOSSIP_ICON_MONEY_BAG, line, GOSSIP_SENDER_MAIN, ACT_ITEM_BASE + i);
+            std::string label = LocalizedLabel(c);
+
+            AddGossipItemFor(
+                player,
+                GOSSIP_ICON_MONEY_BAG,
+                label,
+                GOSSIP_SENDER_MAIN,
+                ACT_ITEM_BASE + i
+            );
         }
 
-        // Tlačítko Zpět (jen v kategoriích)
-        AddGossipItemFor(player, GOSSIP_ICON_TAXI, T("Zpátky", "Back"), GOSSIP_SENDER_MAIN, ACT_BACK_CATEGORY);
+        AddGossipItemFor(
+            player,
+            0,
+            SeparatorLine(),
+            GOSSIP_SENDER_MAIN,
+            ACT_SEPARATOR
+        );
+
+        // tlačítko Zpátky
+        AddGossipItemFor(
+            player,
+            GOSSIP_ICON_TAXI,
+            T("Zpátky", "Back"),
+            GOSSIP_SENDER_MAIN,
+            ACT_BACK_CATEGORY
+        );
+
         SendGossipMenuFor(player, 1, creature->GetGUID());
     }
-
-	// --- Po nákupu: zavřít gossip a po 50ms znovu otevřít stejnou kategorii ---
-	class ReopenCategoryEvent : public BasicEvent
-	{
-	public:
-		ReopenCategoryEvent(Player* p, ObjectGuid npc, Cat c)
-			: _player(p), _npcGuid(npc), _cat(c) {}
-	
-		bool Execute(uint64 /*time*/, uint32 /*diff*/) override
-		{
-			if (!_player)
-				return true;
-	
-			if (Creature* np = ObjectAccessor::GetCreature(*_player, _npcGuid))
-				ShowCategory(_player, np, _cat);
-			return true;
-		}
-	
-	private:
-		Player*   _player;
-		ObjectGuid _npcGuid;
-		Cat        _cat;
-	};
-	
-	static void ReopenCategoryAfterPurchase(Player* player, Creature* creature, Cat cat)
-	{
-		if (!player || !creature)
-			return;
-	
-		ObjectGuid npcGuid = creature->GetGUID();
-		CloseGossipMenuFor(player);
-		// 50 ms odklad
-		player->m_Events.AddEvent(new ReopenCategoryEvent(player, npcGuid, cat),
-								player->m_Events.CalculateTime(50));
-	}
 
     static void ShowConfirm(Player* player, Creature* creature, CatalogRow const& c)
     {
         ClearGossipMenuFor(player);
-        std::string label = (LangOpt()==Lang::EN ? c.label_en : c.label_cs);
-        ChatHandler(player->GetSession()).SendSysMessage(
-            Acore::StringFormat("{} {}", T("Potvrdit nákup:", "Confirm purchase:"), label).c_str());
-        ChatHandler(player->GetSession()).SendSysMessage(
-            Acore::StringFormat("{} {}", T("Cena:", "Cost:"), CostLine(c)).c_str());
+
+        std::string label = LocalizedLabel(c);
+        std::string info  = LocalizedInfo(c);
+        std::string cost  = CostLine(c);
 
         auto& state = s_menu[player->GetGUID().GetCounter()];
-        auto it = std::find_if(state.items.begin(), state.items.end(),
-                               [&](CatalogRow const& x){ return x.id == c.id; });
+        auto it = std::find_if(
+            state.items.begin(),
+            state.items.end(),
+            [&](CatalogRow const& x){ return x.id == c.id; }
+        );
         uint32 idx = (it==state.items.end()) ? 0u : uint32(std::distance(state.items.begin(), it));
+
+        uint32 confirmAction = ACT_CONFIRM_BASE + idx;
+
+        // 1) Info řádek
+        if (!info.empty())
+        {
+            std::string infoLine = Acore::StringFormat(
+                "{} {}",
+                T("Info:", "Info:"),
+                info
+            );
+
+            AddGossipItemFor(
+                player,
+                GOSSIP_ICON_CHAT,
+                infoLine,
+                GOSSIP_SENDER_MAIN,
+                ACT_SEPARATOR
+            );
+        }
+
+        // 2) Cena řádek
+        {
+            std::string costLine = Acore::StringFormat(
+                "{} {}",
+                T("Cena:", "Cost:"),
+                cost
+            );
+
+            AddGossipItemFor(
+                player,
+                GOSSIP_ICON_MONEY_BAG,
+                costLine,
+                GOSSIP_SENDER_MAIN,
+                ACT_SEPARATOR
+            );
+        }
+
+        // 3) Separator
+        AddGossipItemFor(
+            player,
+            0,
+            SeparatorLine(),
+            GOSSIP_SENDER_MAIN,
+            ACT_SEPARATOR
+        );
+
+        // 4) Potvrdit nákup
+        AddGossipItemFor(
+            player,
+            GOSSIP_ICON_MONEY_BAG,
+            T("Ano, zakoupit", "Yes, purchase"),
+            GOSSIP_SENDER_MAIN,
+            confirmAction
+        );
+
+        // 5) Zpátky (zpět do kategorie)
+        AddGossipItemFor(
+            player,
+            GOSSIP_ICON_TAXI,
+            T("Zpátky", "Back"),
+            GOSSIP_SENDER_MAIN,
+            ACT_BACK_TO_CATEGORY
+        );
 
         if (Cfg_PurchaseGMOnly() && !IsGuildLeader(player))
         {
@@ -537,8 +626,6 @@ namespace GuildVillage
                   "|cffff4444Only the Guild Master and Officers can perform this purchase.|r"));
         }
 
-        AddGossipItemFor(player, GOSSIP_ICON_MONEY_BAG, T("Ano, zakoupit", "Yes, purchase"), GOSSIP_SENDER_MAIN, ACT_CONFIRM_BASE + idx);
-        AddGossipItemFor(player, GOSSIP_ICON_TAXI, T("Ne, vrátit se zpátky", "No, go back"), GOSSIP_SENDER_MAIN, ACT_BACK_TO_CATEGORY);
         SendGossipMenuFor(player, 1, creature->GetGUID());
     }
 
@@ -574,9 +661,8 @@ namespace GuildVillage
             if (!g) { CloseGossipMenuFor(player); return true; }
             auto phaseOpt = LoadVillagePhase(g->GetId());
             if (!phaseOpt) { CloseGossipMenuFor(player); return true; }
-            uint32 phaseId = *phaseOpt; // jediné číslo fáze
+            uint32 phaseId = *phaseOpt;
 
-            // frakce pro šablony: 1=Alliance, 2=Horde
             uint8 factionFilter = (player->GetTeamId() == TEAM_ALLIANCE) ? 1 : 2;
             bool isLeader = IsGuildLeader(player);
 
@@ -590,7 +676,6 @@ namespace GuildVillage
                 case ACT_CAT_OBJECTS:
                 case ACT_CAT_OTHERS:
                 {
-                    // Pokud je menu skryté pro ne-GM, nepustím dál
                     if (Cfg_HidePurchaseForNonGM() && !isLeader)
                     {
                         ChatHandler(player->GetSession()).SendSysMessage(
@@ -610,30 +695,12 @@ namespace GuildVillage
                     ShowCategory(player, creature, cat);
                     return true;
                 }
-				
-				case ACT_SHOW_STATUS:
-				{
-					if (!player->GetGuild())
-					{
-						ChatHandler(player->GetSession()).SendSysMessage(
-							T("Nejsi v guildě.", "You are not in a guild."));
-						ShowRoot(player, creature);
-						return true;
-					}
-				
-					GuildVillageProduction::SyncGuildProduction(player->GetGuildId());
-				
-					SendCurrencyStatusToChat(player, player->GetGuildId());
-				
-					ShowRoot(player, creature);
-					return true;
-				}
-				
-				case ACT_SEPARATOR:
-				{
-					SendGossipMenuFor(player, 1, creature->GetGUID());
-					return true;
-				}
+
+                case ACT_SEPARATOR:
+                {
+                    SendGossipMenuFor(player, 1, creature->GetGUID());
+                    return true;
+                }
 
                 case ACT_BACK_CATEGORY:
                 {
@@ -647,14 +714,14 @@ namespace GuildVillage
                     if (it != s_menu.end())
                         ShowCategory(player, creature, it->second.cat);
                     else
-                        ShowRoot(player, creature); // fallback
+                        ShowRoot(player, creature);
                     return true;
                 }
 
                 default: break;
             }
 
-            // Výběr položky (nákup)
+            // Výběr položky v kategorii
             if (action >= ACT_ITEM_BASE && action < ACT_ITEM_BASE + 2000)
             {
                 uint32 idx = action - ACT_ITEM_BASE;
@@ -666,7 +733,7 @@ namespace GuildVillage
                 return true;
             }
 
-            // Potvrzení nákupu
+            // Potvrzení nákupu (Ano, zakoupit)
             if (action >= ACT_CONFIRM_BASE && action < ACT_CONFIRM_BASE + 2000)
             {
                 uint32 idx = action - ACT_CONFIRM_BASE;
@@ -716,20 +783,20 @@ namespace GuildVillage
                 }
 
                 // 2) instalace
-				bool ok = ApplyUpgradeByKey(g->GetId(), phaseId, c.key, factionFilter);
-				if (!ok)
-				{
-					ChatHandler(player->GetSession()).SendSysMessage(
-						T("Už nainstalováno, nákup zrušen.", "Already installed, purchase canceled."));
-					ShowCategory(player, creature, it->second.cat);
-					return true;
-				}
-				
-				ChatHandler(player->GetSession()).SendSysMessage(
-					T("Upgrade nainstalován.", "Upgrade installed."));
-				
-				ReopenCategoryAfterPurchase(player, creature, it->second.cat);
-				return true;
+                bool ok = ApplyUpgradeByKey(g->GetId(), phaseId, c.key, factionFilter);
+                if (!ok)
+                {
+                    ChatHandler(player->GetSession()).SendSysMessage(
+                        T("Už nainstalováno, nákup zrušen.", "Already installed, purchase canceled."));
+                    ShowCategory(player, creature, it->second.cat);
+                    return true;
+                }
+
+                ChatHandler(player->GetSession()).SendSysMessage(
+                    T("Upgrade nainstalován.", "Upgrade installed."));
+
+				ShowCategory(player, creature, it->second.cat);
+                return true;
             }
 
             CloseGossipMenuFor(player);

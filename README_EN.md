@@ -65,6 +65,10 @@ SmartAI for cooking and riding trainers has been removed (movement only).
 .v boss / b
 ➝ show bosses status
 
+.village expedition / exp / e
+.v expedition / exp / e
+➝ show expedition status
+
 ### Admin Commands
 .gv list [PAGE]
 ➝ Lists the guild name and its ID
