@@ -65,9 +65,9 @@ Add only one NPC for village purchase. ".npc add 987454"
 
 - Ability to expand the village with defensive structures for the monthly event, with repeatable purchases (e.g. mines, harpoons, etc.)
 
-**Currently working on:**
-- Saving a teleportation point within the village (.village tp set)
-
 - An NPC that converts guild currency into random crafting materials or finished items up to a certain item level
 
 ✅ ~~Expedition – purchase heroes that can be sent into dungeons or raids~~
+
+**Currently working on:**
+- Saving a teleportation point within the village (.village tp set)
