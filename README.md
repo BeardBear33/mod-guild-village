@@ -50,8 +50,9 @@ Add only one NPC for village purchase. ".npc add 987454"
 
 **Aktuálně se pracuje na:**
 - Uložení teleportačního bodu v rámci vesnice (.village tp set)
-
-
+ 
+ 
+ 
 🌐 English
 
 ✅ ~~Reward in guild material currency for PvP kill and BG victory~~
