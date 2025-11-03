@@ -29,8 +29,9 @@ Add only one NPC for village purchase. ".npc add 987454"
 
 ----------------------------------------------------------------------------------------------------------------
 
+
 ***To-Do list:***
- 
+
 🌐 Česky
 
 ✅ ~~Odměna v guild materiál currency za PvP kill a BG výhru~~
@@ -47,6 +48,9 @@ Add only one NPC for village purchase. ".npc add 987454"
 
 ✅ ~~Expedice – možnost zakoupit hrdiny, které lze vysílat do dungeonů nebo raidů~~
 
+**Aktuálně se pracuje na:**
+- Uložení teleportačního bodu v rámci vesnice (.village tp set)
+
 
 🌐 English
 
@@ -59,6 +63,9 @@ Add only one NPC for village purchase. ".npc add 987454"
 - Every month, a PvE event triggers an enemy raid on the village.
 
 - Ability to expand the village with defensive structures for the monthly event, with repeatable purchases (e.g. mines, harpoons, etc.)
+
+**Currently working on:**
+- Saving a teleportation point within the village (.village tp set)
 
 - An NPC that converts guild currency into random crafting materials or finished items up to a certain item level
 
