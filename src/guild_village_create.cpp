@@ -41,7 +41,7 @@ namespace GuildVillage
     static inline float  DefO()     { return sConfigMgr->GetOption<float>("GuildVillage.Default.O", 3.4305837f); }
     static inline uint32 CleanupDays()    { return sConfigMgr->GetOption<uint32>("GuildVillage.Inactivity.CleanupDays", 90); }
     static inline bool   ShowCapacityMsg(){ return sConfigMgr->GetOption<bool>("GuildVillage.ShowCapacityMessage", true); }
-	static inline int32 MaxVillagesRaw()
+    static inline int32 MaxVillagesRaw()
     {
         return sConfigMgr->GetOption<int32>("GuildVillage.MaxVillages", 30);
     }
@@ -61,7 +61,7 @@ namespace GuildVillage
         int32 raw = MaxVillagesRaw();
         return raw > 0 ? uint32(raw) : 0;
     }
-	
+
     enum class Lang { CS, EN };
     static inline Lang LangOpt()
     {
@@ -126,6 +126,22 @@ namespace GuildVillage
         );
     }
 
+    // NOVÉ: inicializace expedic pro guildu (gv_expedition_guild)
+    // sloupce: heroes_owned, heroes_on_mission, heroes_max, gear_level, last_update
+    static void EnsureExpeditionGuildRow(uint32 guildId)
+    {
+        if (QueryResult r = WorldDatabase.Query(
+                "SELECT 1 FROM customs.gv_expedition_guild WHERE guildId={}", guildId))
+            return;
+
+        WorldDatabase.Execute(
+            "INSERT INTO customs.gv_expedition_guild "
+            "(guildId, heroes_owned, heroes_on_mission, heroes_max, gear_level, last_update) "
+            "VALUES ({}, 0, 0, 25, 182, NOW())",
+            guildId
+        );
+    }
+
     // ===================== LIVE INSTALL: BASE LAYOUT & UPGRADES =====================
     static void InstallBaseLayout(uint32 /*guildId*/, uint32 phaseId, std::string const& layout_key = "base")
     {
@@ -161,30 +177,30 @@ namespace GuildVillage
                 }
 
                 Creature* c = new Creature();
-				ObjectGuid::LowType low = map->GenerateLowGuid<HighGuid::Unit>();
-				if (!c->Create(low, map, phaseId, entry, 0, x, y, z, o)) { delete c; continue; }
-				
-				// jen defaultní delay, NE absolutní čas
-				c->SetRespawnDelay(resp);
-				c->SetWanderDistance(wander);
-				c->SetDefaultMovementType(MovementGeneratorType(mt));
-				
-				// uložení
-				c->SaveToDB(map->GetId(), (1 << map->GetSpawnMode()), phaseId);
-				uint32 spawnId = c->GetSpawnId();
-				
-				// pojistka do DB
-				WorldDatabase.Execute(
-					"UPDATE creature SET spawntimesecs = {}, wander_distance = {}, MovementType = {} WHERE guid = {}",
-					resp, wander, (uint32)mt, spawnId
-				);
-				
-				// reload + grid
-				c->CleanupsBeforeDelete(); delete c;
-				c = new Creature();
-				if (!c->LoadCreatureFromDB(spawnId, map, true)) { delete c; continue; }
-				sObjectMgr->AddCreatureToGrid(spawnId, sObjectMgr->GetCreatureData(spawnId));
-				++cCount;
+                ObjectGuid::LowType low = map->GenerateLowGuid<HighGuid::Unit>();
+                if (!c->Create(low, map, phaseId, entry, 0, x, y, z, o)) { delete c; continue; }
+
+                // jen defaultní delay, NE absolutní čas
+                c->SetRespawnDelay(resp);
+                c->SetWanderDistance(wander);
+                c->SetDefaultMovementType(MovementGeneratorType(mt));
+
+                // uložení
+                c->SaveToDB(map->GetId(), (1 << map->GetSpawnMode()), phaseId);
+                uint32 spawnId = c->GetSpawnId();
+
+                // pojistka do DB
+                WorldDatabase.Execute(
+                    "UPDATE creature SET spawntimesecs = {}, wander_distance = {}, MovementType = {} WHERE guid = {}",
+                    resp, wander, (uint32)mt, spawnId
+                );
+
+                // reload + grid
+                c->CleanupsBeforeDelete(); delete c;
+                c = new Creature();
+                if (!c->LoadCreatureFromDB(spawnId, map, true)) { delete c; continue; }
+                sObjectMgr->AddCreatureToGrid(spawnId, sObjectMgr->GetCreatureData(spawnId));
+                ++cCount;
             }
             while (cr->NextRow());
         }
@@ -211,28 +227,28 @@ namespace GuildVillage
 
                 if (map)
                 {
-				GameObject* g = sObjectMgr->IsGameObjectStaticTransport(entry) ? new StaticTransport() : new GameObject();
-				ObjectGuid::LowType low = map->GenerateLowGuid<HighGuid::GameObject>();
-				if (!g->Create(low, entry, map, phaseId, x, y, z, o, G3D::Quat(r0,r1,r2,r3), 0, GO_STATE_READY))
-				{ delete g; continue; }
-				
-				g->SetRespawnTime(st);
-				
-				// uložit
-				g->SaveToDB(map->GetId(), (1 << map->GetSpawnMode()), phaseId);
-				uint32 spawnId = g->GetSpawnId();
-				
-				WorldDatabase.Execute(
-					"UPDATE gameobject SET spawntimesecs = {} WHERE guid = {}",
-					st, spawnId
-				);
-				
-				// reload do mapy + grid
-				g->CleanupsBeforeDelete(); delete g;
-				g = sObjectMgr->IsGameObjectStaticTransport(entry) ? new StaticTransport() : new GameObject();
-				if (!g->LoadGameObjectFromDB(spawnId, map, true)) { delete g; continue; }
-				sObjectMgr->AddGameobjectToGrid(spawnId, sObjectMgr->GetGameObjectData(spawnId));
-				++goCount;
+                    GameObject* g = sObjectMgr->IsGameObjectStaticTransport(entry) ? new StaticTransport() : new GameObject();
+                    ObjectGuid::LowType low = map->GenerateLowGuid<HighGuid::GameObject>();
+                    if (!g->Create(low, entry, map, phaseId, x, y, z, o, G3D::Quat(r0,r1,r2,r3), 0, GO_STATE_READY))
+                    { delete g; continue; }
+
+                    g->SetRespawnTime(st);
+
+                    // uložit
+                    g->SaveToDB(map->GetId(), (1 << map->GetSpawnMode()), phaseId);
+                    uint32 spawnId = g->GetSpawnId();
+
+                    WorldDatabase.Execute(
+                        "UPDATE gameobject SET spawntimesecs = {} WHERE guid = {}",
+                        st, spawnId
+                    );
+
+                    // reload do mapy + grid
+                    g->CleanupsBeforeDelete(); delete g;
+                    g = sObjectMgr->IsGameObjectStaticTransport(entry) ? new StaticTransport() : new GameObject();
+                    if (!g->LoadGameObjectFromDB(spawnId, map, true)) { delete g; continue; }
+                    sObjectMgr->AddGameobjectToGrid(spawnId, sObjectMgr->GetGameObjectData(spawnId));
+                    ++goCount;
                 }
             }
             while (go->NextRow());
@@ -271,28 +287,28 @@ namespace GuildVillage
                 }
 
                 Creature* c = new Creature();
-				ObjectGuid::LowType low = map->GenerateLowGuid<HighGuid::Unit>();
-				if (!c->Create(low, map, phaseId, entry, 0, x, y, z, o)) { delete c; continue; }
-				
-				c->SetRespawnDelay(resp);
-				c->SetWanderDistance(wander);
-				c->SetDefaultMovementType(MovementGeneratorType(mt));
-				
-				// uložit do DB
-				c->SaveToDB(map->GetId(), (1 << map->GetSpawnMode()), phaseId);
-				uint32 spawnId = c->GetSpawnId();
-				
-				// pojistka
-				WorldDatabase.Execute(
-					"UPDATE creature SET spawntimesecs = {}, wander_distance = {}, MovementType = {} WHERE guid = {}",
-					resp, wander, (uint32)mt, spawnId
-				);
-				
-				// reload + grid
-				c->CleanupsBeforeDelete(); delete c;
-				c = new Creature();
-				if (!c->LoadCreatureFromDB(spawnId, map, /*addToMap=*/true)) { delete c; continue; }
-				sObjectMgr->AddCreatureToGrid(spawnId, sObjectMgr->GetCreatureData(spawnId));
+                ObjectGuid::LowType low = map->GenerateLowGuid<HighGuid::Unit>();
+                if (!c->Create(low, map, phaseId, entry, 0, x, y, z, o)) { delete c; continue; }
+
+                c->SetRespawnDelay(resp);
+                c->SetWanderDistance(wander);
+                c->SetDefaultMovementType(MovementGeneratorType(mt));
+
+                // uložit do DB
+                c->SaveToDB(map->GetId(), (1 << map->GetSpawnMode()), phaseId);
+                uint32 spawnId = c->GetSpawnId();
+
+                // pojistka
+                WorldDatabase.Execute(
+                    "UPDATE creature SET spawntimesecs = {}, wander_distance = {}, MovementType = {} WHERE guid = {}",
+                    resp, wander, (uint32)mt, spawnId
+                );
+
+                // reload + grid
+                c->CleanupsBeforeDelete(); delete c;
+                c = new Creature();
+                if (!c->LoadCreatureFromDB(spawnId, map, /*addToMap=*/true)) { delete c; continue; }
+                sObjectMgr->AddCreatureToGrid(spawnId, sObjectMgr->GetCreatureData(spawnId));
             }
             while (cr->NextRow());
         }
@@ -325,20 +341,20 @@ namespace GuildVillage
                 if (!g->Create(low, entry, map, phaseId, x, y, z, o, G3D::Quat(r0,r1,r2,r3), 0, GO_STATE_READY))
                 { delete g; continue; }
                 g->SetRespawnTime(st);
-				g->SaveToDB(map->GetId(), (1 << map->GetSpawnMode()), phaseId);
-				uint32 spawnId = g->GetSpawnId();
-				
-				// pojistka: propsat spawntimesecs
-				WorldDatabase.Execute(
-					"UPDATE gameobject SET spawntimesecs = {} WHERE guid = {}",
-					st, spawnId
-				);
-				
-				// reload + grid
-				g->CleanupsBeforeDelete(); delete g;
-				g = sObjectMgr->IsGameObjectStaticTransport(entry) ? new StaticTransport() : new GameObject();
-				if (!g->LoadGameObjectFromDB(spawnId, map, true)) { delete g; continue; }
-				sObjectMgr->AddGameobjectToGrid(spawnId, sObjectMgr->GetGameObjectData(spawnId));
+                g->SaveToDB(map->GetId(), (1 << map->GetSpawnMode()), phaseId);
+                uint32 spawnId = g->GetSpawnId();
+
+                // pojistka: propsat spawntimesecs
+                WorldDatabase.Execute(
+                    "UPDATE gameobject SET spawntimesecs = {} WHERE guid = {}",
+                    st, spawnId
+                );
+
+                // reload + grid
+                g->CleanupsBeforeDelete(); delete g;
+                g = sObjectMgr->IsGameObjectStaticTransport(entry) ? new StaticTransport() : new GameObject();
+                if (!g->LoadGameObjectFromDB(spawnId, map, true)) { delete g; continue; }
+                sObjectMgr->AddGameobjectToGrid(spawnId, sObjectMgr->GetGameObjectData(spawnId));
             }
             while (go->NextRow());
         }
@@ -351,89 +367,89 @@ namespace GuildVillage
         return true;
     }
 
-	// helper na batch mazání respawnů z characters DB
-	static void DeleteRespawnsByGuids(std::string const& table, std::vector<uint32> const& guids, size_t batch = 500)
-	{
-		if (guids.empty())
-			return;
-	
-		for (size_t i = 0; i < guids.size(); i += batch)
-		{
-			size_t j = std::min(i + batch, guids.size());
-			std::ostringstream inlist;
-			for (size_t k = i; k < j; ++k)
-			{
-				if (k != i)
-					inlist << ',';
-				inlist << guids[k];
-			}
-	
-			CharacterDatabase.Execute("DELETE FROM " + table + " WHERE guid IN (" + inlist.str() + ")");
-		}
-	}
+    // helper na batch mazání respawnů z characters DB
+    static void DeleteRespawnsByGuids(std::string const& table, std::vector<uint32> const& guids, size_t batch = 500)
+    {
+        if (guids.empty())
+            return;
 
-	// ===== Helper: kompletní wipe =====
-	static void CleanupVillageForGuild(uint32 guildId)
-	{
-		// zjistit phaseId pro guildu
-		uint32 phaseId = 0;
-		if (QueryResult r = WorldDatabase.Query("SELECT phase FROM customs.gv_guild WHERE guild={}", guildId))
-			phaseId = (*r)[0].Get<uint32>();
-		if (!phaseId)
-			phaseId = PhaseIdForGuild(guildId); // fallback
-	
-		// 0) smazat měny / upgrady / produkci / expedice
-		WorldDatabase.Execute("DELETE FROM customs.gv_currency           WHERE guildId={}", guildId);
-		WorldDatabase.Execute("DELETE FROM customs.gv_upgrades           WHERE guildId={}", guildId);
-		WorldDatabase.Execute("DELETE FROM customs.gv_production_active  WHERE guildId={}", guildId);
-		WorldDatabase.Execute("DELETE FROM customs.gv_production_upgrade WHERE guildId={}", guildId);
-		WorldDatabase.Execute("DELETE FROM customs.gv_expedition_active  WHERE guildId={}", guildId);
-		WorldDatabase.Execute("DELETE FROM customs.gv_expedition_loot    WHERE guildId={}", guildId);
-		WorldDatabase.Execute("DELETE FROM customs.gv_expedition_guild   WHERE guildId={}", guildId);
-	
-		{
-			// seber GUIDy z world.creature
-			std::vector<uint32> creatureGuids;
-			if (QueryResult qc = WorldDatabase.Query(
-					"SELECT guid FROM creature WHERE map={} AND phaseMask={}", DefMap(), phaseId))
-			{
-				do
-				{
-					creatureGuids.emplace_back(qc->Fetch()[0].Get<uint32>());
-				}
-				while (qc->NextRow());
-			}
-	
-			// seber GUIDy z world.gameobject
-			std::vector<uint32> goGuids;
-			if (QueryResult qg = WorldDatabase.Query(
-					"SELECT guid FROM gameobject WHERE map={} AND phaseMask={}", DefMap(), phaseId))
-			{
-				do
-				{
-					goGuids.emplace_back(qg->Fetch()[0].Get<uint32>());
-				}
-				while (qg->NextRow());
-			}
-	
-			// smazat odpovídající respawny v characters DB
-			DeleteRespawnsByGuids("creature_respawn", creatureGuids);
-			DeleteRespawnsByGuids("gameobject_respawn", goGuids);
-	
-			LOG_INFO("modules",
-				"GV: Cleanup respawns for guild {} (phaseId={}, map={}, creatures={}, gos={})",
-				guildId, phaseId, DefMap(), creatureGuids.size(), goGuids.size());
-		}
-	
-		// 1) smazat samotné spawny z world.*
-		WorldDatabase.Execute("DELETE FROM creature   WHERE map={} AND phaseMask={}", DefMap(), phaseId);
-		WorldDatabase.Execute("DELETE FROM gameobject WHERE map={} AND phaseMask={}", DefMap(), phaseId);
-	
-		// 2) a nakonec záznam vesnice
-		WorldDatabase.Execute("DELETE FROM customs.gv_guild WHERE guild={}", guildId);
-	
-		LOG_INFO("modules", "GV: Cleanup done for guild {} (phaseId={})", guildId, phaseId);
-	}
+        for (size_t i = 0; i < guids.size(); i += batch)
+        {
+            size_t j = std::min(i + batch, guids.size());
+            std::ostringstream inlist;
+            for (size_t k = i; k < j; ++k)
+            {
+                if (k != i)
+                    inlist << ',';
+                inlist << guids[k];
+            }
+
+            CharacterDatabase.Execute("DELETE FROM " + table + " WHERE guid IN (" + inlist.str() + ")");
+        }
+    }
+
+    // ===== Helper: kompletní wipe =====
+    static void CleanupVillageForGuild(uint32 guildId)
+    {
+        // zjistit phaseId pro guildu
+        uint32 phaseId = 0;
+        if (QueryResult r = WorldDatabase.Query("SELECT phase FROM customs.gv_guild WHERE guild={}", guildId))
+            phaseId = (*r)[0].Get<uint32>();
+        if (!phaseId)
+            phaseId = PhaseIdForGuild(guildId); // fallback
+
+        // 0) smazat měny / upgrady / produkci / expedice
+        WorldDatabase.Execute("DELETE FROM customs.gv_currency           WHERE guildId={}", guildId);
+        WorldDatabase.Execute("DELETE FROM customs.gv_upgrades           WHERE guildId={}", guildId);
+        WorldDatabase.Execute("DELETE FROM customs.gv_production_active  WHERE guildId={}", guildId);
+        WorldDatabase.Execute("DELETE FROM customs.gv_production_upgrade WHERE guildId={}", guildId);
+        WorldDatabase.Execute("DELETE FROM customs.gv_expedition_active  WHERE guildId={}", guildId);
+        WorldDatabase.Execute("DELETE FROM customs.gv_expedition_loot    WHERE guildId={}", guildId);
+        WorldDatabase.Execute("DELETE FROM customs.gv_expedition_guild   WHERE guildId={}", guildId);
+
+        {
+            // seber GUIDy z world.creature
+            std::vector<uint32> creatureGuids;
+            if (QueryResult qc = WorldDatabase.Query(
+                    "SELECT guid FROM creature WHERE map={} AND phaseMask={}", DefMap(), phaseId))
+            {
+                do
+                {
+                    creatureGuids.emplace_back(qc->Fetch()[0].Get<uint32>());
+                }
+                while (qc->NextRow());
+            }
+
+            // seber GUIDy z world.gameobject
+            std::vector<uint32> goGuids;
+            if (QueryResult qg = WorldDatabase.Query(
+                    "SELECT guid FROM gameobject WHERE map={} AND phaseMask={}", DefMap(), phaseId))
+            {
+                do
+                {
+                    goGuids.emplace_back(qg->Fetch()[0].Get<uint32>());
+                }
+                while (qg->NextRow());
+            }
+
+            // smazat odpovídající respawny v characters DB
+            DeleteRespawnsByGuids("creature_respawn", creatureGuids);
+            DeleteRespawnsByGuids("gameobject_respawn", goGuids);
+
+            LOG_INFO("modules",
+                "GV: Cleanup respawns for guild {} (phaseId={}, map={}, creatures={}, gos={})",
+                guildId, phaseId, DefMap(), creatureGuids.size(), goGuids.size());
+        }
+
+        // 1) smazat samotné spawny z world.*
+        WorldDatabase.Execute("DELETE FROM creature   WHERE map={} AND phaseMask={}", DefMap(), phaseId);
+        WorldDatabase.Execute("DELETE FROM gameobject WHERE map={} AND phaseMask={}", DefMap(), phaseId);
+
+        // 2) a nakonec záznam vesnice
+        WorldDatabase.Execute("DELETE FROM customs.gv_guild WHERE guild={}", guildId);
+
+        LOG_INFO("modules", "GV: Cleanup done for guild {} (phaseId={})", guildId, phaseId);
+    }
 
     // ===== PUBLIC API pro GM =====
     bool GuildHasVillage(uint32 guildId) { return LoadVillage(guildId).has_value(); }
@@ -449,7 +465,6 @@ namespace GuildVillage
                 return false;
         }
 
-
         uint32 phaseId = PhaseIdForGuild(guildId);
         WorldDatabase.Execute(
             "INSERT INTO customs.gv_guild (guild, phase, map, positionx, positiony, positionz, orientation, last_update) "
@@ -458,6 +473,7 @@ namespace GuildVillage
         );
 
         EnsureCurrencyRow(guildId);
+        EnsureExpeditionGuildRow(guildId);
         InstallBaseLayout(guildId, phaseId, "base");
         return true;
     }
@@ -480,7 +496,7 @@ namespace GuildVillage
 
         uint32 guildId = g->GetId();
 
-                if (LoadVillage(guildId).has_value())
+        if (LoadVillage(guildId).has_value())
         {
             ch.SendSysMessage(T("Tvoje guilda už vesnici vlastní.", "Your guild already owns a village."));
             return false;
@@ -498,7 +514,6 @@ namespace GuildVillage
                                 "Village capacity is full. Please wait for a slot to free up."));
             return false;
         }
-
 
         uint64 needCopper = (uint64)PriceGold() * 10000ULL;
         if (PriceGold() > 0 && player->GetMoney() < needCopper)
@@ -520,6 +535,7 @@ namespace GuildVillage
         );
 
         EnsureCurrencyRow(guildId);
+        EnsureExpeditionGuildRow(guildId);
         InstallBaseLayout(guildId, phaseId, "base");
 
         ch.SendSysMessage(T("Gratuluji! Tvoje guilda zakoupila guildovní vesnici.",
@@ -527,119 +543,119 @@ namespace GuildVillage
         return true;
     }
 
-	static void CleanupInactiveVillages()
-	{
-		uint32 days = CleanupDays();
-		if (!days)
-			return;
-	
-		if (QueryResult r = CharacterDatabase.Query(
-			"SELECT g.guildid "
-			"FROM guild AS g "
-			"JOIN customs.gv_guild AS v ON v.guild = g.guildid "
-			"LEFT JOIN characters AS c ON c.guid = g.leaderGuid "
-			"WHERE ("
-			"      c.guid IS NULL " // guild master postava už ani neexistuje
-			"   OR (c.logout_time > 0 "
-			"       AND c.logout_time < UNIX_TIMESTAMP() - {}*24*3600)"
-			")",
-			days))
-		{
-			do
-			{
-				uint32 gid = r->Fetch()[0].Get<uint32>();
-				CleanupVillageForGuild(gid);
-			}
-			while (r->NextRow());
-		}
-	}
+    static void CleanupInactiveVillages()
+    {
+        uint32 days = CleanupDays();
+        if (!days)
+            return;
+
+        if (QueryResult r = CharacterDatabase.Query(
+            "SELECT g.guildid "
+            "FROM guild AS g "
+            "JOIN customs.gv_guild AS v ON v.guild = g.guildid "
+            "LEFT JOIN characters AS c ON c.guid = g.leaderGuid "
+            "WHERE ("
+            "      c.guid IS NULL "
+            "   OR (c.logout_time > 0 "
+            "       AND c.logout_time < UNIX_TIMESTAMP() - {}*24*3600)"
+            ")",
+            days))
+        {
+            do
+            {
+                uint32 gid = r->Fetch()[0].Get<uint32>();
+                CleanupVillageForGuild(gid);
+            }
+            while (r->NextRow());
+        }
+    }
 
     // ===================== GOSSIP: SELLER =====================
-	static void ShowMain(Player* player, Creature* creature)
-	{
-		ClearGossipMenuFor(player);
-	
-		Guild* g = player->GetGuild();
-		if (!g)
-		{
-			if (ShowCapacityMsg())
-			{
-				// neukazovat nic když je unlimited (-1)
-				if (!VillagesUnlimited())
-				{
-					if (VillagesDisabled())
-					{
-						ChatHandler(player->GetSession()).SendSysMessage(
-							T("Nákup vesnic je zakázán.", "Village purchase is disabled.")
-						);
-					}
-					else
-					{
-						ChatHandler(player->GetSession()).SendSysMessage(
-							Acore::StringFormat("{}{} / {} {}",
-								T("Obsazeno vesnic: ", "Villages in use: "),
-								CountVillages(),
-								VillagesLimit(),
-								T("(sloty se uvolní po disband/neaktivitě).",
-								"(slots free up after disband/inactivity).")
-							).c_str()
-						);
-					}
-				}
-			}
-	
-			ChatHandler(player->GetSession()).SendSysMessage(
-				T("Nejsi v žádné guildě.", "You are not in a guild.")
-			);
-			SendGossipMenuFor(player, 1, creature->GetGUID());
-			return;
-		}
-	
-		auto row = LoadVillage(g->GetId());
-	
-		if (!row.has_value() && ShowCapacityMsg())
-		{
-			if (!VillagesUnlimited())
-			{
-				if (VillagesDisabled())
-				{
-					ChatHandler(player->GetSession()).SendSysMessage(
-						T("Nákup vesnic je zakázán.", "Village purchase is disabled.")
-					);
-				}
-				else
-				{
-					ChatHandler(player->GetSession()).SendSysMessage(
-						Acore::StringFormat("{}{} / {} {}",
-							T("Obsazeno vesnic: ", "Villages in use: "),
-							CountVillages(),
-							VillagesLimit(),
-							T("(sloty se uvolní po disband/neaktivitě).",
-							"(slots free up after disband/inactivity).")
-						).c_str()
-					);
-				}
-			}
-		}
-	
-		if (row.has_value())
-		{
-			AddGossipItemFor(player, GOSSIP_ICON_CHAT,
-							T("Teleportovat do guild vesnice", "Teleport to guild village"),
-							GOSSIP_SENDER_MAIN, 1001);
-		}
-		else
-		{
-			if (!VillagesDisabled())
-			{
-				AddGossipItemFor(player, GOSSIP_ICON_VENDOR,
-								T("Zakoupit guild vesnici", "Purchase guild village"),
-								GOSSIP_SENDER_MAIN, 1002);
-			}
-		}
-	
-		SendGossipMenuFor(player, 1, creature->GetGUID());
-	}
+    static void ShowMain(Player* player, Creature* creature)
+    {
+        ClearGossipMenuFor(player);
+
+        Guild* g = player->GetGuild();
+        if (!g)
+        {
+            if (ShowCapacityMsg())
+            {
+                // neukazovat nic když je unlimited (-1)
+                if (!VillagesUnlimited())
+                {
+                    if (VillagesDisabled())
+                    {
+                        ChatHandler(player->GetSession()).SendSysMessage(
+                            T("Nákup vesnic je zakázán.", "Village purchase is disabled.")
+                        );
+                    }
+                    else
+                    {
+                        ChatHandler(player->GetSession()).SendSysMessage(
+                            Acore::StringFormat("{}{} / {} {}",
+                                T("Obsazeno vesnic: ", "Villages in use: "),
+                                CountVillages(),
+                                VillagesLimit(),
+                                T("(sloty se uvolní po disband/neaktivitě).",
+                                "(slots free up after disband/inactivity).")
+                            ).c_str()
+                        );
+                    }
+                }
+            }
+
+            ChatHandler(player->GetSession()).SendSysMessage(
+                T("Nejsi v žádné guildě.", "You are not in a guild.")
+            );
+            SendGossipMenuFor(player, 1, creature->GetGUID());
+            return;
+        }
+
+        auto row = LoadVillage(g->GetId());
+
+        if (!row.has_value() && ShowCapacityMsg())
+        {
+            if (!VillagesUnlimited())
+            {
+                if (VillagesDisabled())
+                {
+                    ChatHandler(player->GetSession()).SendSysMessage(
+                        T("Nákup vesnic je zakázán.", "Village purchase is disabled.")
+                    );
+                }
+                else
+                {
+                    ChatHandler(player->GetSession()).SendSysMessage(
+                        Acore::StringFormat("{}{} / {} {}",
+                            T("Obsazeno vesnic: ", "Villages in use: "),
+                            CountVillages(),
+                            VillagesLimit(),
+                            T("(sloty se uvolní po disband/neaktivitě).",
+                            "(slots free up after disband/inactivity).")
+                        ).c_str()
+                    );
+                }
+            }
+        }
+
+        if (row.has_value())
+        {
+            AddGossipItemFor(player, GOSSIP_ICON_CHAT,
+                            T("Teleportovat do guild vesnice", "Teleport to guild village"),
+                            GOSSIP_SENDER_MAIN, 1001);
+        }
+        else
+        {
+            if (!VillagesDisabled())
+            {
+                AddGossipItemFor(player, GOSSIP_ICON_VENDOR,
+                                T("Zakoupit guild vesnici", "Purchase guild village"),
+                                GOSSIP_SENDER_MAIN, 1002);
+            }
+        }
+
+        SendGossipMenuFor(player, 1, creature->GetGUID());
+    }
 
     class npc_guild_village_seller : public CreatureScript
     {
@@ -691,43 +707,43 @@ namespace GuildVillage
                 }
 
                 case 1002: // ACT_BUY
-				{
-					ClearGossipMenuFor(player);
-				
-					std::string priceInfo = T("Cena: ", "Price: ");
-					bool empty = true;
-				
-					if (PriceGold() > 0)
-					{
-						priceInfo += Acore::StringFormat("{}g", PriceGold());
-						empty = false;
-					}
-				
-					if (PriceItemId() > 0 && PriceItemCount() > 0)
-					{
-						if (!empty) priceInfo += " + ";
-				
-						std::string itemName;
-						if (auto const* proto = sObjectMgr->GetItemTemplate(PriceItemId()))
-							itemName = proto->Name1;
-						else
-							itemName = Acore::StringFormat("Item {}", PriceItemId());
-				
-						priceInfo += Acore::StringFormat("{}x {}", PriceItemCount(), itemName);
-						empty = false;
-					}
-				
-					if (empty)
-						priceInfo += T("zdarma", "free");
-				
-					ChatHandler(player->GetSession()).SendSysMessage(priceInfo.c_str());
-				
-					AddGossipItemFor(player, GOSSIP_ICON_CHAT,
-									T("Ano, chci koupit vesnici", "Yes, purchase the village"),
-									GOSSIP_SENDER_MAIN, 1003);
-					SendGossipMenuFor(player, 1, creature->GetGUID());
-					return true;
-				}
+                {
+                    ClearGossipMenuFor(player);
+
+                    std::string priceInfo = T("Cena: ", "Price: ");
+                    bool empty = true;
+
+                    if (PriceGold() > 0)
+                    {
+                        priceInfo += Acore::StringFormat("{}g", PriceGold());
+                        empty = false;
+                    }
+
+                    if (PriceItemId() > 0 && PriceItemCount() > 0)
+                    {
+                        if (!empty) priceInfo += " + ";
+
+                        std::string itemName;
+                        if (auto const* proto = sObjectMgr->GetItemTemplate(PriceItemId()))
+                            itemName = proto->Name1;
+                        else
+                            itemName = Acore::StringFormat("Item {}", PriceItemId());
+
+                        priceInfo += Acore::StringFormat("{}x {}", PriceItemCount(), itemName);
+                        empty = false;
+                    }
+
+                    if (empty)
+                        priceInfo += T("zdarma", "free");
+
+                    ChatHandler(player->GetSession()).SendSysMessage(priceInfo.c_str());
+
+                    AddGossipItemFor(player, GOSSIP_ICON_CHAT,
+                                    T("Ano, chci koupit vesnici", "Yes, purchase the village"),
+                                    GOSSIP_SENDER_MAIN, 1003);
+                    SendGossipMenuFor(player, 1, creature->GetGUID());
+                    return true;
+                }
 
                 case 1003: // ACT_CONFIRM_BUY
                 {
@@ -826,5 +842,5 @@ void RegisterGuildVillageCreate()
 {
     new GuildVillage::npc_guild_village_seller();
     new GuildVillage::guild_village_Global();
-	new guild_village_World();
+    new guild_village_World();
 }

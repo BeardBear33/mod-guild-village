@@ -17,6 +17,9 @@
 #include "GameTime.h"
 #include "Mail.h"
 #include "ObjectMgr.h"
+#include "ObjectAccessor.h"
+#include "Item.h"
+#include "ItemTemplate.h"
 #include "gv_names.h"
 using namespace GuildVillage::Names;
 
@@ -83,7 +86,7 @@ namespace GuildVillageMissions
 	
 	static inline uint32 EncodeGive(uint32 lootIndex, uint32 memberIndex)
 	{
-	return Pack16_16(uint16(lootIndex & 0xFFFF), uint16(memberIndex & 0xFFFF));
+		return Pack16_16(uint16(lootIndex & 0xFFFF), uint16(memberIndex & 0xFFFF));
 	}
 	
 	static inline void DecodeGive(uint32 code, uint32& lootIndexOut, uint32& memberIndexOut)
@@ -482,7 +485,14 @@ namespace GuildVillageMissions
     // --------------------------
     enum GossipAction : uint32
     {
-		ACT_NOOP                 = 1,
+		ACT_NOOP_ROOT        = 1,     // separator / inertní věci v root menu
+        ACT_NOOP_NORMAL      = 2,     // separator v normal dungu
+        ACT_NOOP_HEROIC      = 3,     // separator v heroic dungu
+        ACT_NOOP_RAID10      = 4,     // separator v raid10 menu
+        ACT_NOOP_RAID25      = 5,     // separator v raid25 menu
+        ACT_NOOP_LOOT_ROOT   = 6,     // separator v lootbank root
+		ACT_NOOP_CONFIRM_BASE     = 800000000,     // separator v potvzení
+		ACT_NOOP_LOOT_MEMBER_BASE = 500000000,     // separator ve výběru hráče
 		
         // root
         ACT_MISSIONS_ROOT        = 50000,
@@ -500,10 +510,10 @@ namespace GuildVillageMissions
         ACT_MENU_RAID25          = 50400,
 
         // výběr expedice -> potvrzení
-        ACT_CONFIRM_MISSION_BASE = 60000,
+        ACT_CONFIRM_MISSION_BASE = 600000000,
 
         // potvrzený start expedice
-        ACT_LAUNCH_MISSION_BASE  = 70000,
+        ACT_LAUNCH_MISSION_BASE  = 700000000,
 
         // LOOT BANK root tlačítko
         ACT_LOOTBANK_ROOT        = 80000,
@@ -518,7 +528,7 @@ namespace GuildVillageMissions
 
         // klik na hráče = poslat loot
         // action = ACT_LOOTBANK_GIVE_BASE + encoded(shortLoot16,shortTarget16)
-        ACT_LOOTBANK_GIVE_BASE   = 3000000,
+        ACT_LOOTBANK_GIVE_BASE   = 20000000,
 
         // zpátky
         ACT_BACK_TO_ROOT         = 89990,
@@ -1135,7 +1145,7 @@ namespace GuildVillageMissions
 				0,
 				SeparatorLine(),
 				GOSSIP_SENDER_MAIN,
-				ACT_NOOP // inertní
+				ACT_NOOP_LOOT_ROOT // inertní
 			);
 	
 			// ===== SEZNAM ITEMŮ (aktuální stránka) =====
@@ -1178,7 +1188,7 @@ namespace GuildVillageMissions
 				0,
 				SeparatorLine(),
 				GOSSIP_SENDER_MAIN,
-				ACT_NOOP // inertní
+				ACT_NOOP_LOOT_ROOT // inertní
 			);
 	
 			// ===== DALŠÍ STRÁNKA (hned pod tím separator) =====
@@ -1299,7 +1309,7 @@ namespace GuildVillageMissions
 				0,
 				SeparatorLine(),
 				GOSSIP_SENDER_MAIN,
-				ACT_NOOP
+				ACT_NOOP_LOOT_MEMBER_BASE + EncodeItemAndPage(lootIndex, page)
 			);
 		}
 	
@@ -1325,14 +1335,12 @@ namespace GuildVillageMissions
 
 		// ===== druhý separator (inertní) =====
 		{
-			uint32 encodedSamePage = Pack16_16(uint16(lootIndex & 0xFFFF), uint16(page & 0xFFFF));
-
 			AddGossipItemFor(
 				player,
 				0,
 				SeparatorLine(),
 				GOSSIP_SENDER_MAIN,
-				ACT_NOOP
+				ACT_NOOP_LOOT_MEMBER_BASE + EncodeItemAndPage(lootIndex, page)
 			);
 		}
 	
@@ -1482,10 +1490,15 @@ namespace GuildVillageMissions
 		std::string itemLink;
 		if (ItemTemplate const* proto = sObjectMgr->GetItemTemplate(chosen.itemId))
 		{
+			uint32 rgba = ItemQualityColors[proto->Quality];
+			uint8 r = (rgba >> 16) & 0xFF;
+			uint8 g = (rgba >> 8)  & 0xFF;
+			uint8 b = (rgba)       & 0xFF;
+
 			itemLink = Acore::StringFormat(
-				"|c{:08X}|Hitem:{}:0:0:0:0:0:0:0|h[{}]|h|r",
-				ItemQualityColors[proto->Quality],
-				chosen.itemId,
+				"|cff{:02X}{:02X}{:02X}|Hitem:{}:0:0:0:0:0:0:0|h[{}]|h|r",
+				(uint32)r, (uint32)g, (uint32)b,
+				(uint32)chosen.itemId,
 				proto->Name1
 			);
 		}
@@ -1578,8 +1591,7 @@ namespace GuildVillageMissions
             std::string header = Acore::StringFormat(
                 T("Expedice: {}",
                   "Expedition: {}"),
-                mi.name,
-                (uint32)toSend
+                mi.name
             );
 
             AddGossipItemFor(
@@ -1671,7 +1683,7 @@ namespace GuildVillageMissions
             0,
             SeparatorLine(),
             GOSSIP_SENDER_MAIN,
-            ACT_NOOP);
+            ACT_NOOP_CONFIRM_BASE + missionIndex);
 
         // potvrdit start mise
         AddGossipItemFor(
@@ -2092,7 +2104,7 @@ namespace GuildVillageMissions
 
         ExpGuildRow info = *infoOpt;
 
-                uint16 shownIlvl = DisplayIlvl(info.gearLevel);
+        uint16 shownIlvl = DisplayIlvl(info.gearLevel);
         uint8  available = GetAvailableHeroes(info);
 
         // 1) Hrdinové: X/Y
@@ -2206,7 +2218,7 @@ namespace GuildVillageMissions
             0,
             SeparatorLine(),
             GOSSIP_SENDER_MAIN,
-            ACT_NOOP);
+            ACT_NOOP_ROOT);
 
         // Kategorie: 5M Normal
         if (MeetsReq(info.owned, info.gearLevel,
@@ -2262,7 +2274,7 @@ namespace GuildVillageMissions
             0,
             SeparatorLine(),
             GOSSIP_SENDER_MAIN,
-            ACT_NOOP);
+            ACT_NOOP_ROOT);
 
         // Guild Loot Bank
         AddGossipItemFor(
@@ -2300,7 +2312,7 @@ namespace GuildVillageMissions
 		AddMissionIfAllowed(player, creature, info, "Halls of Reflection",   ACT_CONFIRM_MISSION_BASE + 201);
 		AddMissionIfAllowed(player, creature, info, "Pit of Saron",          ACT_CONFIRM_MISSION_BASE + 202);
 	
-		AddGossipItemFor(player, 0, SeparatorLine(), GOSSIP_SENDER_MAIN, ACT_NOOP);
+		AddGossipItemFor(player, 0, SeparatorLine(), GOSSIP_SENDER_MAIN, ACT_NOOP_NORMAL);
 		AddGossipItemFor(player, GOSSIP_ICON_TAXI, T("Zpátky", "Back"), GOSSIP_SENDER_MAIN, ACT_BACK_TO_ROOT);
 		SendGossipMenuFor(player, 1, creature->GetGUID());
 	}
@@ -2327,7 +2339,7 @@ namespace GuildVillageMissions
 		AddMissionIfAllowed(player, creature, info, "Forge of Souls (HC)",        ACT_CONFIRM_MISSION_BASE + 1201);
 		AddMissionIfAllowed(player, creature, info, "Pit of Saron (HC)",          ACT_CONFIRM_MISSION_BASE + 1202);
 	
-		AddGossipItemFor(player, 0, SeparatorLine(), GOSSIP_SENDER_MAIN, ACT_NOOP);
+		AddGossipItemFor(player, 0, SeparatorLine(), GOSSIP_SENDER_MAIN, ACT_NOOP_HEROIC);
 		AddGossipItemFor(player, GOSSIP_ICON_TAXI, T("Zpátky", "Back"), GOSSIP_SENDER_MAIN, ACT_BACK_TO_ROOT);
 		SendGossipMenuFor(player, 1, creature->GetGUID());
 	}
@@ -2357,7 +2369,7 @@ namespace GuildVillageMissions
 		AddMissionIfAllowed(player, creature, info, "IceCrown Citadel (10)",      ACT_CONFIRM_MISSION_BASE + 2300);
 		AddMissionIfAllowed(player, creature, info, "The Ruby Sanctum (10)",      ACT_CONFIRM_MISSION_BASE + 2400);
 	
-		AddGossipItemFor(player, 0, SeparatorLine(), GOSSIP_SENDER_MAIN, ACT_NOOP);
+		AddGossipItemFor(player, 0, SeparatorLine(), GOSSIP_SENDER_MAIN, ACT_NOOP_RAID10);
 		AddGossipItemFor(player, GOSSIP_ICON_TAXI, T("Zpátky", "Back"), GOSSIP_SENDER_MAIN, ACT_BACK_TO_ROOT);
 		SendGossipMenuFor(player, 1, creature->GetGUID());
 	}
@@ -2387,7 +2399,7 @@ namespace GuildVillageMissions
 		AddMissionIfAllowed(player, creature, info, "IceCrown Citadel (25)",      ACT_CONFIRM_MISSION_BASE + 3300);
 		AddMissionIfAllowed(player, creature, info, "The Ruby Sanctum (25)",      ACT_CONFIRM_MISSION_BASE + 3400);
 	
-		AddGossipItemFor(player, 0, SeparatorLine(), GOSSIP_SENDER_MAIN, ACT_NOOP);
+		AddGossipItemFor(player, 0, SeparatorLine(), GOSSIP_SENDER_MAIN, ACT_NOOP_RAID25);
 		AddGossipItemFor(player, GOSSIP_ICON_TAXI, T("Zpátky", "Back"), GOSSIP_SENDER_MAIN, ACT_BACK_TO_ROOT);
 		SendGossipMenuFor(player, 1, creature->GetGUID());
 	}
@@ -2414,161 +2426,229 @@ namespace GuildVillageMissions
             return true;
         }
 
-        bool OnGossipSelect(Player* player, Creature* creature,
-                    uint32 sender, uint32 action) override
-        {
-            if (sender != GOSSIP_SENDER_MAIN)
-                return false;
-
-            Guild* g = player->GetGuild();
-            if (!g)
-            {
-                ChatHandler(player->GetSession()).SendSysMessage(
-                    T("Nejsi v guildě.", "You are not in a guild."));
-                return true;
-            }
-
-            auto infoOpt = LoadGuildExpData(g->GetId());
-            if (!infoOpt.has_value())
-            {
-                ChatHandler(player->GetSession()).SendSysMessage(
-                    T("Chybí data expedic pro tvoji guildu.",
-                      "Your guild has no expedition data initialized."));
-                return true;
-            }
-            ExpGuildRow info = *infoOpt;
-
-            // 0) nejdřív přímé pevné přepínače
-            switch (action)
-            {
-				case ACT_NOOP:
-				// absolutně nic nedělej
-				return true;
-				
-                // ROOT / zpět z podmenu
-                case ACT_MISSIONS_ROOT:
-                case ACT_BACK_TO_ROOT:
-                    ShowMissionsRoot(player, creature);
-                    return true;
-
-                // otevření submeníček expedic
-                case ACT_SELECT_NORMAL:
-                case ACT_MENU_NORMAL:
-                    ShowNormalMenu(player, creature, info);
-                    return true;
-
-                case ACT_SELECT_HEROIC:
-                case ACT_MENU_HEROIC:
-                    ShowHeroicMenu(player, creature, info);
-                    return true;
-
-                case ACT_SELECT_RAID10:
-                case ACT_MENU_RAID10:
-                    ShowRaid10Menu(player, creature, info);
-                    return true;
-
-                case ACT_SELECT_RAID25:
-                case ACT_MENU_RAID25:
-                    ShowRaid25Menu(player, creature, info);
-                    return true;
-
-                // loot bank root
-                case ACT_LOOTBANK_ROOT:
-                    ShowLootBankRoot(player, creature, info, 0);
-                    return true;
-
-                default:
-                    break;
-            }
-			
-			// *** stránkování root loot banky ***
-			// action = ACT_LOOTBANK_PAGE_BASE + page
-			if (action >= ACT_LOOTBANK_PAGE_BASE && action < ACT_LOOTBANK_ITEM_BASE)
+		bool OnGossipSelect(Player* player, Creature* creature, uint32 sender, uint32 action) override
+		{
+			if (sender != GOSSIP_SENDER_MAIN)
+				return false;
+		
+			Guild* g = player->GetGuild();
+			if (!g)
 			{
-				uint32 page = action - ACT_LOOTBANK_PAGE_BASE;
-				ShowLootBankRoot(player, creature, info, page);
+				ChatHandler(player->GetSession()).SendSysMessage(
+					T("Nejsi v guildě.", "You are not in a guild."));
 				return true;
 			}
-
-			// klik na item v loot bance NEBO stránkování seznamu členů
-			// action = ACT_LOOTBANK_ITEM_BASE + EncodeItemAndPage(lootIndex, pageMembers)
-			if (action >= ACT_LOOTBANK_ITEM_BASE && action < ACT_LOOTBANK_GIVE_BASE)
+		
+			auto infoOpt = LoadGuildExpData(g->GetId());
+			if (!infoOpt.has_value())
 			{
-				uint32 encoded = action - ACT_LOOTBANK_ITEM_BASE;
-			
-				uint32 lootIndex   = 0;
-				uint32 pageMembers = 0;
-				DecodeItemAndPage(encoded, lootIndex, pageMembers);
-			
-				// --- info do chatu o itemu zobrazit JEN při prvním vstupu (pageMembers == 0) ---
-				if (pageMembers == 0)
+				ChatHandler(player->GetSession()).SendSysMessage(
+					T("Chybí data expedic pro tvoji guildu.",
+					"Your guild has no expedition data initialized."));
+				return true;
+			}
+			ExpGuildRow info = *infoOpt;
+		
+			// 0) nejdřív přímé pevné přepínače přes switch
+			switch (action)
+			{
+				case ACT_NOOP_ROOT:
 				{
-					auto lootList = LoadGuildLoot(info.guildId);
-			
-					if (lootIndex < lootList.size())
+					ShowMissionsRoot(player, creature);
+					return true;
+				}
+		
+				case ACT_NOOP_NORMAL:
+				{
+					ShowNormalMenu(player, creature, info);
+					return true;
+				}
+		
+				case ACT_NOOP_HEROIC:
+				{
+					ShowHeroicMenu(player, creature, info);
+					return true;
+				}
+		
+				case ACT_NOOP_RAID10:
+				{
+					ShowRaid10Menu(player, creature, info);
+					return true;
+				}
+		
+				case ACT_NOOP_RAID25:
+				{
+					ShowRaid25Menu(player, creature, info);
+					return true;
+				}
+		
+				case ACT_NOOP_LOOT_ROOT:
+				{
+					ShowLootBankRoot(player, creature, info, 0);
+					return true;
+				}
+		
+				case ACT_MISSIONS_ROOT:
+				case ACT_BACK_TO_ROOT:
+				{
+					ShowMissionsRoot(player, creature);
+					return true;
+				}
+		
+				case ACT_SELECT_NORMAL:
+				case ACT_MENU_NORMAL:
+				{
+					ShowNormalMenu(player, creature, info);
+					return true;
+				}
+		
+				case ACT_SELECT_HEROIC:
+				case ACT_MENU_HEROIC:
+				{
+					ShowHeroicMenu(player, creature, info);
+					return true;
+				}
+		
+				case ACT_SELECT_RAID10:
+				case ACT_MENU_RAID10:
+				{
+					ShowRaid10Menu(player, creature, info);
+					return true;
+				}
+		
+				case ACT_SELECT_RAID25:
+				case ACT_MENU_RAID25:
+				{
+					ShowRaid25Menu(player, creature, info);
+					return true;
+				}
+		
+				case ACT_LOOTBANK_ROOT:
+				{
+					ShowLootBankRoot(player, creature, info, 0);
+					return true;
+				}
+		
+				default:
+					break;
+			}
+		
+		// --- RANGE HANDLERY POD SWITCHEM ---
+		
+		// 1) klik na separator nebo infolinku uvnitř confirm okna
+		// action = ACT_NOOP_CONFIRM_BASE + missionIndex
+		if (action >= ACT_NOOP_CONFIRM_BASE && action < ACT_LOOTBANK_PAGE_BASE)
+		{
+			uint32 missionIndex = action - ACT_NOOP_CONFIRM_BASE;
+			ShowConfirmMission(player, creature, info, missionIndex);
+			return true;
+		}
+		
+		// 2) stránkování root loot banky
+		// action = ACT_LOOTBANK_PAGE_BASE + page
+		if (action >= ACT_LOOTBANK_PAGE_BASE && action < ACT_LOOTBANK_ITEM_BASE)
+		{
+			uint32 page = action - ACT_LOOTBANK_PAGE_BASE;
+			ShowLootBankRoot(player, creature, info, page);
+			return true;
+		}
+		
+		// 3) klik na item v loot bance NEBO stránkování seznamu členů
+		// action = ACT_LOOTBANK_ITEM_BASE + EncodeItemAndPage(lootIndex, pageMembers)
+		if (action >= ACT_LOOTBANK_ITEM_BASE && action < ACT_LOOTBANK_GIVE_BASE)
+		{
+			uint32 encoded = action - ACT_LOOTBANK_ITEM_BASE;
+		
+			uint32 lootIndex   = 0;
+			uint32 pageMembers = 0;
+			DecodeItemAndPage(encoded, lootIndex, pageMembers);
+		
+			// info do chatu jen u první stránky členů
+			if (pageMembers == 0)
+			{
+				auto lootList = LoadGuildLoot(info.guildId);
+		
+				if (lootIndex < lootList.size())
+				{
+					uint32 itemId = lootList[lootIndex].itemId;
+		
+					if (ItemTemplate const* proto = sObjectMgr->GetItemTemplate(itemId))
 					{
-						uint32 itemId = lootList[lootIndex].itemId;
-			
-						if (ItemTemplate const* proto = sObjectMgr->GetItemTemplate(itemId))
-						{
-							uint32 rgba = ItemQualityColors[proto->Quality];
-							uint8 r = (rgba >> 16) & 0xFF;
-							uint8 g = (rgba >> 8)  & 0xFF;
-							uint8 b = (rgba)       & 0xFF;
-			
-							std::string itemLink = Acore::StringFormat(
-								"|cff{:02X}{:02X}{:02X}|Hitem:{}:0:0:0:0:0:0:0|h[{}]|h|r",
-								(uint32)r, (uint32)g, (uint32)b,
-								(uint32)itemId,
-								proto->Name1
-							);
-			
-							std::string msg = Acore::StringFormat(
-								T("Vyber komu chceš poslat tento předmět {}",
-								"Choose who should receive this item {}"),
-								itemLink
-							);
-			
-							ChatHandler(player->GetSession()).SendSysMessage(msg.c_str());
-						}
+						uint32 rgba = ItemQualityColors[proto->Quality];
+						uint8 r = (rgba >> 16) & 0xFF;
+						uint8 g = (rgba >> 8)  & 0xFF;
+						uint8 b = (rgba)       & 0xFF;
+		
+						std::string itemLink = Acore::StringFormat(
+							"|cff{:02X}{:02X}{:02X}|Hitem:{}:0:0:0:0:0:0:0|h[{}]|h|r",
+							(uint32)r, (uint32)g, (uint32)b,
+							(uint32)itemId,
+							proto->Name1
+						);
+		
+						std::string msg = Acore::StringFormat(
+							T("Vyber komu chceš poslat tento předmět {}",
+							"Choose who should receive this item {}"),
+							itemLink
+						);
+		
+						ChatHandler(player->GetSession()).SendSysMessage(msg.c_str());
 					}
 				}
-			
-				ShowLootBankChooseMember(player, creature, info, lootIndex, pageMembers);
-				return true;
 			}
-
-			// 3) klik na konkrétního hráče = rozdat loot
-			// action = ACT_LOOTBANK_GIVE_BASE + EncodeGive(lootIndex, targetLowGuid)
-			if (action >= ACT_LOOTBANK_GIVE_BASE)
-			{
-				uint32 encodedGive = action - ACT_LOOTBANK_GIVE_BASE;
-			
-				DoDistributeLoot(player, creature, info, encodedGive);
-				return true;
-			}
-
-            // 4) CONFIRM mission range
-            if (action >= ACT_CONFIRM_MISSION_BASE && action < ACT_CONFIRM_MISSION_BASE + 10000)
-            {
-                uint32 missionIndex = action - ACT_CONFIRM_MISSION_BASE;
-                ShowConfirmMission(player, creature, info, missionIndex);
-                return true;
-            }
-
-            // 5) LAUNCH mission range
-            if (action >= ACT_LAUNCH_MISSION_BASE && action < ACT_LAUNCH_MISSION_BASE + 10000)
-            {
-                uint32 missionIndex = action - ACT_LAUNCH_MISSION_BASE;
-                StartMission(player, creature, info, missionIndex);
-                return true;
-            }
-
-            // fallback
-            ShowMissionsRoot(player, creature);
-            return true;
-        }
-
+		
+			ShowLootBankChooseMember(player, creature, info, lootIndex, pageMembers);
+			return true;
+		}
+		
+		// 4) klik na konkrétního hráče = rozdat loot
+		// action = ACT_LOOTBANK_GIVE_BASE + EncodeGive(lootIndex, targetIndex)
+		// DŮLEŽITÉ: horní hranice musí být < ACT_NOOP_LOOT_MEMBER_BASE (5 000 000),
+		//           ne < ACT_NOOP_CONFIRM_BASE (4 000 000)
+		if (action >= ACT_LOOTBANK_GIVE_BASE && action < ACT_NOOP_LOOT_MEMBER_BASE)
+		{
+			uint32 encodedGive = action - ACT_LOOTBANK_GIVE_BASE;
+			DoDistributeLoot(player, creature, info, encodedGive);
+			return true;
+		}
+		
+		// 5) klik na separator/šedou čáru v seznamu členů
+		// action = ACT_NOOP_LOOT_MEMBER_BASE + EncodeItemAndPage(lootIndex, pageMembers)
+		// horní hranice < ACT_CONFIRM_MISSION_BASE (6 0000), protože další blok je confirm mission
+		if (action >= ACT_NOOP_LOOT_MEMBER_BASE && action < ACT_CONFIRM_MISSION_BASE)
+		{
+			uint32 encoded = action - ACT_NOOP_LOOT_MEMBER_BASE;
+		
+			uint32 lootIndex   = 0;
+			uint32 pageMembers = 0;
+			DecodeItemAndPage(encoded, lootIndex, pageMembers);
+		
+			ShowLootBankChooseMember(player, creature, info, lootIndex, pageMembers);
+			return true;
+		}
+		
+		// 6) CONFIRM mission range
+		// action = ACT_CONFIRM_MISSION_BASE + missionIndex
+		if (action >= ACT_CONFIRM_MISSION_BASE && action < ACT_LAUNCH_MISSION_BASE)
+		{
+			uint32 missionIndex = action - ACT_CONFIRM_MISSION_BASE;
+			ShowConfirmMission(player, creature, info, missionIndex);
+			return true;
+		}
+		
+		// 7) LAUNCH mission range
+		// action = ACT_LAUNCH_MISSION_BASE + missionIndex
+		if (action >= ACT_LAUNCH_MISSION_BASE && action < ACT_NOOP_CONFIRM_BASE)
+		{
+			uint32 missionIndex = action - ACT_LAUNCH_MISSION_BASE;
+			StartMission(player, creature, info, missionIndex);
+			return true;
+		}
+		
+		// fallback
+		ShowMissionsRoot(player, creature);
+		return true;
+		}
     };
 
     // --------------------------
