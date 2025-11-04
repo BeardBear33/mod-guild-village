@@ -193,7 +193,110 @@ namespace
     {
         return sLower == "teleport" || sLower == "tp";
     }
+	
+	    // --- rozdělení "arg1 arg2 ..." na 1. token a zbytek
+    static inline void SplitFirstToken(std::string const& in, std::string& tok, std::string& rest)
+    {
+        std::string s = Trim(in);
+        auto p = s.find(' ');
+        if (p == std::string::npos) { tok = s; rest.clear(); }
+        else { tok = Trim(s.substr(0, p)); rest = Trim(s.substr(p + 1)); }
+    }
 
+    static inline bool IsSetArg(std::string const& sLower)
+    {
+        return sLower == "set";
+    }
+
+    // uloží osobní TP bod do customs.gv_teleport_player
+    static bool SavePersonalVillageTp(Player* player, ChatHandler* handler)
+    {
+        if (!player || !player->GetGuild())
+        {
+            handler->SendSysMessage(T("Nejsi v žádné guildě.", "You are not in a guild."));
+            return false;
+        }
+
+        if (player->GetMapId() != DefMap())
+        {
+            handler->SendSysMessage(T("Osobní bod lze nastavit pouze uvnitř guildovní vesnice.",
+                                      "Personal point can only be set while inside the guild village."));
+            return false;
+        }
+
+        // guildu a phase vezmu z customs.gv_guild (stejně jako při default TP)
+        uint32 guildId = player->GetGuildId();
+        uint32 phaseMask = 0;
+        uint32 mapId = player->GetMapId();
+
+        if (QueryResult res = WorldDatabase.Query(
+                "SELECT phase FROM customs.gv_guild WHERE guild={}", guildId))
+        {
+            phaseMask = res->Fetch()[0].Get<uint32>();
+        }
+        else
+        {
+            handler->SendSysMessage(T("Tvoje guilda nevlastní guildovní vesnici.",
+                                      "Your guild does not own a guild village."));
+            return false;
+        }
+
+        uint32 pguid = player->GetGUID().GetCounter();
+        float x = player->GetPositionX();
+        float y = player->GetPositionY();
+        float z = player->GetPositionZ();
+        float o = player->GetOrientation();
+
+        std::string q =
+            "INSERT INTO customs.gv_teleport_player "
+            "(player, guild, map, positionx, positiony, positionz, orientation, phase) VALUES (" +
+            std::to_string(pguid) + ", " +
+            std::to_string(guildId) + ", " +
+            std::to_string(mapId) + ", " +
+            std::to_string(x) + ", " +
+            std::to_string(y) + ", " +
+            std::to_string(z) + ", " +
+            std::to_string(o) + ", " +
+            std::to_string(phaseMask) + ") "
+            "ON DUPLICATE KEY UPDATE "
+            "guild=VALUES(guild), map=VALUES(map), positionx=VALUES(positionx), positiony=VALUES(positiony), "
+            "positionz=VALUES(positionz), orientation=VALUES(orientation), phase=VALUES(phase), set_time=NOW()";
+
+        WorldDatabase.Execute(q);
+
+        handler->SendSysMessage(T("Osobní bod teleportu nastaven.",
+                                  "Personal teleport point set."));
+        return true;
+    }
+
+    // načte osobní TP; vrátí true pokud nalezeno
+    static bool LoadPersonalVillageTp(Player* player,
+                                      /*out*/ uint32& map, /*out*/ double& x, /*out*/ double& y,
+                                      /*out*/ double& z, /*out*/ float& o, /*out*/ uint32& phaseMask)
+    {
+        if (!player || !player->GetGuild())
+            return false;
+
+        uint32 pguid = player->GetGUID().GetCounter();
+        uint32 guildId = player->GetGuildId();
+
+        if (QueryResult res = WorldDatabase.Query(
+                "SELECT map, positionx, positiony, positionz, orientation, phase "
+                "FROM customs.gv_teleport_player WHERE player={} AND guild={} LIMIT 1",
+                pguid, guildId))
+        {
+            Field* f = res->Fetch();
+            map       = f[0].Get<uint32>();
+            x         = f[1].Get<double>();
+            y         = f[2].Get<double>();
+            z         = f[3].Get<double>();
+            o         = f[4].Get<float>();
+            phaseMask = f[5].Get<uint32>();
+            return true;
+        }
+        return false;
+    }
+	
     // --- info aliases helper ---
     static inline bool IsInfoArg(std::string const& sLower)
     {
@@ -488,6 +591,9 @@ namespace
                 handler->SendSysMessage(" .village teleport – teleports you to the guild village");
                 handler->SendSysMessage("    Aliases: .village tp / teleport");
                 handler->SendSysMessage("              .v tp / teleport");
+				
+				handler->SendSysMessage(" .village tp set – set your personal village teleport point");
+				handler->SendSysMessage("    Aliases: .v tp set");
             }
             else
             {
@@ -515,52 +621,91 @@ namespace
                 handler->SendSysMessage(" .village teleport – teleportuje tě do guild vesnice");
                 handler->SendSysMessage("    Alias: .village tp / teleport");
                 handler->SendSysMessage("            .v tp / teleport");
+				
+				handler->SendSysMessage(" .village tp set – nastaví tvůj osobní bod teleportu ve vesnici");
+				handler->SendSysMessage("    Alias: .v tp set");
             }
             return true;
         }
 
-        // --- TELEPORT ---
-        if (IsTeleportArg(al))
+        // --- TELEPORT / TELEPORT SET ---
         {
-            if (!player->GetGuild())
+            std::string tok1, rest;
+            SplitFirstToken(al, tok1, rest);
+
+            if (IsTeleportArg(tok1))
             {
-                handler->SendSysMessage(T("Nejsi v žádné guildě.", "You are not in a guild."));
-                return true;
-            }
+                if (!player->GetGuild())
+                {
+                    handler->SendSysMessage(T("Nejsi v žádné guildě.", "You are not in a guild."));
+                    return true;
+                }
 
-            if (player->InBattleground())
-            {
-                handler->SendSysMessage(T("V bojišti/aréne nemůžeš teleportovat.",
-                                          "You can't teleport while in a battleground/arena."));
-                return true;
-            }
+                // ".village tp set" => uložit osobní bod
+                if (!rest.empty() && IsSetArg(Lower(rest)))
+                {
+                    SavePersonalVillageTp(player, handler);
+                    return true;
+                }
 
-            std::string q =
-                "SELECT map, positionx, positiony, positionz, orientation, phase "
-                "FROM customs.gv_guild WHERE guild=" + std::to_string(player->GetGuildId());
+                if (player->InBattleground())
+                {
+                    handler->SendSysMessage(T("V bojišti/aréne nemůžeš teleportovat.",
+                                              "You can't teleport while in a battleground/arena."));
+                    return true;
+                }
 
-            if (QueryResult res = WorldDatabase.Query(q))
-            {
-                Field* f = res->Fetch();
-                uint32 map = f[0].Get<uint32>();
-                double x   = f[1].Get<double>();
-                double y   = f[2].Get<double>();
-                double z   = f[3].Get<double>();
-                float  o   = f[4].Get<float>();
-                uint32 phaseMask = f[5].Get<uint32>();
+                // 1) zkusit osobní bod
+                uint32 map = 0, phaseMaskPersonal = 0;
+                double x = 0, y = 0, z = 0; float o = 0.f;
 
+                bool hasPersonal = LoadPersonalVillageTp(player, map, x, y, z, o, phaseMaskPersonal);
+
+                // 2) default bod z customs.gv_guild (fallback)
+                uint32 mapDef = 0, phaseMaskDef = 0;
+                double xDef = 0, yDef = 0, zDef = 0; float oDef = 0.f;
+
+                if (QueryResult res = WorldDatabase.Query(
+                        "SELECT map, positionx, positiony, positionz, orientation, phase "
+                        "FROM customs.gv_guild WHERE guild={}", player->GetGuildId()))
+                {
+                    Field* f = res->Fetch();
+                    mapDef      = f[0].Get<uint32>();
+                    xDef        = f[1].Get<double>();
+                    yDef        = f[2].Get<double>();
+                    zDef        = f[3].Get<double>();
+                    oDef        = f[4].Get<float>();
+                    phaseMaskDef= f[5].Get<uint32>();
+                }
+                else
+                {
+                    handler->SendSysMessage(T("Tvá guilda nevlastní guildovní vesnici.",
+                                              "Your guild does not own a guild village."));
+                    return true;
+                }
+
+                // 3) vybrat, co použít
+                uint32 useMap = hasPersonal ? map : mapDef;
+                double useX   = hasPersonal ? x   : xDef;
+                double useY   = hasPersonal ? y   : yDef;
+                double useZ   = hasPersonal ? z   : zDef;
+                float  useO   = hasPersonal ? o   : oDef;
+                uint32 usePhase = hasPersonal ? (phaseMaskPersonal ? phaseMaskPersonal : phaseMaskDef) : phaseMaskDef;
+
+                // stash phase => PlayerScript ji aplikuje po dokončení TeleportTo
                 auto* stash = player->CustomData.GetDefault<GVPhaseData>("gv_phase");
-                stash->phaseMask = phaseMask;
+                stash->phaseMask = usePhase;
 
-                player->TeleportTo(map, x, y, z, o);
-                handler->SendSysMessage(T("Teleportuji do guildovní vesnice…", "Teleporting to the guild village…"));
+                player->TeleportTo(useMap, useX, useY, useZ, useO);
+                handler->SendSysMessage(
+                    hasPersonal
+                    ? T("Teleportuji na tvůj osobní bod ve vesnici…",
+                        "Teleporting to your personal village point…")
+                    : T("Teleportuji do guildovní vesnice…",
+                        "Teleporting to the guild village…")
+                );
+                return true;
             }
-            else
-            {
-                handler->SendSysMessage(T("Tvá guilda nevlastní guildovní vesnici.",
-                                          "Your guild does not own a guild village."));
-            }
-            return true;
         }
 
         // aliasy pro jednotlivé sekce

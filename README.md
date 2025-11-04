@@ -40,19 +40,21 @@ Add only one NPC for village purchase. ".npc add 987454"
 
 ✅ ~~Lepší nastavení pro limit vesnic v configu (-1 = Neomezeně, 0 = Skryje nákup u NPC ale zůstane povolen GM příkaz, 1+ = Maximalní limit na vesnice)~~
 
+✅ ~~Uložení teleportačního bodu v rámci vesnice (.village tp set)~~
+
 - PvE event každý měsíc se spustí najézd nepřátel na vesnici.
 
 - Možnost rozšířit vesnici o defenzivní prvky pro měsíční event s možností opětovného nákupu (např. miny, harpuny apod.)
 
-- NPC, které by z guildovní měny vyrábělo náhodné materiály pro profese nebo hotové předměty do určitého ilvl
+- NPC, které by z guildovní měny vyrábělo náhodné materiály pro profese (např. Linen Cloth, Copper Ore, Light Leather, atd.).
 
 ✅ ~~Expedice – možnost zakoupit hrdiny, které lze vysílat do dungeonů nebo raidů~~
 
 **Aktuálně se pracuje na:**
-- Uložení teleportačního bodu v rámci vesnice (.village tp set)
- 
- 
- 
+- NPC, které by z guildovní měny vyrábělo náhodné materiály pro profese (např. Linen Cloth, Copper Ore, Light Leather, atd.).
+
+
+
 🌐 English
 
 ✅ ~~Reward in guild material currency for PvP kill and BG victory~~
@@ -61,13 +63,15 @@ Add only one NPC for village purchase. ".npc add 987454"
 
 ✅ ~~Better village limit setting (-1 = Unlimited, 0 = Hides NPC purchase but keeps GM command, 1+ = Max allowed villages)~~
 
+✅ ~~Saving a teleportation point within the village (.village tp set)~~
+
 - Every month, a PvE event triggers an enemy raid on the village.
 
 - Ability to expand the village with defensive structures for the monthly event, with repeatable purchases (e.g. mines, harpoons, etc.)
 
-- An NPC that converts guild currency into random crafting materials or finished items up to a certain item level
+- An NPC that converts guild currency into random crafting materials (e.g. Linen Cloth, Copper Ore, Light Leather, etc.).
 
 ✅ ~~Expedition – purchase heroes that can be sent into dungeons or raids~~
 
 **Currently working on:**
-- Saving a teleportation point within the village (.village tp set)
+- An NPC that converts guild currency into random crafting materials (e.g. Linen Cloth, Copper Ore, Light Leather, etc.).

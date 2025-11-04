@@ -485,6 +485,12 @@ namespace
                 "DELETE FROM customs.gv_expedition_guild WHERE guildId={}",
                 guildId
             );
+			
+			// teleportační bod
+			WorldDatabase.Execute(
+				"DELETE FROM customs.gv_teleport_player WHERE guild={}",
+				guildId
+			);
 
             //
             // 1) Respawn tabulky v characters DB - aby tam nezůstaly sirotčí cooldowny a dead body

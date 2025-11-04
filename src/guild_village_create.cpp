@@ -398,7 +398,7 @@ namespace GuildVillage
         if (!phaseId)
             phaseId = PhaseIdForGuild(guildId); // fallback
 
-        // 0) smazat měny / upgrady / produkci / expedice
+        // 0) smazat měny / upgrady / produkci / expedice / tp bod
         WorldDatabase.Execute("DELETE FROM customs.gv_currency           WHERE guildId={}", guildId);
         WorldDatabase.Execute("DELETE FROM customs.gv_upgrades           WHERE guildId={}", guildId);
         WorldDatabase.Execute("DELETE FROM customs.gv_production_active  WHERE guildId={}", guildId);
@@ -406,6 +406,7 @@ namespace GuildVillage
         WorldDatabase.Execute("DELETE FROM customs.gv_expedition_active  WHERE guildId={}", guildId);
         WorldDatabase.Execute("DELETE FROM customs.gv_expedition_loot    WHERE guildId={}", guildId);
         WorldDatabase.Execute("DELETE FROM customs.gv_expedition_guild   WHERE guildId={}", guildId);
+		WorldDatabase.Execute("DELETE FROM customs.gv_teleport_player    WHERE guild={}", guildId);
 
         {
             // seber GUIDy z world.creature

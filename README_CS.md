@@ -25,7 +25,7 @@ Je nutné zajistit, že tato ID nejsou v `acore_world` již obsazená jiným obs
 - **Vlastní gameobject (`gameobject_template.entry`):**
   - `990203`
 
-- **lastní creatures (`creature_template.entry`):**
+- **Vlastní creatures (`creature_template.entry`):**
   - `987400`-`987430`, `987440`-`987454`
 
 - **Vlastni PoI (`points_of_interest.Entry`):**
@@ -48,8 +48,12 @@ Odebrán smartAI pro cooking trenéra a ridding trenéra (pouze pohyb)
 .v teleport / tp
 ➝ Teleportuje do guild vesnice.
 
-.village i / in / inf / info
-.v i / in / inf / info
+.village tp set
+.v tp set
+➝ Uloží teleportační bod.
+
+.village info / i
+.v info / i
 ➝ Zobrazí stav currency+boss+produkci pro guildu.
 
 .village production / p
@@ -64,8 +68,8 @@ Odebrán smartAI pro cooking trenéra a ridding trenéra (pouze pohyb)
 .v boss / b
 ➝ Zobrazí stav bossů
 
-.village expedition / exp / e
-.v expedition / exp / e
+.village expedition / e
+.v expedition / e
 ➝ Zobrazí stav expedice
 
 ### Admin Příkazy
@@ -116,6 +120,9 @@ Příklad (s respawnem): `.gv exobject vendor_armorer 178123 2 300`
 > Poznámky:
 > - Všechny “add” příkazy berou **souřadnice a orientaci z aktuální pozice hráče**, ukládají **map=37** a layout `base` (pro expansion varianty `expansion_key` dle zadání).
 > - `reset` se projeví **ihned** (živé objekty a creatury v dané fázi zmizí bez restartu) a po wipe proběhne **live reinstalace** základního layoutu.
+
+## Databázové tabulky a jejich popis
+**WIP**
 
 ## License
 This module is licensed under the [GNU General Public License v3.0 (GPL-3.0)](LICENSE).

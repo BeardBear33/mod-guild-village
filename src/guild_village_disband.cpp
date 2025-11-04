@@ -61,8 +61,15 @@ namespace GuildVillage
         uint32 phaseId = LoadGuildPhase(guildId).value_or(PhaseIdForGuild(guildId));
 
         // 1) customs: měny a upgrady
-        WorldDatabase.Execute("DELETE FROM customs.gv_currency WHERE guildId={}", guildId);
-        WorldDatabase.Execute("DELETE FROM customs.gv_upgrades WHERE guildId={}", guildId);
+        WorldDatabase.Execute(
+			"DELETE FROM customs.gv_currency WHERE guildId={}",
+			guildId
+		);
+			
+        WorldDatabase.Execute(
+			"DELETE FROM customs.gv_upgrades WHERE guildId={}",
+			guildId
+		);
 		
 		// 1.1) expedice: aktivní mise, loot, stav expedic pro guildu
 		WorldDatabase.Execute(
@@ -77,6 +84,12 @@ namespace GuildVillage
 	
 		WorldDatabase.Execute(
 			"DELETE FROM customs.gv_expedition_guild WHERE guildId={}",
+			guildId
+		);
+		
+		// 1.2) Vyčistit teleportační bod
+		WorldDatabase.Execute(
+			"DELETE FROM customs.gv_teleport_player WHERE guild={}",
 			guildId
 		);
 

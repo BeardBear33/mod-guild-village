@@ -49,8 +49,12 @@ SmartAI for cooking and riding trainers has been removed (movement only).
 .v teleport / tp
 ➝ Teleports to the guild village.
 
-.village i / in / inf / info
-.v i / in / inf / info
+.village tp set
+.v tp set
+➝ Saves a teleport point.
+
+.village info / i
+.v info / i
 ➝ Displays guild+boss+production status.
 
 .village production / p
@@ -65,8 +69,8 @@ SmartAI for cooking and riding trainers has been removed (movement only).
 .v boss / b
 ➝ show bosses status
 
-.village expedition / exp / e
-.v expedition / exp / e
+.village expedition / e
+.v expedition / e
 ➝ show expedition status
 
 ### Admin Commands
@@ -119,6 +123,9 @@ Example (with respawn): `.gv exobject vendor_armorer 178123 2 300`
 > Notes:  
 > - All “add” commands take **coordinates and orientation from the player’s current position**, store **map=37** and layout `base` (for expansions, `expansion_key` as specified).  
 > - `reset` applies **instantly** (live creatures and objects vanish immediately) and performs a **live reinstallation** of the base layout.
+
+## Database tables and their descriptions
+**WIP**
 
 ## License
 This module is licensed under the [GNU General Public License v3.0 (GPL-3.0)](LICENSE).
