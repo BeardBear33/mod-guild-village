@@ -48,6 +48,30 @@ namespace GuildVillage
         return 0;
     }
 
+    // --- upgrade kontrola (expansion_required) ---
+    static inline std::string Trim(std::string s)
+    {
+        auto ns = [](int ch){ return !std::isspace(ch); };
+        s.erase(s.begin(), std::find_if(s.begin(), s.end(), ns));
+        s.erase(std::find_if(s.rbegin(), s.rend(), ns).base(), s.end());
+        return s;
+    }
+
+    static bool GuildHasExpansion(uint32 guildId, std::string const& key)
+    {
+        std::string k = Trim(key);
+        if (k.empty())
+            return true;
+
+        // exists v customs.gv_upgrades (guildId + expansion_key)
+        if (QueryResult r = WorldDatabase.Query(
+                "SELECT 1 FROM customs.gv_upgrades WHERE guildId={} AND expansion_key='{}' LIMIT 1",
+                guildId, k))
+            return true;
+
+        return false;
+    }
+
     // ===== Menu model =====
     struct TeleRow
     {
@@ -55,6 +79,7 @@ namespace GuildVillage
         std::string label;   // "CS\nEN"
         float  x, y, z, o;
         int    sortIndex;
+        std::string expansionRequired; // NOVÉ: filtr zobrazení; prázdné => vždy zobrazit
     };
 
     static inline void SplitLabels(std::string const& joined, std::string& outCs, std::string& outEn)
@@ -67,11 +92,12 @@ namespace GuildVillage
         if (outEn.empty()) outEn = outCs;
     }
 
-    static std::vector<TeleRow> LoadAllRowsForEntry(uint32 entry)
+    // přidán parametr guildId kvůli filtru expansion_required
+    static std::vector<TeleRow> LoadAllRowsForEntry(uint32 entry, uint32 guildId)
     {
         std::vector<TeleRow> v;
         if (QueryResult qr = WorldDatabase.Query(
-                "SELECT id, label_cs, label_en, x, y, z, o, sort_index "
+                "SELECT id, label_cs, label_en, x, y, z, o, sort_index, IFNULL(expansion_required,'') "
                 "FROM customs.gv_teleport_menu WHERE teleporter_entry={} ORDER BY sort_index, id",
                 entry))
         {
@@ -87,7 +113,13 @@ namespace GuildVillage
                 r.z             = f[5].Get<float>();
                 r.o             = f[6].Get<float>();
                 r.sortIndex     = f[7].Get<int>();
+                r.expansionRequired = Trim(f[8].Get<std::string>());
                 r.label         = cs + "\n" + enL;
+
+                // filtr: pokud je požadavek ne-prázdný, musí ho guilda mít v gv_upgrades
+                if (!GuildHasExpansion(guildId, r.expansionRequired))
+                    continue;
+
                 v.emplace_back(std::move(r));
             }
             while (qr->NextRow());
@@ -116,7 +148,8 @@ namespace GuildVillage
                 return true;
             }
 
-            uint32 gvPhase = LoadGuildVillagePhaseId(g->GetId());
+            uint32 gid = g->GetId();
+            uint32 gvPhase = LoadGuildVillagePhaseId(gid);
             if (!gvPhase)
             {
                 ChatHandler(player->GetSession()).SendSysMessage(T("Tvoje guilda nevlastní vesnici.", "Your guild does not own a village."));
@@ -132,7 +165,8 @@ namespace GuildVillage
             uint32 entry = go->GetEntry();
             if (!entry) entry = GV_TELEPORTER_ENTRY;
 
-            auto rows = LoadAllRowsForEntry(entry);
+            // >>> změna: předáváme guildId kvůli expansion_required filtru
+            auto rows = LoadAllRowsForEntry(entry, gid);
             if (rows.empty())
             {
                 ChatHandler(player->GetSession()).SendSysMessage(T("Žádné cíle nejsou nastavené.", "No destinations configured."));
@@ -206,7 +240,6 @@ namespace GuildVillage
             player->CustomData.GetDefault<GVPhaseData>("gv_phase")->phaseMask = gvPhase;
 
             player->SetPhaseMask(gvPhase, true);
-			
             player->TeleportTo(DefMap(), x, y, z, o);
             return true;
         }
