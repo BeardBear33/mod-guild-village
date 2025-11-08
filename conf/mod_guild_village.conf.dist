@@ -703,28 +703,28 @@ GuildVillage.PvP.RandomBattleground.Mat4 = 25
 # Guild Village – BOSS DIFFICULTY    #
 #====================================#
 
-# CS: Následující přepínače mění sílu bossů (Heroic režim).
-# EN: The following toggles control boss strength (Heroic mode).
+# CS: Následující přepínače mění sílu bossů (Heroic režim). Doporučeno pro 30 a více hráčů v guildě.
+# EN: The following toggles adjust the strength of the bosses (Heroic mode). Recommended for guilds with 30 or more players.
 
 # Thalgron the Earthshaker
-# CS: Zapíná Enrage po ~2 minutách.
-# EN: Enables Enrage after ~2 minutes.
-Thalgron.Heroic = 1
+# CS: Více Starfallu, kratší prodlevy mezi spelly, Meteor fist
+# EN: More Starfall, shorter delays between spells, Meteor Fist
+GuildVillage.Thalgron.Heroic = 0
 
 # Voltrix the Unbound
-# CS: Silnější Gravity Bomb a Searing Light.
-# EN: Stronger Gravity Bomb and Searing Light.
-Voltrix.Heroic = 0
+# CS: Více raket na více cílů, + Chain lightning
+# EN: More rockets hitting multiple targets, plus Chain Lightning.
+GuildVillage.Voltrix.Heroic = 0
 
 # Thranok the Unyielding
-# CS: Silnější Rock Shard, Stomp, Impale.
+# CS: Kratší prodlevy mezi spelly + debuff
 # EN: Stronger Rock Shard, Stomp, Impale.
-Thranok.Heroic = 0
+GuildVillage.Thranok.Heroic = 0
 
 # Thalor the Lifebinder
-# CS: Silnější Solar Flare a Unstable Sun Damage.
-# EN: Stronger Solar Flare and Unstable Sun Damage.
-Thalor.Heroic = 0
+# CS: Lifebloom + Storm Wave
+# EN: Lifebloom + Storm Wave
+GuildVillage.Thalor.Heroic = 0
 
 
 #===========================================#

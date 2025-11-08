@@ -1,96 +1,285 @@
+// modules/mod-guild-village/src/boss/boss_thranok_the_unyielding.cpp
+
 #include "CreatureScript.h"
 #include "Player.h"
 #include "ScriptedCreature.h"
 #include "SpellScript.h"
-#include "SpellScriptLoader.h"
 #include "Config.h"
+#include "ObjectAccessor.h"
+#include "GossipDef.h"
+#include "ScriptMgr.h"
+#include <algorithm>
+#include <vector>
+#include <chrono>
+#include <cmath>
 
-// =====================================
-// Thranok the Unyielding (Archavon-style, OW)
-// =====================================
-// - Heroic toggle: Thranok.Heroic = 1  (25-man hodnoty kouzel)
-// - Schopnosti: Rock Shards (jen dmg, bez hand vizuálů), Stomp, Impale, Berserk (5m)
-// - BEZ: Crushing Leap, Rock Shards L/R hand visual
-// - Hlášky přímo v kódu (bez creature_text)
-
-static bool ThranokHeroic()
+// -------- Lokalizace (cs/en) --------
+namespace GuildVillageLoc
 {
-    return sConfigMgr->GetOption<bool>("Thranok.Heroic", false);
+    enum class Lang { CS, EN };
+
+    static inline Lang LangOpt()
+    {
+        std::string loc = sConfigMgr->GetOption<std::string>("GuildVillage.Locale", "cs");
+        std::transform(loc.begin(), loc.end(), loc.begin(), ::tolower);
+        return (loc == "en" || loc == "english") ? Lang::EN : Lang::CS;
+    }
+
+    static inline char const* T(char const* cs, char const* en)
+    {
+        return (LangOpt() == Lang::EN) ? en : cs;
+    }
 }
-static inline uint32 R10_25(uint32 id10, uint32 id25) { return ThranokHeroic() ? id25 : id10; }
 
-// ---------- Spells (převzato z Archavona) ----------
-enum Spells
+// -------- Přepínač obtížnosti (Normal/Heroic) --------
+static inline bool ThranokHeroic()
 {
-    SPELL_ROCK_SHARDS             = 58678, // základní trigger (ponechán)
-    // hand vizuály NEPOUŽÍVÁME:
-    // SPELL_ROCK_SHARDS_LEFT_HAND_VISUAL  = 58689,
-    // SPELL_ROCK_SHARDS_RIGHT_HAND_VISUAL = 58692,
+    return sConfigMgr->GetOption<bool>("GuildVillage.Thranok.Heroic", false);
+}
 
-    SPELL_ROCK_SHARDS_DAMAGE_10   = 58695,
-    SPELL_ROCK_SHARDS_DAMAGE_25   = 60883,
-
-    SPELL_STOMP_10                = 58663,
-    SPELL_STOMP_25                = 60880,
-    SPELL_IMPALE_10               = 58666,
-    SPELL_IMPALE_25               = 60882,
-
-    SPELL_BERSERK                 = 47008
+enum ThranokSpells : uint32
+{
+    SPELL_BERSERK            = 62555,
+    SPELL_MASSIVE_STOMP      = 71114,
+    SPELL_VIOLENT_EARTH      = 63149,
+    SPELL_EARTHQUAKE         = 64697,
+    SPELL_EARTHQUAKE_AURA_H  = 46932 
 };
 
-enum Events
+enum ThranokEvents : uint32
 {
-    EVENT_ROCK_SHARDS = 1,
-    EVENT_STOMP,
-    EVENT_IMPALE,
+    EVENT_MASSIVE_STOMP = 1,
+    EVENT_VIOLENT_EARTH,
+    EVENT_EARTHQUAKE,
+    EVENT_HEROIC_AURA_FROM_STOMP,
+    EVENT_HEROIC_AURA_FROM_QUAKE,
     EVENT_BERSERK
 };
 
-// ---------- (volitelné) hlášky ----------
-struct ThranokYellsA
-{
-    static void Aggro(Creature* me)   { me->Yell("Stone will break you!", LANG_UNIVERSAL, nullptr); }
-    static void Stomp(Creature* me)   { me->Yell("Tremble!", LANG_UNIVERSAL, nullptr); }
-    static void Berserk(Creature* me) { me->Yell("Crush them all!", LANG_UNIVERSAL, nullptr); }
-    static void Slay(Creature* me)    { me->Yell("Ground to dust.", LANG_UNIVERSAL, nullptr); }
-    static void Death(Creature* me)   { me->Yell("…stone cracks…", LANG_UNIVERSAL, nullptr); }
-};
+// Časování
+static constexpr uint32 MS_FIRST_DELAY_MS        = 5000;  // 5s od začátku boje
+static constexpr uint32 VE_AFTER_MS_MS           = 15000; // 15s po Massive Stomp
+static constexpr uint32 VE_CAST_MS               = 1140;  // 1.14 s cast (orientačně)
+static constexpr uint32 QUAKE_AFTER_VE_END_MS    = 15000; // 15s po skončení Violent Earth
+static constexpr uint32 MS_AFTER_QUAKE_END_MS    = 5000;  // 5s po skončení Earthquake
 
-// =====================================
-// Boss AI
-// =====================================
+// Heroic aura – malé „posuny“, aby šla tesně po/vedle hlavních kouzel (nebrzdí plán)
+static constexpr uint32 AURA_AFTER_STOMP_MS      = 50;    // cca „hned po dupnutí“
+static constexpr uint32 AURA_WITH_QUAKE_MS       = 0;     // společně s Earthquake
+
+// Výběr cíle pro Violent Earth – parametry
+static constexpr float  VE_MAX_RANGE             = 60.0f;
+static constexpr float  VE_SAFE_RADIUS           = 4.0f;  // chceme cíl, který má co nejméně spojenců v 4yd
+static constexpr float  LOS_RANGE                = 70.0f; // bezpečný horní limit pro LOS check
+
 struct boss_thranok_the_unyielding : public ScriptedAI
 {
-    boss_thranok_the_unyielding(Creature* c) : ScriptedAI(c) {}
+    boss_thranok_the_unyielding(Creature* c) : ScriptedAI(c) { }
 
     EventMap events;
+
+    // -------- Hlášky --------
+    void YellAggro()
+    {
+        me->Yell(GuildVillageLoc::T(
+            "Skála se probouzí... Váš konec se otřese v základech!",
+            "Stone awakens... Your end will crumble beneath my steps!"
+        ), LANG_UNIVERSAL, nullptr);
+    }
+
+    void YellMassiveStomp()
+    {
+        me->Yell(GuildVillageLoc::T(
+            "Země se prohne pod mým krokem!",
+            "The earth bends beneath my step!"
+        ), LANG_UNIVERSAL, nullptr);
+    }
+
+    void YellViolentEarth(Unit* t)
+    {
+        if (t)
+        {
+            std::string cs = "Z hlubin se zvedá hrot pro " + t->GetName() + "!";
+            std::string en = "From the depths, a spike rises for " + t->GetName() + "!";
+            me->Yell(GuildVillageLoc::T(cs.c_str(), en.c_str()), LANG_UNIVERSAL, nullptr);
+        }
+        else
+        {
+            me->Yell(GuildVillageLoc::T(
+                "Z hlubin se zvedají kamenné hroty!",
+                "From the depths, stone spikes rise!"
+            ), LANG_UNIVERSAL, nullptr);
+        }
+    }
+
+    void YellEarthquake()
+    {
+        me->Yell(GuildVillageLoc::T(
+            "Třeste se! Země vás pohltí!",
+            "Tremble! The earth will swallow you!"
+        ), LANG_UNIVERSAL, nullptr);
+    }
+
+    void YellBerserk()
+    {
+        me->Yell(GuildVillageLoc::T(
+            "Hněv hor nezná hranic!",
+            "The mountains’ wrath knows no bounds!"
+        ), LANG_UNIVERSAL, nullptr);
+    }
+
+    void YellDeath()
+    {
+        me->Yell(GuildVillageLoc::T(
+            "Praskliny... se uzavírají...",
+            "The cracks... grow still..."
+        ), LANG_UNIVERSAL, nullptr);
+    }
+
+    void CollectPlayers(std::vector<Player*>& out, float radius = LOS_RANGE)
+    {
+        out.clear();
+        if (Map* map = me->GetMap())
+        {
+            for (auto const& ref : map->GetPlayers())
+            {
+                if (Player* p = ref.GetSource())
+                {
+                    if (!p->IsAlive())
+                        continue;
+                    if (!me->IsWithinDistInMap(p, radius))
+                        continue;
+                    if (!me->IsWithinLOSInMap(p))
+                        continue;
+                    out.push_back(p);
+                }
+            }
+        }
+    }
+
+    uint32 CountAlliesWithin(Player* candidate, std::vector<Player*> const& all, float r)
+    {
+        uint32 n = 0;
+        for (Player* other : all)
+        {
+            if (other == candidate) continue;
+            if (!other->IsAlive())  continue;
+            if (candidate->GetDistance(other) <= r)
+                ++n;
+        }
+        return n;
+    }
+
+    Player* PickViolentEarthTarget()
+    {
+        std::vector<Player*> cands;
+        CollectPlayers(cands, VE_MAX_RANGE);
+        if (cands.empty())
+            return nullptr;
+
+        struct Scored { Player* p; uint32 neighbors; };
+        std::vector<Scored> scored;
+        scored.reserve(cands.size());
+
+        for (Player* p : cands)
+        {
+            uint32 neigh = CountAlliesWithin(p, cands, VE_SAFE_RADIUS);
+            scored.push_back({ p, neigh });
+        }
+
+        auto best = std::min_element(scored.begin(), scored.end(),
+            [](Scored const& a, Scored const& b){ return a.neighbors < b.neighbors; });
+
+        if (best == scored.end())
+            return nullptr;
+
+        uint32 minNeigh = best->neighbors;
+
+        std::vector<Player*> shortlist;
+        for (auto const& s : scored)
+            if (s.neighbors == (minNeigh == 0 ? 0u : minNeigh))
+                shortlist.push_back(s.p);
+
+        if (shortlist.empty())
+            return nullptr;
+
+        uint32 i = urand(0u, (uint32)shortlist.size() - 1u);
+        return shortlist[i];
+    }
 
     void Reset() override
     {
         events.Reset();
+        me->RemoveAllAuras();
+        me->SetReactState(REACT_AGGRESSIVE);
+    }
+
+    void JustReachedHome() override
+    {
+        me->setActive(false);
     }
 
     void JustEngagedWith(Unit* /*who*/) override
     {
-        ThranokYellsA::Aggro(me);
+        using namespace std::chrono;
 
-        // Timery jako Archavon (bez Leap):
-        events.ScheduleEvent(EVENT_ROCK_SHARDS, 15s);
-        events.ScheduleEvent(EVENT_STOMP,       45s);
-        events.ScheduleEvent(EVENT_BERSERK,      5min);
+        me->setActive(true);
+        me->CallForHelp(175.0f);
+        YellAggro();
 
-        me->setActive(true); // OW boss – bez SetInCombatWithZone
-    }
+        events.ScheduleEvent(EVENT_MASSIVE_STOMP, milliseconds(MS_FIRST_DELAY_MS));
 
-    void KilledUnit(Unit* v) override
-    {
-        if (v->IsPlayer())
-            ThranokYellsA::Slay(me);
+        events.ScheduleEvent(EVENT_BERSERK, 5min);
     }
 
     void JustDied(Unit* /*killer*/) override
     {
-        ThranokYellsA::Death(me);
+        YellDeath();
+    }
+
+    // -------- Jednotlivé akce --------
+    void DoMassiveStomp()
+    {
+        using namespace std::chrono;
+
+        YellMassiveStomp();
+        me->CastSpell(me, SPELL_MASSIVE_STOMP, true);
+
+        if (ThranokHeroic())
+            events.ScheduleEvent(EVENT_HEROIC_AURA_FROM_STOMP, milliseconds(AURA_AFTER_STOMP_MS));
+    }
+
+    void StartViolentEarth()
+    {
+        if (Unit* t = PickViolentEarthTarget())
+        {
+            YellViolentEarth(t);
+            me->CastSpell(t, SPELL_VIOLENT_EARTH, false);
+        }
+        else
+        {
+            YellViolentEarth(nullptr);
+            if (Unit* v = me->GetVictim())
+                me->CastSpell(v, SPELL_VIOLENT_EARTH, false);
+            else
+                me->CastSpell(me, SPELL_VIOLENT_EARTH, false);
+        }
+    }
+
+    void DoEarthquake()
+    {
+        using namespace std::chrono;
+
+        YellEarthquake();
+        me->CastSpell(me, SPELL_EARTHQUAKE, true);
+
+        if (ThranokHeroic())
+            events.ScheduleEvent(EVENT_HEROIC_AURA_FROM_QUAKE, milliseconds(AURA_WITH_QUAKE_MS));
+    }
+
+    void CastHeroicEarthquakeAura()
+    {
+        me->CastSpell(me, SPELL_EARTHQUAKE_AURA_H, true);
     }
 
     void UpdateAI(uint32 diff) override
@@ -99,99 +288,90 @@ struct boss_thranok_the_unyielding : public ScriptedAI
             return;
 
         events.Update(diff);
-        if (me->HasUnitState(UNIT_STATE_CASTING))
-            return;
 
-        switch (events.ExecuteEvent())
+        using namespace std::chrono;
+
+        uint32 ev;
+        while ((ev = events.ExecuteEvent()))
         {
-            case EVENT_ROCK_SHARDS:
+            switch (ev)
             {
-                // Vyber náhodný cíl a castni trigger 58678 (viz SpellScript níže).
-                if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0))
-                    me->CastSpell(target, SPELL_ROCK_SHARDS, false);
+                case EVENT_MASSIVE_STOMP:
+                {
+                    if (me->HasUnitState(UNIT_STATE_CASTING))
+                    {
+                        events.ScheduleEvent(EVENT_MASSIVE_STOMP, 500ms);
+                        break;
+                    }
 
-                events.Repeat(15s);
-                break;
-            }
+                    DoMassiveStomp();
 
-			case EVENT_STOMP:
-			{
-				if (Unit* v = me->GetVictim())
-				{
-					// emote řádek správným overloadem
-					std::string msg = std::string(me->GetName()) + " stomps the ground at " + v->GetName() + "!";
-					me->TextEmote(msg, v, /*isBossEmote=*/true);
-			
-					ThranokYellsA::Stomp(me);
-					me->CastSpell(v, R10_25(SPELL_STOMP_10, SPELL_STOMP_25), false);
-				}
-			
-				events.Repeat(45s);
-				events.ScheduleEvent(EVENT_IMPALE, 3s); // stejný odstup jako u Archavona
-				break;
-			}
+                    events.ScheduleEvent(EVENT_VIOLENT_EARTH, milliseconds(VE_AFTER_MS_MS));
+                    break;
+                }
 
+                case EVENT_VIOLENT_EARTH:
+                {
+                    if (me->HasUnitState(UNIT_STATE_CASTING))
+                    {
+                        events.ScheduleEvent(EVENT_VIOLENT_EARTH, 500ms);
+                        break;
+                    }
 
-            case EVENT_IMPALE:
-            {
-                me->CastSpell(me->GetVictim(), R10_25(SPELL_IMPALE_10, SPELL_IMPALE_25), false);
-                break;
-            }
+                    StartViolentEarth();
 
-            case EVENT_BERSERK:
-            {
-                ThranokYellsA::Berserk(me);
-                me->CastSpell(me, SPELL_BERSERK, true);
-                break;
+                    events.ScheduleEvent(EVENT_EARTHQUAKE, milliseconds(VE_CAST_MS + QUAKE_AFTER_VE_END_MS));
+                    break;
+                }
+
+                case EVENT_EARTHQUAKE:
+                {
+                    if (me->HasUnitState(UNIT_STATE_CASTING))
+                    {
+                        events.ScheduleEvent(EVENT_EARTHQUAKE, 200ms);
+                        break;
+                    }
+
+                    DoEarthquake();
+
+                    events.ScheduleEvent(EVENT_MASSIVE_STOMP, milliseconds(MS_AFTER_QUAKE_END_MS));
+                    break;
+                }
+
+                case EVENT_HEROIC_AURA_FROM_STOMP:
+                {
+                    if (!ThranokHeroic())
+                        break;
+                    CastHeroicEarthquakeAura();
+                    break;
+                }
+
+                case EVENT_HEROIC_AURA_FROM_QUAKE:
+                {
+                    if (!ThranokHeroic())
+                        break;
+                    CastHeroicEarthquakeAura();
+                    break;
+                }
+
+                case EVENT_BERSERK:
+                {
+                    YellBerserk();
+                    me->CastSpell(me, SPELL_BERSERK, true);
+                    break;
+                }
             }
         }
 
-        DoMeleeAttackIfReady();
+        if (!me->HasUnitState(UNIT_STATE_CASTING))
+            DoMeleeAttackIfReady();
     }
 };
 
-// ===============================
-// SpellScript: Rock Shards (bez hand vizuálů, jen dmg dle 10/25)
-// ===============================
-class spell_thranok_rock_shards : public SpellScript
-{
-    PrepareSpellScript(spell_thranok_rock_shards);
-
-    bool Validate(SpellInfo const*) override
-    {
-        return ValidateSpellInfo({ /* 58941 nemá co validovat, ale ověř dmg varianty: */
-            58695, /* DAMAGE_10 */
-            60883  /* DAMAGE_25 */
-        });
-    }
-
-    void HandleScript(SpellEffIndex effIndex)
-    {
-        PreventHitDefaultEffect(effIndex);
-
-        Unit* caster = GetCaster();
-        Unit* target = GetHitUnit();
-        if (!caster || !target)
-            return;
-
-        uint32 dmgId = ThranokHeroic() ? 60883 : 58695;
-        caster->CastSpell(target, dmgId, true);
-    }
-
-    void Register() override
-    {
-        OnEffectHitTarget += SpellEffectFn(
-            spell_thranok_rock_shards::HandleScript,
-            EFFECT_0, SPELL_EFFECT_SCRIPT_EFFECT
-        );
-    }
-};
-
-// ===============================
-// Registrátor
-// ===============================
+// ============================
+// Registrace
+// ============================
 void RegisterGuildVillageThranok()
 {
     RegisterCreatureAI(boss_thranok_the_unyielding);
-    RegisterSpellScript(spell_thranok_rock_shards);
 }

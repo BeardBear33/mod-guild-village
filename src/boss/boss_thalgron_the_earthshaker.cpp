@@ -1,90 +1,243 @@
+// modules/mod-guild-village/src/boss/boss_thalgron_the_earthshaker.cpp
+
 #include "CreatureScript.h"
 #include "Player.h"
 #include "ScriptedCreature.h"
-#include "SpellAuras.h"
 #include "SpellScript.h"
-#include "SpellScriptLoader.h"
 #include "Config.h"
+#include "ObjectAccessor.h"
+#include "GossipDef.h"
+#include "SpellAuraEffects.h"
 
-// ============================
-// Thalgron the Earthshaker — Koralon-style (open-world)
-// ============================
-//
-// Schopnosti:
-//  - Burning Breath (periodicky; boss se při tom „točí“ kolem dokola)
-//  - Meteor Fists (proc aura -> dodatečné zásahy při mele)
-//  - Flaming Cinder (náhodné cíle; PŘÍMO vystřelený missile, bez SpellScriptu)
-//  - (HC) Enrage po 5 minutách, zapíná se přes Thalgron.Heroic = 1
-// Bez instance logiky, bez SetInCombatWithZone.
-//
+#include <algorithm>
+#include <vector>
+#include <chrono>
+#include <limits>
 
-// ============================
-// Heroic toggle (config)
-// ============================
-static bool ThalgronHeroic()
+// -------- Lokalizace (cs/en) --------
+namespace GuildVillageLoc
 {
-    return sConfigMgr->GetOption<bool>("Thalgron.Heroic", false);
+    enum class Lang { CS, EN };
+
+    static inline Lang LangOpt()
+    {
+        std::string loc = sConfigMgr->GetOption<std::string>("GuildVillage.Locale", "cs");
+        std::transform(loc.begin(), loc.end(), loc.begin(), ::tolower);
+        return (loc == "en" || loc == "english") ? Lang::EN : Lang::CS;
+    }
+
+    static inline char const* T(char const* cs, char const* en)
+    {
+        return (LangOpt() == Lang::EN) ? en : cs;
+    }
 }
 
-// --- Spelly (z Koralona) ---
-enum Spells
+// -------- Přepínač obtížnosti --------
+static inline bool ThalgronHeroic()
 {
-    SPELL_BURNING_FURY               = 68168, // pasivní stacking aura
-    SPELL_BURNING_BREATH             = 66665, // handled by spell_difficulty
-    // SPELL_FLAMING_CINDER           = 66681,   // NEPOUŽÍVÁME (nahrazeno přímým missile)
-    SPELL_FLAMING_CINDER_MISSILE     = 66682,  // přímo castneme z AI
-    SPELL_METEOR_FISTS               = 66725,  // aura (dmg řeší aura script níže)
-    SPELL_METEOR_FISTS_DAMAGE        = 66765,  // proc dmg
-    SPELL_ENRAGE                     = 26662   // HC only
+    return sConfigMgr->GetOption<bool>("GuildVillage.Thalgron.Heroic", false);
+}
+
+enum ThalgronSpells : uint32
+{
+    SPELL_BERSERK            = 62555,
+    SPELL_RUNE_PUNCH         = 64874,
+    SPELL_CRYSTALLINE_CHAINS = 57050,
+    SPELL_CRYSTAL_BLOOM      = 48058,
+    SPELL_CRYSTALFIRE_BREATH = 57091,
+    SPELL_METEOR_STRIKE      = 74648,
+    SPELL_STARFALL           = 37124 
 };
 
-// --- Eventy ---
-enum Events
+enum ThalgronEvents : uint32
 {
-    EVENT_BURNING_BREATH = 1,
-    EVENT_METEOR_FISTS   = 2,
-    EVENT_FLAME_CINDER   = 3,
-    EVENT_ENRAGE         = 4 // HC only
+    EVENT_RUNE_PUNCH = 1,
+    EVENT_BREATH,
+    EVENT_METEOR,
+    EVENT_STARFALL,
+    EVENT_STARFALL_TICK,
+    EVENT_BLOOM_PAIR,
+    EVENT_BERSERK
 };
+
+// --- Časování (ms) ---
+static constexpr uint32 PUNCH_FIRST_NORMAL_MS      = 10000; // 10s
+static constexpr uint32 PUNCH_FIRST_HEROIC_MS      = 10000; // 10s
+
+static constexpr uint32 BREATH_AFTER_PUNCH_N_MS    = 25000; // 25s po Punch (Normal)
+static constexpr uint32 BREATH_AFTER_PUNCH_H_MS    = 15000; // 15s po Punch (Heroic)
+
+static constexpr uint32 METEOR_AFTER_BREATH_H_MS   = 15000; // 15s po Breath (Heroic only)
+
+static constexpr uint32 STARFALL_AFTER_BREATH_N_MS = 25000; // 25s po Breath (Normal)
+static constexpr uint32 STARFALL_AFTER_METEOR_MS   = 20000; // 20s po Meteor Strike (Heroic)
+
+static constexpr uint32 BLOOM_PERIOD_NORMAL_MS     = 18000; // každých 18s
+static constexpr uint32 BLOOM_PERIOD_HEROIC_MS     = 13000; // každých 13s
+
+static constexpr uint32 BREATH_CAST_MS             = 1000;  // ~1.0s
+static constexpr uint32 STARFALL_TICK_MS           = 700;   // rozestup mezi jednotlivými Starfall
+static constexpr uint32 STARFALL_COUNT_NORMAL      = 3;
+static constexpr uint32 STARFALL_COUNT_HEROIC      = 6;
+
+// Bezpečnostní prodleva pro přeplánování, když zrovna boss castí
+static constexpr uint32 SAFETY_RETRY_MS            = 200;
+
+// Dosahem/LOS
+static constexpr float  MELEE_RANGE_PICK           = 5.5f;
+static constexpr float  CHAINS_RANGE               = 30.0f;
+static constexpr float  MAX_LOS_RANGE              = 70.0f;
+
+// --- Pomocná hodnota "nekonečno" ---
+static constexpr uint32 TIMER_INF                  = std::numeric_limits<uint32>::max();
 
 struct boss_thalgron_the_earthshaker : public ScriptedAI
 {
     boss_thalgron_the_earthshaker(Creature* c) : ScriptedAI(c) { }
 
     EventMap events;
-    uint32 rotateTimer = 0;
 
-    // volitelné hlášky (in-code)
-    void YellAggro()   { me->Yell("The flames will consume you!", LANG_UNIVERSAL, nullptr); }
-    void YellBreath()  { me->Yell("Burn!", LANG_UNIVERSAL, nullptr); }
-    void YellFists()   { me->Yell("My fists are meteors!", LANG_UNIVERSAL, nullptr); }
-    void YellCinder()  { me->Yell("Cinders to ashes!", LANG_UNIVERSAL, nullptr); }
-    void YellEnrage()  { me->Yell("Enough! Burn to ash!", LANG_UNIVERSAL, nullptr); }
-    void YellDeath()   { me->Yell("The fire... fades...", LANG_UNIVERSAL, nullptr); }
+    // Počítadlo pro sekvenční Starfall
+    uint32 starfallLeft = 0;
 
+    bool chainsRetryPending = false;
+
+    // -------- Hlášky --------
+    void YellAggro()
+    {
+        me->Yell(GuildVillageLoc::T(
+            "Krystaly zpívají… a země se zlomí!",
+            "Crystals sing… and the earth will break!"
+        ), LANG_UNIVERSAL, nullptr);
+    }
+
+    void YellRunePunch(Unit* t)
+    {
+        if (t)
+        {
+            std::string cs = "Úder otisknul runy do " + t->GetName() + "!";
+            std::string en = "The strike imprints runes onto " + t->GetName() + "!";
+            me->Yell(GuildVillageLoc::T(cs.c_str(), en.c_str()), LANG_UNIVERSAL, nullptr);
+        }
+    }
+
+    void YellBreath()
+    {
+        me->Yell(GuildVillageLoc::T(
+            "Dech mrazu a plamene!",
+            "Breath of frost and flame!"
+        ), LANG_UNIVERSAL, nullptr);
+    }
+
+    void YellStarfall()
+    {
+        me->Yell(GuildVillageLoc::T(
+            "Hvězdy se lámou o zem!",
+            "Stars shatter upon the earth!"
+        ), LANG_UNIVERSAL, nullptr);
+    }
+
+    void YellBerserk()
+    {
+        me->Yell(GuildVillageLoc::T(
+            "Krystal praská vztekem!",
+            "Crystal cracks with fury!"
+        ), LANG_UNIVERSAL, nullptr);
+    }
+
+    void YellDeath()
+    {
+        me->Yell(GuildVillageLoc::T(
+            "Ticho… a střepy…",
+            "Silence… and shards…"
+        ), LANG_UNIVERSAL, nullptr);
+    }
+
+    // -------- Utility: sběr hráčů --------
+    void CollectPlayers(std::vector<Player*>& out, float radius = MAX_LOS_RANGE)
+    {
+        out.clear();
+        if (Map* map = me->GetMap())
+        {
+            for (auto const& ref : map->GetPlayers())
+            {
+                if (Player* p = ref.GetSource())
+                {
+                    if (!p->IsAlive())
+                        continue;
+                    if (!me->IsWithinDistInMap(p, radius))
+                        continue;
+                    if (!me->IsWithinLOSInMap(p))
+                        continue;
+                    out.push_back(p);
+                }
+            }
+        }
+    }
+
+    Player* RandomPlayerInRange(float radius)
+    {
+        std::vector<Player*> pl;
+        CollectPlayers(pl, radius);
+        if (pl.empty())
+            return nullptr;
+        uint32 i = urand(0u, (uint32)pl.size() - 1u);
+        return pl[i];
+    }
+
+    Player* PickMeleeTarget()
+    {
+        if (Unit* v = me->GetVictim())
+            if (me->GetDistance(v) <= MELEE_RANGE_PICK)
+                return v->ToPlayer();
+
+        std::vector<Player*> pl;
+        CollectPlayers(pl, MELEE_RANGE_PICK + 1.0f);
+        if (pl.empty())
+            return nullptr;
+
+        std::sort(pl.begin(), pl.end(), [this](Player* a, Player* b)
+        {
+            return me->GetDistance(a) < me->GetDistance(b);
+        });
+
+        for (Player* p : pl)
+            if (me->GetDistance(p) <= MELEE_RANGE_PICK)
+                return p;
+
+        return nullptr;
+    }
+
+    // -------- Lifecycle --------
     void Reset() override
     {
         events.Reset();
-        rotateTimer = 0;
         me->RemoveAllAuras();
+        me->SetReactState(REACT_AGGRESSIVE);
+        starfallLeft = 0;
+        chainsRetryPending = false;
+    }
+
+    void JustReachedHome() override
+    {
+        me->setActive(false);
     }
 
     void JustEngagedWith(Unit* /*who*/) override
     {
-        me->CastSpell(me, SPELL_BURNING_FURY, true);
-        YellAggro();
-
-        // plánování schopností
-        events.ScheduleEvent(EVENT_BURNING_BREATH, 10s);
-        events.ScheduleEvent(EVENT_METEOR_FISTS,   30s);
-        events.ScheduleEvent(EVENT_FLAME_CINDER,   20s);
-
-        // HC: Enrage po 2 minutách
-        if (ThalgronHeroic())
-            events.ScheduleEvent(EVENT_ENRAGE, 2min);
+        using namespace std::chrono;
 
         me->setActive(true);
         me->CallForHelp(175.0f);
+        YellAggro();
+
+        uint32 firstPunch = ThalgronHeroic() ? PUNCH_FIRST_HEROIC_MS : PUNCH_FIRST_NORMAL_MS;
+        events.ScheduleEvent(EVENT_RUNE_PUNCH, milliseconds(firstPunch));
+
+        uint32 bloomPeriod = ThalgronHeroic() ? BLOOM_PERIOD_HEROIC_MS : BLOOM_PERIOD_NORMAL_MS;
+        events.ScheduleEvent(EVENT_BLOOM_PAIR, milliseconds(bloomPeriod));
+
+        events.ScheduleEvent(EVENT_BERSERK, 5min);
     }
 
     void JustDied(Unit* /*killer*/) override
@@ -92,107 +245,211 @@ struct boss_thalgron_the_earthshaker : public ScriptedAI
         YellDeath();
     }
 
-    void UpdateAI(uint32 diff) override
+    // -------- Akce --------
+	void ApplyCrystalBloom()
+	{
+		Aura* a = me->GetAura(SPELL_CRYSTAL_BLOOM);
+	
+		if (!a)
+		{
+			me->AddAura(SPELL_CRYSTAL_BLOOM, me);
+			return;
+		}
+	
+		uint8 stacks = a->GetStackAmount();
+		if (stacks < 15)
+			a->SetStackAmount(uint8(stacks + 1));
+	
+		if (a->GetMaxDuration() > 0)
+			a->SetDuration(a->GetMaxDuration());
+	}
+	
+    void DoRunePunch()
     {
-        // „otáčení“ během Burning Breath (stejná finta jako u Koralona)
-        if (rotateTimer)
+        if (Player* t = PickMeleeTarget())
         {
-            me->SetUInt64Value(UNIT_FIELD_CHANNEL_OBJECT, 0);
-            rotateTimer += diff;
-            if (rotateTimer >= 3000)
-            {
-                if (!me->HasUnitMovementFlag(MOVEMENTFLAG_LEFT))
-                {
-                    me->SetUnitMovementFlags(MOVEMENTFLAG_LEFT);
-                    me->SendMovementFlagUpdate();
-                    rotateTimer = 1;
-                    return;
-                }
-                else
-                {
-                    me->RemoveUnitMovementFlag(MOVEMENTFLAG_LEFT);
-                    me->SendMovementFlagUpdate();
-                    rotateTimer = 0;
-                    return;
-                }
-            }
+            YellRunePunch(t);
+            me->CastSpell(t, SPELL_RUNE_PUNCH, true);
+        }
+        else
+        {
+            if (Unit* v = me->GetVictim())
+                me->CastSpell(v, SPELL_RUNE_PUNCH, true);
+            else
+                me->CastSpell(me, SPELL_RUNE_PUNCH, true);
+        }
+    }
+
+    void DoBreath()
+    {
+        YellBreath();
+        me->CastSpell(me->GetVictim() ? me->GetVictim() : me, SPELL_CRYSTALFIRE_BREATH, false);
+    }
+
+    void DoMeteor()
+    {
+        me->CastSpell(me, SPELL_METEOR_STRIKE, true);
+    }
+
+    void StartStarfallSequence(uint32 count)
+    {
+        starfallLeft = count;
+        YellStarfall();
+        me->CastSpell(me, SPELL_STARFALL, true);
+        --starfallLeft;
+
+        if (starfallLeft > 0)
+            events.ScheduleEvent(EVENT_STARFALL_TICK, std::chrono::milliseconds(STARFALL_TICK_MS));
+    }
+
+    void DoStarfallTick()
+    {
+        if (starfallLeft == 0)
+            return;
+
+        me->CastSpell(me, SPELL_STARFALL, true);
+        --starfallLeft;
+
+        if (starfallLeft > 0)
+            events.ScheduleEvent(EVENT_STARFALL_TICK, std::chrono::milliseconds(STARFALL_TICK_MS));
+    }
+
+    void DoCrystalBloomWithChains()
+    {
+        if (!chainsRetryPending)
+            ApplyCrystalBloom();
+
+        if (me->HasUnitState(UNIT_STATE_CASTING))
+        {
+            chainsRetryPending = true;
+            events.ScheduleEvent(EVENT_BLOOM_PAIR, std::chrono::milliseconds(SAFETY_RETRY_MS));
+            return;
         }
 
+        if (Player* t = RandomPlayerInRange(CHAINS_RANGE))
+        {
+            me->CastSpell(t, SPELL_CRYSTALLINE_CHAINS, false);
+        }
+
+        chainsRetryPending = false;
+
+        uint32 period = ThalgronHeroic() ? BLOOM_PERIOD_HEROIC_MS : BLOOM_PERIOD_NORMAL_MS;
+        events.ScheduleEvent(EVENT_BLOOM_PAIR, std::chrono::milliseconds(period));
+    }
+
+    // -------- Update --------
+    void UpdateAI(uint32 diff) override
+    {
         if (!UpdateVictim())
             return;
 
         events.Update(diff);
-        if (me->HasUnitState(UNIT_STATE_CASTING))
-            return;
+        using namespace std::chrono;
 
-        switch (events.ExecuteEvent())
+        uint32 ev;
+        while ((ev = events.ExecuteEvent()))
         {
-            case EVENT_BURNING_BREATH:
-                YellBreath();
-                rotateTimer = 1500; // rozběh rotace (jako v originálu)
-                me->CastSpell(me, SPELL_BURNING_BREATH, false);
-                events.Repeat(45s);
-                break;
-
-            case EVENT_METEOR_FISTS:
-                YellFists();
-                me->CastSpell(me, SPELL_METEOR_FISTS, true);
-                events.Repeat(45s);
-                break;
-
-            case EVENT_FLAME_CINDER:
+            switch (ev)
             {
-                YellCinder();
-                if (Unit* t = SelectTarget(SelectTargetMethod::Random, 0))
-                    me->CastSpell(t->GetPositionX(), t->GetPositionY(), t->GetPositionZ(),
-                                  SPELL_FLAMING_CINDER_MISSILE, true);
-                events.Repeat(30s);
-                break;
+                case EVENT_RUNE_PUNCH:
+                {
+                    if (me->HasUnitState(UNIT_STATE_CASTING))
+                    {
+                        events.ScheduleEvent(EVENT_RUNE_PUNCH, milliseconds(SAFETY_RETRY_MS));
+                        break;
+                    }
+
+                    DoRunePunch();
+
+                    events.ScheduleEvent(EVENT_BREATH, milliseconds(
+                        ThalgronHeroic() ? BREATH_AFTER_PUNCH_H_MS : BREATH_AFTER_PUNCH_N_MS
+                    ));
+                    break;
+                }
+
+                case EVENT_BREATH:
+                {
+                    if (me->HasUnitState(UNIT_STATE_CASTING))
+                    {
+                        events.ScheduleEvent(EVENT_BREATH, milliseconds(SAFETY_RETRY_MS));
+                        break;
+                    }
+
+                    DoBreath();
+
+                    if (ThalgronHeroic())
+                    {
+                        events.ScheduleEvent(EVENT_METEOR, milliseconds(METEOR_AFTER_BREATH_H_MS));
+                    }
+                    else
+                    {
+                        events.ScheduleEvent(EVENT_STARFALL, milliseconds(STARFALL_AFTER_BREATH_N_MS));
+                    }
+                    break;
+                }
+
+                case EVENT_METEOR:
+                {
+                    if (!ThalgronHeroic())
+                        break;
+
+                    if (me->HasUnitState(UNIT_STATE_CASTING))
+                    {
+                        events.ScheduleEvent(EVENT_METEOR, milliseconds(SAFETY_RETRY_MS));
+                        break;
+                    }
+
+                    DoMeteor();
+
+                    events.ScheduleEvent(EVENT_STARFALL, milliseconds(STARFALL_AFTER_METEOR_MS));
+                    break;
+                }
+
+                case EVENT_STARFALL:
+                {
+                    if (me->HasUnitState(UNIT_STATE_CASTING))
+                    {
+                        events.ScheduleEvent(EVENT_STARFALL, milliseconds(SAFETY_RETRY_MS));
+                        break;
+                    }
+
+                    StartStarfallSequence(ThalgronHeroic() ? STARFALL_COUNT_HEROIC : STARFALL_COUNT_NORMAL);
+
+                    uint32 finishBuffer = (ThalgronHeroic() ? STARFALL_COUNT_HEROIC : STARFALL_COUNT_NORMAL) * STARFALL_TICK_MS;
+                    events.ScheduleEvent(EVENT_RUNE_PUNCH, milliseconds(finishBuffer + 200));
+                    break;
+                }
+
+                case EVENT_STARFALL_TICK:
+                {
+                    DoStarfallTick();
+                    break;
+                }
+
+                case EVENT_BLOOM_PAIR:
+                {
+                    DoCrystalBloomWithChains();
+                    break;
+                }
+
+                case EVENT_BERSERK:
+                {
+                    YellBerserk();
+                    me->CastSpell(me, SPELL_BERSERK, true);
+                    break;
+                }
             }
-
-            case EVENT_ENRAGE:
-                YellEnrage();
-                me->CastSpell(me, SPELL_ENRAGE, true);
-                break;
-
-            default:
-                break;
         }
 
-        DoMeleeAttackIfReady();
+        if (!me->HasUnitState(UNIT_STATE_CASTING))
+            DoMeleeAttackIfReady();
     }
 };
 
 // ============================
-// AuraScript: Meteor Fists (ponecháno)
+// Registrace
 // ============================
-class spell_thalgron_meteor_fists_aura : public AuraScript
-{
-    PrepareAuraScript(spell_thalgron_meteor_fists_aura);
-
-    bool Validate(SpellInfo const* /*spellInfo*/) override
-    {
-        return ValidateSpellInfo({ SPELL_METEOR_FISTS_DAMAGE });
-    }
-
-    void TriggerFists(AuraEffect const* aurEff, ProcEventInfo& eventInfo)
-    {
-        PreventDefaultAction();
-        GetTarget()->CastSpell(eventInfo.GetProcTarget(), SPELL_METEOR_FISTS_DAMAGE, true, nullptr, aurEff);
-    }
-
-    void Register() override
-    {
-        OnEffectProc += AuraEffectProcFn(spell_thalgron_meteor_fists_aura::TriggerFists, EFFECT_0, SPELL_AURA_DUMMY);
-    }
-};
-
-// ===============================
-// Lokální registrátor pro loader
-// ===============================
 void RegisterGuildVillageThalgron()
 {
     RegisterCreatureAI(boss_thalgron_the_earthshaker);
-    // Flaming Cinder SpellScript NEregistrovat (není potřeba)
-    RegisterSpellScript(spell_thalgron_meteor_fists_aura);
 }

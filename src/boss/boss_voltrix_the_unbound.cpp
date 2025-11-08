@@ -1,202 +1,483 @@
+// modules/mod-guild-village/src/boss/boss_voltrix_the_unbound.cpp
+
 #include "CreatureScript.h"
 #include "Player.h"
 #include "ScriptedCreature.h"
-#include "SpellAuraEffects.h"
 #include "SpellScript.h"
-#include "SpellScriptLoader.h"
 #include "Config.h"
-#include "PassiveAI.h"
-#include "Opcodes.h"
+#include "ObjectAccessor.h"
+#include <chrono>
+#include <vector>
+#include <algorithm>
+#include <queue>
 
-// ============================
-// Config: 10 / 25 pomocná volba
-// ============================
-static bool VoltrixHeroic()
+// -------- Lokalizace (cs/en) --------
+namespace GuildVillageLoc
 {
-    return sConfigMgr->GetOption<bool>("Voltrix.Heroic", false);
-}
-static uint32 R10_25(uint32 id10, uint32 id25)
-{
-    return VoltrixHeroic() ? id25 : id10;
+    enum class Lang { CS, EN };
+
+    static inline Lang LangOpt()
+    {
+        std::string loc = sConfigMgr->GetOption<std::string>("GuildVillage.Locale", "cs");
+        std::transform(loc.begin(), loc.end(), loc.begin(), ::tolower);
+        return (loc == "en" || loc == "english") ? Lang::EN : Lang::CS;
+    }
+
+    static inline char const* T(char const* cs, char const* en)
+    {
+        return (LangOpt() == Lang::EN) ? en : cs;
+    }
 }
 
-// ============================
-// Spells
-// ============================
-enum Spells
+// -------- Přepínač obtížnosti --------
+static inline bool VoltrixHeroic()
 {
-    // BASIC
-    SPELL_GRAVITY_BOMB_10   = 63024,
-    SPELL_GRAVITY_BOMB_25   = 64234,
-    SPELL_SEARING_LIGHT_10  = 63018,
-    SPELL_SEARING_LIGHT_25  = 65121,
-    SPELL_TYMPANIC_TANTARUM = 62776,
-    SPELL_ENRAGE            = 26662
+    return sConfigMgr->GetOption<bool>("GuildVillage.Voltrix.Heroic", false);
+}
+
+enum Spells : uint32
+{
+    SPELL_FIRE_MISSILE_VISUAL = 45971,  // vizuál rakety (instant, bez dmg)
+    SPELL_FIRE_MISSILE_DAMAGE = 74421,  // skutečný zásah rakety (instant dmg)
+    SPELL_FLAME_BREATH        = 50989,  // channeled ~3s
+    SPELL_SMASH               = 62465,  // úder na aktuální aggro target
+    SPELL_BERSERK              = 62555, // berserk (5 min)
+
+    // --- Core thresholds ---
+    SPELL_CORE_BURST_SINGLE   = 54531, // instant AOE výboj 2 targety – používá se jen v Heroic
+    SPELL_CORE_SELF_DEBUFF    = 39095  // self debuff (připínám přes AddAura)
 };
 
-enum Events
+enum Events : uint32
 {
-    EVENT_GRAVITY_BOMB = 1,
-    EVENT_SEARING_LIGHT,
-    EVENT_ENRAGE,
-    EVENT_TANTRUM
+    EVENT_FIRE_VOLLEY = 1,   // spustí novou „salvu“ raket
+    EVENT_FIRE_VOLLEY_TICK,  // postupné vypouštění vizuálů
+    EVENT_FIRE_VOLLEY_HIT,   // opožděné hity raket (dmg)
+    EVENT_FLAME_BREATH,      // channeled plamenomet na nejbližší melee
+    EVENT_SMASH,             // Smash na aktuální oběť (aggro target)
+    EVENT_BERSERK
 };
 
-// ============================
-// Boss Voltrix
-// ============================
+// -------- Parametry salvy raket (Normal/Heroic) --------
+static constexpr uint32 FIRE_VOLLEY_TOTAL_PROJECTILES_N = 20; // Normal
+static constexpr uint32 FIRE_VOLLEY_TARGETS_N           = 5;
+static constexpr uint32 FIRE_PER_TARGET_N               = 4;
+
+static constexpr uint32 FIRE_VOLLEY_TOTAL_PROJECTILES_H = 50; // Heroic
+static constexpr uint32 FIRE_VOLLEY_TARGETS_H           = 10;
+static constexpr uint32 FIRE_PER_TARGET_H               = 5;
+
+// Getter funkce (čtou přepínač Heroic)
+static inline uint32 FIRE_VOLLEY_TOTAL_PROJECTILES() { return VoltrixHeroic() ? FIRE_VOLLEY_TOTAL_PROJECTILES_H : FIRE_VOLLEY_TOTAL_PROJECTILES_N; }
+static inline uint32 FIRE_VOLLEY_TARGETS()           { return VoltrixHeroic() ? FIRE_VOLLEY_TARGETS_H           : FIRE_VOLLEY_TARGETS_N; }
+static inline uint32 FIRE_PER_TARGET()               { return VoltrixHeroic() ? FIRE_PER_TARGET_H               : FIRE_PER_TARGET_N; }
+
+// Časování vizuálů/hitů
+static constexpr uint32 FIRE_TICK_DELAY_MS = 120; // rozestup mezi vizuály
+static constexpr uint32 FIRE_HIT_DELAY_MS  = 140; // zpoždění mezi vizuálem a dmg
+
 struct boss_voltrix_the_unbound : public ScriptedAI
 {
-    boss_voltrix_the_unbound(Creature* c) : ScriptedAI(c), summons(me) { }
+    boss_voltrix_the_unbound(Creature* c) : ScriptedAI(c) { }
 
     EventMap events;
-    SummonList summons;
 
-    // Yelly
-    void YellAggro()   { me->Yell("New toys? For me? I promise I won't break them this time!", LANG_UNIVERSAL, nullptr); }
-    void YellTantrum() { me->Yell("NO! NO! NO! NO! NO!", LANG_UNIVERSAL, nullptr); }
-    void YellSlay()    { me->Yell(urand(0,1) ? "I... I think I broke it." : "I guess it doesn't bend that way.", LANG_UNIVERSAL, nullptr); }
-    void YellBerserk() { me->Yell("I'm tired of these toys. I don't want to play anymore!", LANG_UNIVERSAL, nullptr); }
-    void YellDeath()   { me->Yell("You are bad... Toys... Very... Baaaaad", LANG_UNIVERSAL, nullptr); }
+    std::vector<ObjectGuid> volleyTargets;
+    std::vector<ObjectGuid> volleyOrder;
+    uint32                  volleyTickIndex = 0;
 
-    // helper: 10/25
-    uint32 SPELL_GRAVITY_BOMB() const { return R10_25(SPELL_GRAVITY_BOMB_10,  SPELL_GRAVITY_BOMB_25); }
-    uint32 SPELL_SEARING_LIGHT() const { return R10_25(SPELL_SEARING_LIGHT_10, SPELL_SEARING_LIGHT_25); }
+    std::queue<ObjectGuid> pendingHits;
+
+    uint8                   coreBurstStage = 0;
+
+    // Lokalizované hlášky
+    void YellAggro()
+    {
+        me->Yell(GuildVillageLoc::T(
+            "Inicializace bojového protokolu. Cíle detekovány.",
+            "Initializing combat protocol. Targets acquired."
+        ), LANG_UNIVERSAL, nullptr);
+    }
+
+    void YellVolley()
+    {
+        me->Yell(GuildVillageLoc::T(
+            "Protokol: SALVA RAKET – spuštěn.",
+            "Protocol: ROCKET VOLLEY – engaged."
+        ), LANG_UNIVERSAL, nullptr);
+    }
+
+    void YellBreath(Unit* t)
+    {
+        if (t)
+        {
+            std::string msgCS = "Protokol: PLAMENOMET – cíl: " + t->GetName() + ".";
+            std::string msgEN = "Protocol: FLAMETHROWER – target: " + t->GetName() + ".";
+            me->Yell(GuildVillageLoc::T(msgCS.c_str(), msgEN.c_str()), LANG_UNIVERSAL, nullptr);
+        }
+        else
+        {
+            me->Yell(GuildVillageLoc::T(
+                "Protokol: PLAMENOMET – aktivní.",
+                "Protocol: FLAMETHROWER – active."
+            ), LANG_UNIVERSAL, nullptr);
+        }
+    }
+
+    void YellSmash(Unit* t)
+    {
+        if (t)
+        {
+            std::string msgCS = "Protokol: SMASH – cíl: " + t->GetName() + ".";
+            std::string msgEN = "Protocol: SMASH – target: " + t->GetName() + ".";
+            me->Yell(GuildVillageLoc::T(msgCS.c_str(), msgEN.c_str()), LANG_UNIVERSAL, nullptr);
+        }
+        else
+        {
+            me->Yell(GuildVillageLoc::T(
+                "Protokol: SMASH – provádím.",
+                "Protocol: SMASH – executing."
+            ), LANG_UNIVERSAL, nullptr);
+        }
+    }
+
+    void YellBerserk()
+    {
+        me->Yell(GuildVillageLoc::T(
+            "Varování: limit výkonu překročen. Režim BERSERK aktivní.",
+            "Warning: performance threshold exceeded. BERSERK mode engaged."
+        ), LANG_UNIVERSAL, nullptr);
+    }
+
+    void YellCoreBurstHeroic()
+    {
+        me->Yell(GuildVillageLoc::T(
+            "Kritické poškození jádra – uvolňuji přebytečnou energii!",
+            "Critical core damage – releasing excess energy!"
+        ), LANG_UNIVERSAL, nullptr);
+    }
+
+    void YellShieldOverloadNormal()
+    {
+        me->Yell(GuildVillageLoc::T(
+            "Přetížení systému – snižuji výkon štítu.",
+            "System overload – reducing shield output."
+        ), LANG_UNIVERSAL, nullptr);
+    }
+
+    void YellDeath()
+    {
+        me->Yell(GuildVillageLoc::T(
+            "Kritické selhání systému… vypínám.",
+            "Critical system failure… shutting down."
+        ), LANG_UNIVERSAL, nullptr);
+    }
 
     void Reset() override
     {
         events.Reset();
-        summons.DespawnAll();
+        while (!pendingHits.empty()) pendingHits.pop();
+        volleyTargets.clear();
+        volleyOrder.clear();
+        volleyTickIndex = 0;
+        coreBurstStage = 0;
         me->RemoveAllAuras();
-        me->RemoveUnitFlag(UNIT_FLAG_NON_ATTACKABLE | UNIT_FLAG_NOT_SELECTABLE);
-        me->SetControlled(false, UNIT_STATE_STUNNED);
+        me->SetReactState(REACT_AGGRESSIVE);
     }
 
-    void JustReachedHome() override { me->setActive(false); }
-
-    void JustEngagedWith(Unit*) override
+    void JustReachedHome() override
     {
+        me->setActive(false);
+    }
+
+    void JustEngagedWith(Unit* /*who*/) override
+    {
+        using namespace std::chrono;
+
         me->setActive(true);
         me->CallForHelp(175.0f);
         YellAggro();
 
-        // core rota
-        events.RescheduleEvent(EVENT_GRAVITY_BOMB, 1s);
-        events.RescheduleEvent(EVENT_TANTRUM, 1min);
-        events.RescheduleEvent(EVENT_ENRAGE, 10min);
+        events.ScheduleEvent(EVENT_SMASH, 10s);
+
+        events.ScheduleEvent(EVENT_BERSERK, 5min);
     }
 
-    void KilledUnit(Unit* v) override
-    {
-        if (v->IsPlayer() && !urand(0,2))
-            YellSlay();
-    }
-
-    void JustDied(Unit*) override
+    void JustDied(Unit* /*killer*/) override
     {
         YellDeath();
-        summons.DespawnAll();
     }
 
-    void JustSummoned(Creature* cr) override { summons.Summon(cr); }
-    void SummonedCreatureDespawn(Creature* cr) override { summons.Despawn(cr); }
+    void CheckCoreBursts()
+    {
+        if (coreBurstStage > 2)
+            return;
+
+        static uint8 const thresholds[3] = { 75, 50, 25 };
+
+        if (!me->HealthBelowPct(thresholds[coreBurstStage]))
+            return;
+
+        if (VoltrixHeroic())
+        {
+            YellCoreBurstHeroic();
+
+            std::vector<Player*> candidates;
+            CollectPlayers(candidates, 45.0f);
+
+            if (!candidates.empty())
+            {
+                uint32 n = candidates.size();
+
+                uint32 i1 = urand(0u, n - 1u);
+                if (Unit* t1 = candidates[i1])
+                    me->CastSpell(t1, SPELL_CORE_BURST_SINGLE, false);
+
+                if (n >= 2)
+                {
+                    std::swap(candidates[i1], candidates[n - 1]);
+                    uint32 i2 = urand(0u, n - 2u);
+                    if (Unit* t2 = candidates[i2])
+                        me->CastSpell(t2, SPELL_CORE_BURST_SINGLE, false);
+                }
+            }
+
+            me->AddAura(SPELL_CORE_SELF_DEBUFF, me);
+        }
+        else
+        {
+            YellShieldOverloadNormal();
+            me->AddAura(SPELL_CORE_SELF_DEBUFF, me);
+        }
+
+        ++coreBurstStage;
+    }
+
+    void CollectPlayers(std::vector<Player*>& out, float radius = 60.0f)
+    {
+        out.clear();
+        if (Map* map = me->GetMap())
+        {
+            for (auto const& ref : map->GetPlayers())
+            {
+                if (Player* p = ref.GetSource())
+                    if (p->IsAlive() && me->IsWithinDistInMap(p, radius) && me->IsWithinLOSInMap(p))
+                        out.push_back(p);
+            }
+        }
+    }
+
+    void PickVolleyTargets()
+    {
+        volleyTargets.clear();
+
+        std::vector<Player*> candidates;
+        CollectPlayers(candidates, 60.0f);
+        if (candidates.empty())
+            return;
+
+        uint32 n = candidates.size();
+        uint32 need = std::min<uint32>(FIRE_VOLLEY_TARGETS(), n);
+
+        for (uint32 i = 0; i < need; ++i)
+        {
+            uint32 j = urand(i, n - 1);
+            std::swap(candidates[i], candidates[j]);
+            volleyTargets.push_back(candidates[i]->GetGUID());
+        }
+    }
+
+    void BuildVolleyOrder()
+    {
+        volleyOrder.clear();
+        if (volleyTargets.empty())
+            return;
+
+        for (ObjectGuid const& g : volleyTargets)
+            for (uint32 k = 0; k < FIRE_PER_TARGET(); ++k)
+                volleyOrder.push_back(g);
+
+        while (volleyOrder.size() < FIRE_VOLLEY_TOTAL_PROJECTILES())
+            volleyOrder.push_back(volleyTargets[urand(0u, (uint32)volleyTargets.size() - 1u)]);
+
+        for (uint32 i = 0; i + 1 < volleyOrder.size(); ++i)
+        {
+            uint32 j = urand(i, (uint32)volleyOrder.size() - 1u);
+            std::swap(volleyOrder[i], volleyOrder[j]);
+        }
+    }
+
+    Unit* SelectNearestMelee(float maxDist = 8.0f)
+    {
+        Unit* best = nullptr;
+        float bestDist = maxDist + 0.5f;
+
+        std::vector<Player*> pl;
+        CollectPlayers(pl, 30.0f);
+
+        for (Player* p : pl)
+        {
+            float d = me->GetDistance(p);
+            if (d < bestDist)
+            {
+                best = p;
+                bestDist = d;
+            }
+        }
+        return best;
+    }
+
+    void StartFireVolley()
+    {
+        using namespace std::chrono;
+
+        PickVolleyTargets();
+        if (volleyTargets.empty())
+            return;
+
+        BuildVolleyOrder();
+        if (volleyOrder.empty())
+            return;
+
+        YellVolley();
+        volleyTickIndex = 0;
+
+        events.ScheduleEvent(EVENT_FIRE_VOLLEY_TICK, 0ms);
+    }
+
+    void DoFireVolleyTick()
+    {
+        using namespace std::chrono;
+
+        if (volleyOrder.empty() || volleyTickIndex >= volleyOrder.size())
+            return;
+
+        ObjectGuid g = volleyOrder[volleyTickIndex];
+
+        if (Unit* t = ObjectAccessor::GetUnit(*me, g))
+        {
+            if (t->IsAlive() && me->IsWithinLOSInMap(t) && me->IsWithinDistInMap(t, 60.0f))
+            {
+                me->CastSpell(t, SPELL_FIRE_MISSILE_VISUAL, false);
+
+                pendingHits.push(g);
+                events.ScheduleEvent(EVENT_FIRE_VOLLEY_HIT, std::chrono::milliseconds(FIRE_HIT_DELAY_MS));
+            }
+        }
+
+        volleyTickIndex++;
+
+        if (volleyTickIndex < FIRE_VOLLEY_TOTAL_PROJECTILES())
+        {
+            events.ScheduleEvent(EVENT_FIRE_VOLLEY_TICK, std::chrono::milliseconds(FIRE_TICK_DELAY_MS));
+        }
+    }
+
+    void DoFireVolleyHit()
+    {
+        if (pendingHits.empty())
+            return;
+
+        ObjectGuid g = pendingHits.front();
+        pendingHits.pop();
+
+        if (Unit* t = ObjectAccessor::GetUnit(*me, g))
+        {
+            if (t->IsAlive() && me->IsWithinLOSInMap(t) && me->IsWithinDistInMap(t, 60.0f))
+                me->CastSpell(t, SPELL_FIRE_MISSILE_DAMAGE, true);
+        }
+    }
+
+    void StartFlameBreath()
+    {
+        if (Unit* m = SelectNearestMelee(8.0f))
+        {
+            YellBreath(m);
+            DoCast(m, SPELL_FLAME_BREATH);
+        }
+    }
+
+    void DoSmash()
+    {
+        if (Unit* v = me->GetVictim())
+        {
+            YellSmash(v);
+            me->CastSpell(v, SPELL_SMASH, false);
+        }
+    }
 
     void UpdateAI(uint32 diff) override
     {
         if (!UpdateVictim())
             return;
 
+        CheckCoreBursts();
+
         events.Update(diff);
-        if (me->HasUnitState(UNIT_STATE_CASTING))
-            return;
 
-        switch (events.ExecuteEvent())
+        using namespace std::chrono;
+
+        uint32 evId;
+        while ((evId = events.ExecuteEvent()))
         {
-            case EVENT_GRAVITY_BOMB:
-                me->CastCustomSpell(SPELL_GRAVITY_BOMB(), SPELLVALUE_MAX_TARGETS, 1, me, true);
-                events.ScheduleEvent(EVENT_SEARING_LIGHT, 10s);
-                break;
-
-            case EVENT_SEARING_LIGHT:
-                me->CastCustomSpell(SPELL_SEARING_LIGHT(), SPELLVALUE_MAX_TARGETS, 1, me, true);
-                events.ScheduleEvent(EVENT_GRAVITY_BOMB, 10s);
-                break;
-
-            case EVENT_TANTRUM:
-                YellTantrum();
-                me->CastSpell(me, SPELL_TYMPANIC_TANTARUM, true);
-                events.Repeat(1min);
-                break;
-
-            case EVENT_ENRAGE:
-                YellBerserk();
-                me->CastSpell(me, SPELL_ENRAGE, true);
-                break;
-        }
-
-        DoMeleeAttackIfReady();
-    }
-};
-
-// ============================
-// Spell skripty
-// ============================
-
-class spell_voltrix_tympanic_tantrum : public SpellScript
-{
-    PrepareSpellScript(spell_voltrix_tympanic_tantrum);
-
-    void FilterTargets(std::list<WorldObject*>& targets) { targets.remove_if(PlayerOrPetCheck()); }
-    void RecalculateDamage() { if (GetHitUnit()) SetHitDamage(GetHitUnit()->CountPctFromMaxHealth(GetHitDamage())); }
-
-    void Register() override
-    {
-        OnObjectAreaTargetSelect += SpellObjectAreaTargetSelectFn(spell_voltrix_tympanic_tantrum::FilterTargets, EFFECT_ALL, TARGET_UNIT_SRC_AREA_ENEMY);
-        OnHit += SpellHitFn(spell_voltrix_tympanic_tantrum::RecalculateDamage);
-    }
-};
-
-// Gravity Bomb – nezasáhne aktuálního tank target (bez Acore::ObjectGUIDCheck)
-class spell_voltrix_gravity_bomb : public SpellScript
-{
-    PrepareSpellScript(spell_voltrix_gravity_bomb);
-
-    void SelectTarget(std::list<WorldObject*>& targets)
-    {
-        if (Unit* victim = GetCaster()->GetVictim())
-        {
-            auto vg = victim->GetGUID();
-            targets.remove_if([&](WorldObject* obj)
+            switch (evId)
             {
-                return obj && obj->GetGUID() == vg;
-            });
-        }
-    }
-    void Register() override
-    {
-        OnObjectAreaTargetSelect += SpellObjectAreaTargetSelectFn(spell_voltrix_gravity_bomb::SelectTarget, EFFECT_ALL, TARGET_UNIT_DEST_AREA_ENEMY);
-    }
-};
+                case EVENT_SMASH:
+                {
+                    if (me->HasUnitState(UNIT_STATE_CASTING))
+                    {
+                        events.ScheduleEvent(EVENT_SMASH, 1s);
+                        break;
+                    }
 
-// 63018/65121 – Searing Light: jen target filtr (bez Acore::ObjectGUIDCheck)
-class spell_voltrix_searing_light : public SpellScript
-{
-    PrepareSpellScript(spell_voltrix_searing_light);
+                    DoSmash();
+                    events.ScheduleEvent(EVENT_FIRE_VOLLEY, 25s);
+                    break;
+                }
 
-    void SelectTarget(std::list<WorldObject*>& targets)
-    {
-        if (Unit* victim = GetCaster()->GetVictim())
-        {
-            auto vg = victim->GetGUID();
-            targets.remove_if([&](WorldObject* obj)
-            {
-                return obj && obj->GetGUID() == vg;
-            });
+                case EVENT_FIRE_VOLLEY:
+                {
+                    if (me->HasUnitState(UNIT_STATE_CASTING))
+                    {
+                        events.ScheduleEvent(EVENT_FIRE_VOLLEY, 1s);
+                        break;
+                    }
+
+                    StartFireVolley();
+                    events.ScheduleEvent(EVENT_FLAME_BREATH, 25s);
+                    break;
+                }
+
+                case EVENT_FIRE_VOLLEY_TICK:
+                {
+                    DoFireVolleyTick();
+                    break;
+                }
+
+                case EVENT_FIRE_VOLLEY_HIT:
+                {
+                    DoFireVolleyHit();
+                    break;
+                }
+
+                case EVENT_FLAME_BREATH:
+                {
+                    StartFlameBreath();
+                    events.ScheduleEvent(EVENT_SMASH, 10s);
+                    break;
+                }
+
+                case EVENT_BERSERK:
+                {
+                    YellBerserk();
+                    me->CastSpell(me, SPELL_BERSERK, true);
+                    break;
+                }
+            }
         }
-    }
-    void Register() override
-    {
-        OnObjectAreaTargetSelect += SpellObjectAreaTargetSelectFn(spell_voltrix_searing_light::SelectTarget, EFFECT_ALL, TARGET_UNIT_DEST_AREA_ENEMY);
+
+        if (!me->HasUnitState(UNIT_STATE_CASTING))
+            DoMeleeAttackIfReady();
     }
 };
 
@@ -206,8 +487,4 @@ class spell_voltrix_searing_light : public SpellScript
 void RegisterGuildVillageVoltrix()
 {
     RegisterCreatureAI(boss_voltrix_the_unbound);
-
-    RegisterSpellScript(spell_voltrix_tympanic_tantrum);
-    RegisterSpellScript(spell_voltrix_gravity_bomb);
-    RegisterSpellScript(spell_voltrix_searing_light);
 }
