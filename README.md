@@ -19,7 +19,7 @@ Add only one NPC for village purchase. ".npc add 987454"
 > It contains important information about the module’s behavior and limitations.  
 
 ----------------------------------------------------------------------------------------------------------------
-<img src="https://github.com/mod-playerbots/mod-playerbots/actions/workflows/core_build.yml/badge.svg">
+<img src="https://github.com/BeardBear33/mod-guild-village/actions/workflows/build.yml/badge.svg">
 
 🔧 Tento modul je primárně vyvíjen pro jádro:  
 [azerothcore-wotlk (Playerbot branch)](https://github.com/liyunfan1223/azerothcore-wotlk/tree/Playerbot)
