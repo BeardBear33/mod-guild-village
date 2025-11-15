@@ -75,3 +75,7 @@ Add only one NPC for village purchase. ".npc add 987454"
 
 **Currently working on:**
 - An NPC that converts guild currency into random crafting materials (e.g. Linen Cloth, Copper Ore, Light Leather, etc.).
+
+
+## License
+This module is licensed under the [GNU General Public License v3.0 (GPL-3.0)](LICENSE).
