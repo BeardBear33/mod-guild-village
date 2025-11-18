@@ -124,7 +124,4 @@ Příklad (s respawnem): `.gv exobject vendor_armorer 178123 2 300`
 ## Databázové tabulky a jejich popis
 **WIP**
 
-## License
-This module is licensed under the [GNU General Public License v3.0 (GPL-3.0)](LICENSE).
-
 
