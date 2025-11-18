@@ -48,7 +48,7 @@ namespace GuildVillage
     {
         return "|cff808080---------------------------|r";
     }
-
+	
     // Caps
     static inline bool CapsEnabled()
     {
@@ -295,6 +295,23 @@ namespace GuildVillage
     {
         return (LangOpt() == Lang::EN ? c.info_en : c.info_cs);
     }
+	
+	static std::optional<std::string> LocalizedLabelForKey(std::string const& key)
+    {
+        if (key.empty())
+            return std::nullopt;
+
+        if (QueryResult r = WorldDatabase.Query(
+                "SELECT label_cs, label_en FROM customs.gv_upgrade_catalog WHERE expansion_key='{}' LIMIT 1", key))
+        {
+            Field* f = r->Fetch();
+            std::string cs = f[0].Get<std::string>();
+            std::string en = f[1].Get<std::string>();
+            return (LangOpt() == Lang::EN) ? std::optional<std::string>(en) : std::optional<std::string>(cs);
+        }
+        return std::nullopt;
+    }
+
 
     // ---------- Odečet měny ----------
     static bool TryDeductCurrency(uint32 guildId, CatalogRow const& c)
@@ -373,6 +390,7 @@ namespace GuildVillage
 
         ACT_ITEM_BASE    = 1000, // ACT_ITEM_BASE + index
         ACT_CONFIRM_BASE = 5000, // ACT_CONFIRM_BASE + index (používá se pro potvrzení nákupu)
+		ACT_REQUIRE_BASE = 7000,
 
         ACT_BACK_CATEGORY     = 9000, // zpět na hlavní rozcestník
         ACT_BACK_TO_CATEGORY  = 9001, // zpět do poslední otevřené kategorie (po potvrzení)
@@ -481,9 +499,6 @@ namespace GuildVillage
                 if (!c.enabled)
                     continue;
 
-                if (!c.req_key.empty() && purchased.find(c.req_key) == purchased.end())
-                    continue;
-
                 if (!HasFactionContent(c.key, factionFilter))
                     continue;
                 if (purchased.find(c.key) != purchased.end())
@@ -506,19 +521,27 @@ namespace GuildVillage
             ChatHandler(player->GetSession()).SendSysMessage(
                 T("Vyber položku k zakoupení:", "Select an upgrade to purchase:"));
 
-            for (uint32 i = 0; i < list.size(); ++i)
-            {
-                auto const& c = list[i];
-                std::string label = LocalizedLabel(c);
-
-                AddGossipItemFor(
-                    player,
-                    GOSSIP_ICON_MONEY_BAG,
-                    label,
-                    GOSSIP_SENDER_MAIN,
-                    ACT_ITEM_BASE + i
-                );
-            }
+		for (uint32 i = 0; i < list.size(); ++i)
+		{
+			auto const& c = list[i];
+			std::string label = LocalizedLabel(c);
+		
+			// zamčená = má req_key a kupující ji ještě nemá
+			bool locked = (!c.req_key.empty() && purchased.find(c.req_key) == purchased.end());
+		
+			// >>> NOVÉ: obarvi jen název zamčené položky na červeno
+			if (locked)
+				label = std::string("|cffF44436") + label + "|r";
+			// <<< KONEC NOVÉHO
+		
+			AddGossipItemFor(
+				player,
+				GOSSIP_ICON_MONEY_BAG,
+				label,
+				GOSSIP_SENDER_MAIN,
+				locked ? (ACT_REQUIRE_BASE + i) : (ACT_ITEM_BASE + i)
+			);
+		}
 
             AddGossipItemFor(player, 0, SeparatorLine(), GOSSIP_SENDER_MAIN, ACT_SEPARATOR);
 
@@ -572,6 +595,32 @@ namespace GuildVillage
                     T("|cffff4444Tento nákup mohou provést pouze Guild Master a Zástupce.|r",
                       "|cffff4444Only the Guild Master and Officers can perform this purchase.|r"));
             }
+
+            SendGossipMenuFor(player, 1, creature->GetGUID());
+        }
+		
+		        static void ShowRequirement(Player* player, Creature* creature, CatalogRow const& c)
+        {
+            ClearGossipMenuFor(player);
+
+            // Zjistíme jméno požadované položky
+            std::string reqName = c.req_key;
+            if (auto label = LocalizedLabelForKey(c.req_key))
+                reqName = *label;
+
+            // 1. řádek – hláška
+            std::string line = Acore::StringFormat(
+                "{} \"{}\"",
+                T("Pro zakoupení této položky musíš nejdříve zakoupit", "To purchase this item, you must first buy"),
+                reqName
+            );
+            AddGossipItemFor(player, GOSSIP_ICON_CHAT, line, GOSSIP_SENDER_MAIN, ACT_SEPARATOR);
+
+            // 2. řádek – separator
+            AddGossipItemFor(player, 0, SeparatorLine(), GOSSIP_SENDER_MAIN, ACT_SEPARATOR);
+
+            // 3. řádek – Zpátky do podkategorie
+            AddGossipItemFor(player, GOSSIP_ICON_TAXI, T("Zpátky", "Back"), GOSSIP_SENDER_MAIN, ACT_BACK_TO_CATEGORY);
 
             SendGossipMenuFor(player, 1, creature->GetGUID());
         }
@@ -671,6 +720,29 @@ namespace GuildVillage
                 { ShowRoot(player, creature); return true; }
 
                 ShowConfirm(player, creature, it->second.items[idx]);
+                return true;
+            }
+			
+			// Info okno s požadavkem (zamčená položka)
+            if (action >= ACT_REQUIRE_BASE && action < ACT_REQUIRE_BASE + 2000)
+            {
+                uint32 idx = action - ACT_REQUIRE_BASE;
+                auto it = s_menu.find(player->GetGUID().GetCounter());
+                if (it == s_menu.end() || idx >= it->second.items.size())
+                { ShowRoot(player, creature); return true; }
+
+                CatalogRow const& c = it->second.items[idx];
+
+                // bezpečnostní kontrola: pokud už je odemčeno, pošli rovnou do confirm
+                auto purchased = LoadPurchasedKeys(g->GetId());
+                bool locked = (!c.req_key.empty() && purchased.find(c.req_key) == purchased.end());
+                if (!locked)
+                {
+                    ShowConfirm(player, creature, c);
+                    return true;
+                }
+
+                ShowRequirement(player, creature, c);
                 return true;
             }
 

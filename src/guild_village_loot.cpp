@@ -52,7 +52,7 @@ namespace GuildVillage
     }
 
     // ===== Loot row =====
-    enum class Cur : uint8 { Material1, Material2, Material3, Material4 };
+    enum class Cur : uint8 { Material1, Material2, Material3, Material4, All };
 
     struct LootRow
     {
@@ -79,6 +79,7 @@ namespace GuildVillage
 		if (s == "material2"   || s == "material2"  || s == "material2")  { out = Cur::Material2;   return true; }
 		if (s == "material3"    || s == "material3" || s == "material3") { out = Cur::Material3;    return true; }
 		if (s == "material4" || s == "material4")                  { out = Cur::Material4; return true; }
+		if (s == "all")       { out = Cur::All;       return true; }
 	
 		return false; // neznámá měna
 	}
@@ -264,16 +265,25 @@ namespace GuildVillage
         Gain gain;
 
         for (LootRow const& row : it->second)
-        {
-            // roll
-            float roll = frand(0.f, 100.f);
-            if (roll <= row.chance)
-            {
-                uint32 amount = RandInRange(row.minAmount, row.maxAmount);
-                if (amount > 0)
-                    AddGain(gain, row.cur, amount);
-            }
-        }
+		{
+			float roll = frand(0.f, 100.f);
+			if (roll <= row.chance)
+			{
+				uint32 amount = RandInRange(row.minAmount, row.maxAmount);
+				if (!amount)
+					continue;
+		
+				Cur dropCur = row.cur;
+				if (dropCur == Cur::All)
+				{
+					// rovnoměrně vyber jeden z 4 materiálů
+					uint32 r = urand(0, 3); // 0..3 odpovídá pořadí v enumu
+					dropCur = static_cast<Cur>(r);
+				}
+		
+				AddGain(gain, dropCur, amount);
+			}
+		}
 
         if (!gain.Any())
             return;
