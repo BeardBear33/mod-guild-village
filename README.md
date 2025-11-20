@@ -50,7 +50,20 @@
 - NPC, které by z guildovní měny vyrábělo náhodné materiály pro profese (např. Linen Cloth, Copper Ore, Light Leather, atd.).
 
 **Aktuálně se pracuje na:**
-- NPC, které by z guildovní měny vyrábělo náhodné materiály pro profese (např. Linen Cloth, Copper Ore, Light Leather, atd.).  
+- Denní a týdenní úkoly pro guildu. Dokončeno z 80 %. Aktuální možnosti úkolů:
+  - Kill any boss (normal dungeon)
+  - Kill any boss (heroic dungeon)
+  - Kill specific creature
+  - Kill specific creature type
+  - PvP honorable kill
+  - Herbalism
+  - Fishing
+  - Skinning
+  - Crafting any item from specific profession (Alchemy,Blacksmithing,Leatherworking,Inscription,Tailoring,Jewelcrafting,Cooking,Engineering)
+  - Craft specific item from profession
+  - Enchanting
+  - Disenchanting
+- Nastavitelná odměna v guild materiálech a konkrétním itemID (odesílá se poštou guild masterovi).
 
 ##
   
@@ -63,7 +76,21 @@
 - An NPC that converts guild currency into random crafting materials (e.g. Linen Cloth, Copper Ore, Light Leather, etc.).
 
 **Currently working on:**
-- An NPC that converts guild currency into random crafting materials (e.g. Linen Cloth, Copper Ore, Light Leather, etc.).
+- Daily and weekly guild tasks. 80% completed. Current task options:
+  - Kill any boss (normal dungeon)
+  - Kill any boss (heroic dungeon)
+  - Kill specific creature
+  - Kill specific creature type
+  - PvP honorable kill
+  - Herbalism
+  - Fishing
+  - Skinning
+  - Crafting any item from specific profession (Alchemy,Blacksmithing,Leatherworking,Inscription,Tailoring,Jewelcrafting,Cooking,Engineering)
+  - Craft specific item from profession
+  - Enchanting
+  - Disenchanting
+- Configurable reward in guild materials and a specific itemID (sent by mail to the guild master).
+
 
 ----------------------------------------------------------------------------------------------------------------
 
