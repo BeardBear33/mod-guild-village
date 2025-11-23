@@ -406,7 +406,9 @@ namespace GuildVillage
         WorldDatabase.Execute("DELETE FROM customs.gv_expedition_active  WHERE guildId={}", guildId);
         WorldDatabase.Execute("DELETE FROM customs.gv_expedition_loot    WHERE guildId={}", guildId);
         WorldDatabase.Execute("DELETE FROM customs.gv_expedition_guild   WHERE guildId={}", guildId);
+		WorldDatabase.Execute("DELETE FROM customs.gv_guild_quests       WHERE guildId={}", guildId);
 		WorldDatabase.Execute("DELETE FROM customs.gv_teleport_player    WHERE guild={}", guildId);
+		
 
         {
             // seber GUIDy z world.creature

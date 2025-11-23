@@ -85,9 +85,9 @@ GuildVillage.Default.O     = 3.4305837
 GuildVillage.Default.Phase = 1
 
 
-#=====================================================#
-# Guild Village – MĚNA & NÁZVY MATERIÁLŮ / CURRENCY   #
-#=====================================================#
+#===================================================#
+# Guild Village – MĚNA & NÁZVY MATERIÁLŮ / CURRENCY #
+#===================================================#
 
 # ---------- Názvy měn (statické labely) ----------
 
@@ -176,9 +176,9 @@ GuildVillage.CurrencyCap.Material3  = 1000
 GuildVillage.CurrencyCap.Material4  = 1000
 
 
-#=================================================#
-# Guild Village – LOOT ZA AKTIVITY / LOOT SYSTEM  #
-#=================================================#
+#================================================#
+# Guild Village – LOOT ZA AKTIVITY / LOOT SYSTEM #
+#================================================#
 
 # CS: Povolit drop měn z custom obsahu?
 #     1 = povoleno, 0 = zakázáno
@@ -203,9 +203,9 @@ GuildVillage.Loot.OnlyInVillage = 1
 GuildVillage.Loot.Debug = 0
 
 
-#====================================================#
-# Guild Village – PRODUKCE MATERIÁLŮ / PRODUCTION    #
-#====================================================#
+#=================================================#
+# Guild Village – PRODUKCE MATERIÁLŮ / PRODUCTION #
+#=================================================#
 
 # CS: Základní produkce bez jakéhokoliv upgradu.
 #     Jeden "aktivní slot" generuje materiál po určité době.
@@ -513,9 +513,9 @@ GuildVillage.Expeditions.Pit_of_Saron_HC.time = 172800
 GuildVillage.Expeditions.Pit_of_Saron_HC.extrachance = 5
 
 
-#----------------#
-# 10M RAID LOOT  #
-#----------------#
+#---------------#
+# 10M RAID LOOT #
+#---------------#
 
 # CS: Extra šance na úspěch pro "full" 10man raid.
 # EN: Extra success chance for full 10man raid group.
@@ -565,9 +565,9 @@ GuildVillage.Expeditions.The_Ruby_Sanctum_10.time = 604800
 GuildVillage.Expeditions.The_Ruby_Sanctum_10.extrachance = 10
 
 
-#----------------#
-# 25M RAID LOOT  #
-#----------------#
+#---------------#
+# 25M RAID LOOT #
+#---------------#
 
 # CS: Extra šance na úspěch pro "full" 25man raid.
 # EN: Extra success chance for full 25man raid group.
@@ -726,6 +726,47 @@ GuildVillage.Thranok.Heroic = 0
 # EN: Lifebloom + Storm Wave
 GuildVillage.Thalor.Heroic = 0
 
+#========================#
+# Guild Village – Quests #
+#========================#
+
+# CS: Povolit/Zakázat pouze Wotlk dungeony pro Boss kill úkoly
+# EN: Enable/Disable only WotLK dungeons for Boss-kill quests
+GuildVillage.Quests.OnlyWotLKDungeons = 0
+
+# CS: Upravuje počet přidělených denních a týdenních úkolů. Pozor, maximální povolený počet je 4!
+# EN: Adjusts the number of assigned daily or weekly quests. Note: the maximum allowed amount is 4!
+GuildVillage.Quests.DailyAmount = 1
+GuildVillage.Quests.WeeklyAmount = 1
+
+# CS: Nastavte čas a den pro reset denních a týdenních úkolů podle nastavení vašeho serveru pro reset instančních ID.
+# EN: Set the time and day for the reset of daily and weekly quests according to your server’s instance ID reset settings.
+# 
+# CS: Čas resetu pro denní úkoly - 24h formát 
+# EN: Daily quests reset time – 24h format
+GuildVillage.Quests.DailyReset.Time  = 05:00
+
+# CS: Týdenní reset – den v týdnu:
+# 	0 | neděle  | nedele  | ne
+# 	1 | pondělí | pondeli | po
+# 	2 | úterý   | utery   | út | ut
+# 	3 | středa  | streda  | st
+# 	4 | čtvrtek | ctvrtek | čt | ct
+# 	5 | pátek   | patek   | pá | pa
+# 	6 | sobota  | so  
+# EN: Weekly reset – day of the week:
+# 	0 | sunday    | sun
+# 	1 | monday    | mon
+# 	2 | tuesday   | tue
+# 	3 | wednesday | wed
+# 	4 | thursday  | thu
+# 	5 | friday    | fri
+# 	6 | saturday  | sat
+GuildVillage.Quests.WeeklyReset.Day = ne
+
+# CS: Čas resetu pro týdenní úkoly - 24h formát
+# EN: Weekly quests reset time – 24h format
+GuildVillage.Quests.WeeklyReset.Time = 05:00
 
 #===========================================#
 # Guild Village – OCHRANA PŘED BOTY / SAFE  #

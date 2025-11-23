@@ -9,6 +9,7 @@ This module allows you to:
 - Use custom currencies for village expansion  
 - Manage all settings easily  
 - Configurable village limit, with optional auto-cleanup when the Guild Master is inactive.
+- Daily and Weekly guild quests
 
 ### Requirements  
 Before using, make sure the database user from `WorldDatabaseInfo` (default `acore`) also has privileges for the new `customs` database:  
@@ -24,7 +25,7 @@ The module uses its own **entries** in the following tables:
 Ensure that these IDs are not already occupied in your `acore_world` database:
 
 - **Custom gameobject (`gameobject_template.entry`):**  
-  - `990203`
+  - `990203`,`990204`
 
 - **Custom creatures (`creature_template.entry`):**  
   - `987400`–`987430`, `987440`–`987454`
@@ -72,6 +73,18 @@ SmartAI for cooking and riding trainers has been removed (movement only).
 .village expedition / e
 .v expedition / e
 ➝ show expedition status
+
+.village questdaily / qd
+.v questdaily / qd
+➝ show active daily quest
+> If more than one quest is enabled, pagination is used to switch between the quest pages.  
+> Example: .village questdaily 5
+
+.village questweekly / qw
+.v questweekly / qw
+➝ show active weekly quest
+> If more than one quest is enabled, pagination is used to switch between the quest pages.  
+> Example: .village questweekly 5
 
 ### Admin Commands
 .gv list [PAGE]

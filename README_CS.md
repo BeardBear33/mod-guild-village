@@ -9,6 +9,7 @@ Tento modul umožňuje:
 - Vlastní currency pro nákup rozšíření vesnice 
 - Jednoduchá správa všech nastavení
 - Nastavitelný limit pro vesnice, možnost nastavit automatické čištění při neaktivitě Guild Mastera
+- Denní a Týdenní úkoly pro guildu
 
 ### Požadavky  
 Před použitím je nutné zajistit, aby uživatel databáze z `WorldDatabaseInfo` (standardně `acore`) měl práva i na novou databázi `customs`:  
@@ -23,7 +24,7 @@ Modul používá vlastní **entry** v tabulkách `gameobject_template`, `creatur
 Je nutné zajistit, že tato ID nejsou v `acore_world` již obsazená jiným obsahem:
 
 - **Vlastní gameobject (`gameobject_template.entry`):**
-  - `990203`
+  - `990203`,`990204`
 
 - **Vlastní creatures (`creature_template.entry`):**
   - `987400`-`987430`, `987440`-`987454`
@@ -71,6 +72,18 @@ Odebrán smartAI pro cooking trenéra a ridding trenéra (pouze pohyb)
 .village expedition / e
 .v expedition / e
 ➝ Zobrazí stav expedice
+
+.village questdaily / qd
+.v questdaily / qd
+➝ Zobrazí aktuální denní úkol
+> Pokud je povoleno více jak 1 úkol tak se používá stránkování pro přepínání stránek s úkoly.  
+> Příklad: .village questdaily 5
+
+.village questweekly / qw
+.v questweekly / qw
+➝ Zobrazí aktuální týdenní úkol
+> Pokud je povoleno více jak 1 úkol tak se používá stránkování pro přepínání stránek s úkoly.  
+> Příklad: .village questweekly 5
 
 ### Admin Příkazy
 .gv list [PAGE]

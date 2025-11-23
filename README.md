@@ -30,6 +30,9 @@
 
 [mod-playerbots (master branch)](https://github.com/liyunfan1223/mod-playerbots)
 
+> **Doporučený addon pro WoW 3.3.5a zajišťující správné zobrazování diakritiky:**
+> [CzechFontFix (3.3.5a Addon)](https://github.com/BeardBear33/mod-guild-village/releases/tag/v1.0.0)  
+
 ##
 
 🔧 This module is primarily developed and tested on Ubuntu using:  
@@ -50,20 +53,7 @@
 - NPC, které by z guildovní měny vyrábělo náhodné materiály pro profese (např. Linen Cloth, Copper Ore, Light Leather, atd.).
 
 **Aktuálně se pracuje na:**
-- Denní a týdenní úkoly pro guildu. Dokončeno z 80 %. Aktuální možnosti úkolů:
-  - Kill any boss (normal dungeon)
-  - Kill any boss (heroic dungeon)
-  - Kill specific creature
-  - Kill specific creature type
-  - PvP honorable kill
-  - Herbalism
-  - Fishing
-  - Skinning
-  - Crafting any item from specific profession (Alchemy,Blacksmithing,Leatherworking,Inscription,Tailoring,Jewelcrafting,Cooking,Engineering)
-  - Craft specific item from profession
-  - Enchanting
-  - Disenchanting
-- Nastavitelná odměna v guild materiálech a konkrétním itemID (odesílá se poštou guild masterovi).
+- Čištění od starých funkcí v modulu a popis tabulek v [README_CS](https://github.com/BeardBear33/mod-guild-village/blob/main/README_CS.md)
 
 ##
   
@@ -76,24 +66,10 @@
 - An NPC that converts guild currency into random crafting materials (e.g. Linen Cloth, Copper Ore, Light Leather, etc.).
 
 **Currently working on:**
-- Daily and weekly guild tasks. 80% completed. Current task options:
-  - Kill any boss (normal dungeon)
-  - Kill any boss (heroic dungeon)
-  - Kill specific creature
-  - Kill specific creature type
-  - PvP honorable kill
-  - Herbalism
-  - Fishing
-  - Skinning
-  - Crafting any item from specific profession (Alchemy,Blacksmithing,Leatherworking,Inscription,Tailoring,Jewelcrafting,Cooking,Engineering)
-  - Craft specific item from profession
-  - Enchanting
-  - Disenchanting
-- Configurable reward in guild materials and a specific itemID (sent by mail to the guild master).
+- Cleaning out old functions in the module and describing the tables in [README_EN](https://github.com/BeardBear33/mod-guild-village/blob/main/README_EN.md)
 
 
 ----------------------------------------------------------------------------------------------------------------
 
 # License
 This module is licensed under the [GNU AFFERO GENERAL PUBLIC LICENSE](LICENSE).
-

@@ -27,7 +27,7 @@ namespace GuildVillage
 
     // ===== Config flags =====
     static bool  CFG_ENABLED         = true;
-    static bool  CFG_ONLY_IN_VILLAGE = true;   // omezit drop jen na mapu vesnice
+    static bool  CFG_ONLY_IN_VILLAGE = true;
     static bool  CFG_DEBUG           = false;
     static bool  CFG_NOTIFY          = true;
     static bool  CFG_CAP_ENABLED     = true;
@@ -52,7 +52,7 @@ namespace GuildVillage
     }
 
     // ===== Loot row =====
-    enum class Cur : uint8 { Material1, Material2, Material3, Material4, All };
+    enum class Cur : uint8 { Material1, Material2, Material3, Material4, Random };
 
     struct LootRow
     {
@@ -73,16 +73,23 @@ namespace GuildVillage
 
 	static bool ParseCurrency(std::string s, Cur& out)
 	{
+		// ořež whitespace
+		auto ltrim = [](std::string& x){ x.erase(0, x.find_first_not_of(" \t\r\n")); };
+		auto rtrim = [](std::string& x){ x.erase(x.find_last_not_of(" \t\r\n") + 1); };
+		ltrim(s); rtrim(s);
+	
+		// na lowercase
 		std::transform(s.begin(), s.end(), s.begin(), ::tolower);
 	
-		if (s == "material1"  || s == "material1"  || s == "material1")  { out = Cur::Material1;  return true; }
-		if (s == "material2"   || s == "material2"  || s == "material2")  { out = Cur::Material2;   return true; }
-		if (s == "material3"    || s == "material3" || s == "material3") { out = Cur::Material3;    return true; }
-		if (s == "material4" || s == "material4")                  { out = Cur::Material4; return true; }
-		if (s == "all")       { out = Cur::All;       return true; }
+		if (s == "random" || s == "all") { out = Cur::Random;     return true; }
+		if (s == "material1")            { out = Cur::Material1;  return true; }
+		if (s == "material2")            { out = Cur::Material2;  return true; }
+		if (s == "material3")            { out = Cur::Material3;  return true; }
+		if (s == "material4")            { out = Cur::Material4;  return true; }
 	
-		return false; // neznámá měna
+		return false;
 	}
+
 
 	static void LoadLootTable()
 	{
@@ -108,7 +115,7 @@ namespace GuildVillage
 				if (!ParseCurrency(curS, cur))
 				{
 					LOG_WARN("guildvillage", "Unknown currency '%s' in customs.gv_loot (entry %u) — skipping.", curS.c_str(), entry);
-					continue; // přeskočí neznámou měnu
+					continue;
 				}
 	
 				LootRow row { cur, std::max(0.f, std::min(chance, 100.f)), minA, maxA };
@@ -144,16 +151,78 @@ namespace GuildVillage
         bool Any() const { return material1||material2||material3||material4; }
     };
 
-    static void AddGain(Gain& g, Cur c, uint32 amount)
-    {
-        switch (c)
-        {
-            case Cur::Material1:  g.material1  += amount; break;
-            case Cur::Material2:   g.material2   += amount; break;
-            case Cur::Material3:    g.material3    += amount; break;
-            case Cur::Material4: g.material4 += amount; break;
-        }
-    }
+	static void AddGain(Gain& g, Cur c, uint32 amount)
+	{
+		switch (c)
+		{
+			case Cur::Material1: g.material1 += amount; break;
+			case Cur::Material2: g.material2 += amount; break;
+			case Cur::Material3: g.material3 += amount; break;
+			case Cur::Material4: g.material4 += amount; break;
+			case Cur::Random: /* handled elsewhere */   break;
+		}
+	}
+
+		// Rozdělení náhodného počtu mezi 1–4 materiály (stejný styl jako v quests.cpp)
+	static void AddRandomSplit(Gain& g, uint32 count)
+	{
+		if (!count)
+			return;
+	
+		// Edge case: 1 kus – stačí čistě jeden náhodný materiál
+		if (count == 1)
+		{
+			uint32 r = urand(0, 3); // 0..3 -> 4 materiály
+			Cur c = static_cast<Cur>(r);
+			AddGain(g, c, 1);
+			return;
+		}
+	
+		// Kolik různých typů použiju (2–4) s weightingem jako v quests:
+		// 2 typy ~40 %, 3 typy ~35 %, 4 typy ~25 %
+		uint32 k;
+		uint32 roll = urand(1, 100);
+		if (roll <= 40)
+			k = 2;
+		else if (roll <= 75)
+			k = 3;
+		else
+			k = 4;
+	
+		if (count < k)
+			k = count;
+	
+		// Indexy 0..3 = m1..m4
+		uint8 idx[4] = {0, 1, 2, 3};
+	
+		// Fisher–Yates shuffle přes urand
+		for (uint8 i = 0; i < 4; ++i)
+		{
+			uint8 j = urand(i, 3);
+			std::swap(idx[i], idx[j]);
+		}
+	
+		uint32 tmp[4] = {0, 0, 0, 0};
+	
+		// Každý z vybraných typů dostane nejdřív 1 kus
+		for (uint32 i = 0; i < k; ++i)
+			++tmp[idx[i]];
+	
+		uint32 remaining = count - k;
+	
+		// Zbytek náhodně rozházet mezi vybrané typy
+		while (remaining--)
+		{
+			uint32 r = urand(0, k - 1);
+			++tmp[idx[r]];
+		}
+	
+		// Připsat do gainu
+		AddGain(g, Cur::Material1, tmp[0]);
+		AddGain(g, Cur::Material2, tmp[1]);
+		AddGain(g, Cur::Material3, tmp[2]);
+		AddGain(g, Cur::Material4, tmp[3]);
+	}
 
     static Gain ApplyGainToGuild(uint32 guildId, Gain const& g)
     {
@@ -273,15 +342,15 @@ namespace GuildVillage
 				if (!amount)
 					continue;
 		
-				Cur dropCur = row.cur;
-				if (dropCur == Cur::All)
+				if (row.cur == Cur::Random)
 				{
-					// rovnoměrně vyber jeden z 4 materiálů
-					uint32 r = urand(0, 3); // 0..3 odpovídá pořadí v enumu
-					dropCur = static_cast<Cur>(r);
+					// náhodné rozdělení mezi material1..4, stejně jako "random" v quests
+					AddRandomSplit(gain, amount);
 				}
-		
-				AddGain(gain, dropCur, amount);
+				else
+				{
+					AddGain(gain, row.cur, amount);
+				}
 			}
 		}
 
@@ -373,7 +442,6 @@ namespace GuildVillage
             addCut(N.status.material4, blocked.material4, CAP_material4);
 
             if (!first)
-                // původně: ChatHandler(killer->GetSession()).SendSysMessage(capMsg.c_str());
                 BroadcastToGroup(killer, capMsg);
         }
 

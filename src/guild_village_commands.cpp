@@ -12,6 +12,10 @@
 #include "GameTime.h"
 #include "gv_names.h"
 #include "gv_production.h"
+#include "ObjectMgr.h"
+#include "ItemTemplate.h"
+#include <cstdio>
+
 
 #include <string>
 #include <algorithm>
@@ -30,6 +34,11 @@ namespace GuildVillageMissions
     };
 
     std::vector<ExpeditionLine> BuildExpeditionLinesForGuild(uint32 guildId);
+}
+
+namespace GuildVillage
+{
+    void GV_EnsureGuildQuestsAssignedForGuild(uint32 guildId);
 }
 
 namespace
@@ -109,7 +118,7 @@ namespace
         // 1) phase dané guildy
         auto phOpt = GetGuildPhase(guildId);
         if (!phOpt)
-            return Acore::StringFormat("|cff00ffff{}:|r {}", BossName(b), T("neznámý stav", "unknown"));
+            return Acore::StringFormat("|cff00ffff{}:|r {}", BossName(b), T("neznámý stav", "unknown status"));
 
         uint32 phaseMask = *phOpt;
 
@@ -194,7 +203,7 @@ namespace
         return sLower == "teleport" || sLower == "tp";
     }
 	
-	    // --- rozdělení "arg1 arg2 ..." na 1. token a zbytek
+    // --- rozdělení "arg1 arg2 ..." na 1. token a zbytek
     static inline void SplitFirstToken(std::string const& in, std::string& tok, std::string& rest)
     {
         std::string s = Trim(in);
@@ -207,6 +216,38 @@ namespace
     {
         return sLower == "set";
     }
+	
+	// --- color helpers ---
+	static inline std::string CWhite(std::string const& s) { return "|cffffffff" + s + "|r"; }
+	
+	// WoW quality → hex barva (WotLK)
+	static inline char const* QualityHex(uint32 q)
+	{
+		switch (q)
+		{
+			case 0: return "ff9d9d9d"; // Poor
+			case 1: return "ffffffff"; // Common
+			case 2: return "ff1eff00"; // Uncommon
+			case 3: return "ff0070dd"; // Rare
+			case 4: return "ffa335ee"; // Epic
+			case 5: return "ffff8000"; // Legendary
+			case 6: return "ffe6cc80"; // Artifact
+			case 7: return "ffe6cc80"; // Heirloom (WotLK-like)
+			default:return "ffffffff";
+		}
+	}
+	
+	// Sestaví barevný klikací odkaz na item (s lokalizovaným názvem z DBC/DB)
+	static inline std::string BuildItemLink(uint32 itemId)
+	{
+		if (ItemTemplate const* it = sObjectMgr->GetItemTemplate(itemId))
+		{
+			char const* hex = QualityHex(it->Quality);
+			return Acore::StringFormat("|c{}|Hitem:{}:0:0:0:0:0:0:0|h[{}]|h|r", hex, itemId, it->Name1);
+		}
+		// fallback
+		return Acore::StringFormat("|cffffffff|Hitem:{}:0:0:0:0:0:0:0|h[Item {}]|h|r", itemId, itemId);
+	}
 
     // uloží osobní TP bod do customs.gv_teleport_player
     static bool SavePersonalVillageTp(Player* player, ChatHandler* handler)
@@ -224,7 +265,6 @@ namespace
             return false;
         }
 
-        // guildu a phase vezmu z customs.gv_guild (stejně jako při default TP)
         uint32 guildId = player->GetGuildId();
         uint32 phaseMask = 0;
         uint32 mapId = player->GetMapId();
@@ -315,6 +355,18 @@ namespace
             || sLower == "exped"
             || sLower == "expedition";
     }
+
+    // --- quests aliases helper (nové: daily / weekly) ---
+    static inline bool IsQuestDailyArg(std::string const& sLower)
+    {
+        return sLower == "questdaily" || sLower == "qd";
+    }
+
+    static inline bool IsQuestWeeklyArg(std::string const& sLower)
+    {
+        return sLower == "questweekly" || sLower == "qw";
+    }
+
 
     // === Per-player stash (sdílené jméno s ostatními částmi modu) ===
     struct GVPhaseData : public DataMap::Base
@@ -437,7 +489,6 @@ namespace
 
         for (auto const& L : lines)
         {
-            // "Utgarde Keep - 1h 23m 15s"
             std::string row = Acore::StringFormat(
                 "{} - {}",
                 L.mission,
@@ -460,8 +511,7 @@ namespace
     }
 
     // ---- blok [Produkce]
-    static void SendProductionBlock(Player* player,
-                                    ChatHandler* handler,
+    static void SendProductionBlock(Player* player, ChatHandler* handler,
                                     GuildVillageProduction::GuildCurrency const& cur,
                                     GuildVillage::Names::All const& N)
     {
@@ -488,7 +538,7 @@ namespace
             case 2: matName = N.status.material2; break;
             case 3: matName = N.status.material3; break;
             case 4: matName = N.status.material4; break;
-            default: matName = "Unknown"; break;
+            default: matName = (LangOpt()==Lang::EN ? "Unknown" : "Neznámý"); break;
         }
 
         // detail pro ten materiál
@@ -553,6 +603,482 @@ namespace
 
     }
 
+    // ====== [Quests] podpora (lazy-assign + výpis jako GO gossip) ======
+
+    enum class ResetType : uint8 { Daily = 1, Weekly = 2 };
+
+    static inline const char* ResetName(ResetType rt) { return (rt == ResetType::Daily) ? "daily" : "weekly"; }
+
+    static inline std::string DailyResetTimeStr()
+    {
+        return sConfigMgr->GetOption<std::string>("GuildVillage.Quests.DailyReset.Time", "04:00");
+    }
+    static inline std::string WeeklyResetTimeStr()
+    {
+        return sConfigMgr->GetOption<std::string>("GuildVillage.Quests.WeeklyReset.Time", "04:00");
+    }
+    static inline std::string WeeklyResetDayStr()
+    {
+        return sConfigMgr->GetOption<std::string>("GuildVillage.Quests.WeeklyReset.Day", "Mon");
+    }
+
+    static bool GuildHasQuestsUpgrade(uint32 guildId)
+	{
+		return WorldDatabase.Query(
+			"SELECT 1 FROM customs.gv_upgrades WHERE guildId={} AND expansion_key='quests' LIMIT 1",
+			guildId) != nullptr;
+	}
+
+    static bool ParseHHMM(std::string const& s, int& outH, int& outM)
+    {
+        outH=0; outM=0;
+        if (s.size() < 4) return false;
+        char colon=':'; int h=0,m=0;
+        if (std::sscanf(s.c_str(), "%d%c%d", &h, &colon, &m) == 3 && colon==':' && h>=0 && h<=23 && m>=0 && m<=59)
+        { outH=h; outM=m; return true; }
+        return false;
+    }
+    static uint32 ToUnix(std::tm tmv)
+    {
+        time_t t = std::mktime(&tmv);
+        if (t < 0) t = 0;
+        return static_cast<uint32>(t);
+    }
+    static uint32 CalcNextDailyResetTS()
+    {
+        int H=4, M=0; ParseHHMM(DailyResetTimeStr(), H, M);
+        time_t nowT = time(nullptr);
+        std::tm now = *std::localtime(&nowT);
+
+        std::tm target = now;
+        target.tm_hour = H; target.tm_min = M; target.tm_sec = 0;
+
+        uint32 todayAt = ToUnix(target);
+        if (static_cast<uint32>(nowT) <= todayAt)
+            return todayAt;
+
+        target = *std::localtime(&nowT);
+        target.tm_mday += 1;
+        target.tm_hour = H; target.tm_min = M; target.tm_sec = 0;
+        return ToUnix(target);
+    }
+
+    static int DOWFromToken(std::string day)
+    {
+        // trim
+        auto ltrim = [](std::string& s){ s.erase(0, s.find_first_not_of(" \t\r\n")); };
+        auto rtrim = [](std::string& s){ s.erase(s.find_last_not_of(" \t\r\n") + 1); };
+        ltrim(day); rtrim(day);
+
+        // to lower
+        std::transform(day.begin(), day.end(), day.begin(), ::tolower);
+
+        // numeric support: 0..6 (0=neděle/sunday), 7 -> 0
+        bool allDigits = !day.empty() && std::all_of(day.begin(), day.end(), [](char c){ return c >= '0' && c <= '9'; });
+        if (allDigits)
+        {
+            int n = std::atoi(day.c_str());
+            if (n == 7) n = 0;
+            if (n >= 0 && n <= 6)
+                return n;
+        }
+
+        // EN
+        if (day == "sun" || day == "sunday")     return 0;
+        if (day == "mon" || day == "monday")     return 1;
+        if (day == "tue" || day == "tuesday")    return 2;
+        if (day == "wed" || day == "wednesday")  return 3;
+        if (day == "thu" || day == "thursday")   return 4;
+        if (day == "fri" || day == "friday")     return 5;
+        if (day == "sat" || day == "saturday")   return 6;
+
+        // CZ (s i bez diakritiky + zkratky)
+        if (day == "nedele"  || day == "neděle"  || day == "ne") return 0;
+        if (day == "pondeli" || day == "pondělí" || day == "po") return 1;
+        if (day == "utery"   || day == "úterý"   || day == "ut" || day == "út") return 2;
+        if (day == "streda"  || day == "středa"  || day == "st") return 3;
+        if (day == "ctvrtek" || day == "čtvrtek" || day == "ct" || day == "čt") return 4;
+        if (day == "patek"   || day == "pátek"   || day == "pa" || day == "pá") return 5;
+        if (day == "sobota"  || day == "so")                     return 6;
+
+        // fallback – pondělí (1)
+        return 1;
+    }
+
+    static uint32 CalcNextWeeklyResetTS()
+    {
+        int H=4, M=0; ParseHHMM(WeeklyResetTimeStr(), H, M);
+        int tgt = DOWFromToken(WeeklyResetDayStr());
+
+        time_t nowT = time(nullptr);
+        std::tm now = *std::localtime(&nowT);
+
+        int delta = (tgt - now.tm_wday + 7) % 7;
+
+        std::tm target = now;
+        target.tm_hour = H; target.tm_min = M; target.tm_sec = 0;
+
+        if (delta == 0)
+        {
+            uint32 todayAt = ToUnix(target);
+            if (static_cast<uint32>(nowT) <= todayAt)
+                return todayAt;
+            delta = 7;
+        }
+
+        target = now;
+        target.tm_mday += delta;
+        target.tm_hour = H; target.tm_min = M; target.tm_sec = 0;
+        return ToUnix(target);
+    }
+
+    // Lazy-assign jako v GO gossip: pokud vypršelo, přidělí nový quest
+    static void EnsureGuildQuestAssigned(uint32 guildId, ResetType rt)
+    {
+        if (!GuildHasQuestsUpgrade(guildId))
+            return;
+
+        if (QueryResult r = WorldDatabase.Query(
+                "SELECT next_rotation_at FROM customs.gv_guild_quests "
+                "WHERE guildId={} AND reset_type={} LIMIT 1", guildId, (uint32)rt))
+        {
+            uint32 until = r->Fetch()[0].Get<uint32>();
+            if (until > uint32(time(nullptr)))
+                return;
+        }
+
+		if (QueryResult q = WorldDatabase.Query(
+				"SELECT c.id, c.quest_count "
+				"FROM customs.gv_quest_catalog c "
+				"WHERE c.enabled=1 "
+				"  AND c.reset_type='{}' "
+				"  AND (c.required_expansion IS NULL "
+				"       OR c.required_expansion='' "
+				"       OR EXISTS (SELECT 1 FROM customs.gv_upgrades ug "
+				"                  WHERE ug.guildId={} "
+				"                    AND ug.expansion_key=c.required_expansion)) "
+				"ORDER BY RAND() LIMIT 1",
+				ResetName(rt), guildId))
+		{
+			Field* f = q->Fetch();
+			uint32 qid  = f[0].Get<uint32>();
+			uint32 goal = f[1].Get<uint32>();
+	
+			uint32 now  = uint32(time(nullptr));
+			uint32 next = (rt == ResetType::Daily) ? CalcNextDailyResetTS() : CalcNextWeeklyResetTS();
+			if (!next || next <= now) next = now + (rt == ResetType::Daily ? 86400u : 7u*86400u);
+	
+			WorldDatabase.DirectExecute(Acore::StringFormat(
+				"REPLACE INTO customs.gv_guild_quests "
+				"(guildId, reset_type, quest_id, progress, goal, completed, reward_claimed, assigned_at, next_rotation_at) "
+				"VALUES ({}, {}, {}, 0, {}, 0, 0, {}, {})",
+				guildId, (uint32)rt, qid, goal, now, next).c_str());
+		}
+    }
+
+    // --- Reward line (stejně jako v GO: načte tokeny a složí text) ---
+    enum class RewardKind { None, Mat1, Mat2, Mat3, Mat4, Random, Item };
+    struct RewardToken { RewardKind kind=RewardKind::None; uint32 itemId=0; uint32 count=0; };
+
+    static RewardToken ParseRewardToken(std::string s, uint32 cnt)
+    {
+        RewardToken t; t.count = cnt;
+        std::transform(s.begin(), s.end(), s.begin(), ::tolower);
+        if (s.empty() || cnt == 0) return t;
+        bool numeric = !s.empty() && std::all_of(s.begin(), s.end(), ::isdigit);
+        if (numeric) { t.kind=RewardKind::Item; t.itemId=(uint32)std::strtoul(s.c_str(), nullptr, 10); return t; }
+        if (s=="material1") t.kind=RewardKind::Mat1;
+        else if (s=="material2") t.kind=RewardKind::Mat2;
+        else if (s=="material3") t.kind=RewardKind::Mat3;
+        else if (s=="material4") t.kind=RewardKind::Mat4;
+        else if (s=="random")       t.kind=RewardKind::Random;
+        return t;
+    }
+
+	// --- Reward line (stejně jako v GO: načte tokeny a složí text) ---
+	static std::string RewardTokenToText(RewardToken const& t)
+	{
+		if (t.kind == RewardKind::None || t.count == 0)
+			return "";
+	
+		// Item: "5x " (bíle) + ItemLink (barevně podle quality)
+		if (t.kind == RewardKind::Item)
+		{
+			std::string prefix = CWhite(Acore::StringFormat("{}x ", t.count));
+			return prefix + BuildItemLink(t.itemId);
+		}
+	
+		using GuildVillage::Names::Mat;
+		auto matName = [&](Mat m) -> std::string { return GuildVillage::Names::CountName(m, t.count); };
+	
+		// Materiály / Random → celé bíle (nemají vlastní quality barvu ani link)
+		switch (t.kind)
+		{
+			case RewardKind::Mat1:  return CWhite(Acore::StringFormat("+{} {}", t.count, matName(Mat::Material1)));
+			case RewardKind::Mat2:  return CWhite(Acore::StringFormat("+{} {}", t.count, matName(Mat::Material2)));
+			case RewardKind::Mat3:  return CWhite(Acore::StringFormat("+{} {}", t.count, matName(Mat::Material3)));
+			case RewardKind::Mat4:  return CWhite(Acore::StringFormat("+{} {}", t.count, matName(Mat::Material4)));
+			case RewardKind::Random:
+			{
+				std::string any = (LangOpt()==Lang::EN) ? "Random material" : "Náhodný materiál";
+				return CWhite(Acore::StringFormat("+{} {}", t.count, any));
+			}
+			default: break;
+		}
+		return "";
+	}
+
+    static std::string BuildRewardLine(uint32 questId)
+	{
+		std::string label = (LangOpt()==Lang::EN) ? "Reward: " : "Odměna: ";
+	
+		if (QueryResult r = WorldDatabase.Query(
+				"SELECT reward1, reward1_count, reward2, reward2_count, reward3, reward3_count, reward4, reward4_count, reward5, reward5_count "
+				"FROM customs.gv_quest_catalog WHERE id={}", questId))
+		{
+			Field* f = r->Fetch();
+			std::vector<std::string> parts;
+			parts.reserve(5);
+			for (int i=0;i<5;i++)
+			{
+				if (f[2*i].IsNull() || f[2*i+1].IsNull()) continue;
+				std::string key = f[2*i].Get<std::string>();
+				uint32      cnt = f[2*i+1].Get<uint32>();
+				RewardToken tok = ParseRewardToken(key, cnt);
+				std::string text = RewardTokenToText(tok);
+				if (!text.empty()) parts.push_back(text);
+			}
+	
+			std::string joined;
+			for (size_t i=0;i<parts.size();++i)
+			{
+				if (i) joined += CWhite(", "); // čárka taky bíle
+				joined += parts[i];
+			}
+	
+			if (joined.empty())
+				joined = CWhite("—");
+	
+			return label + joined;
+		}
+		return label + CWhite("—");
+	}
+
+	// --- Struktura pro výpis questů v příkazu ---
+	struct CmdGuildQuestRow
+	{
+		uint8  slot = 0;
+		uint32 questId = 0;
+		uint32 progress = 0;
+		uint32 goal = 0;
+		bool   completed = false;
+	
+		std::string name_cs;
+		std::string name_en;
+	
+		std::string info_cs;
+		std::string info_en;
+	};
+
+	// Načtení všech questů pro daný reset_type (daily/weekly)
+	static std::vector<CmdGuildQuestRow> LoadGuildQuestsForCmd(uint32 guildId, ResetType rt)
+	{
+		std::vector<CmdGuildQuestRow> out;
+	
+		if (QueryResult r = WorldDatabase.Query(
+				"SELECT g.slot, g.quest_id, g.progress, g.goal, g.completed, "
+				"       c.info_cs, c.info_en, c.quest_name_cs, c.quest_name_en "
+				"FROM customs.gv_guild_quests g "
+				"LEFT JOIN customs.gv_quest_catalog c ON c.id=g.quest_id "
+				"WHERE g.guildId={} AND g.reset_type={} "
+				"ORDER BY g.slot ASC",
+				guildId, (uint32)rt))
+		{
+			do
+			{
+				Field* f = r->Fetch();
+				CmdGuildQuestRow row;
+				row.slot      = f[0].Get<uint8>();
+				row.questId   = f[1].Get<uint32>();
+				row.progress  = f[2].Get<uint32>();
+				row.goal      = f[3].Get<uint32>();
+				row.completed = f[4].Get<bool>();
+	
+				row.info_cs   = f[5].IsNull() ? "" : f[5].Get<std::string>();
+				row.info_en   = f[6].IsNull() ? "" : f[6].Get<std::string>();
+				row.name_cs   = f[7].IsNull() ? "" : f[7].Get<std::string>();
+				row.name_en   = f[8].IsNull() ? "" : f[8].Get<std::string>();
+	
+				out.push_back(row);
+			}
+			while (r->NextRow());
+		}
+	
+		return out;
+	}
+
+// Výpis questů pro příkaz .v qd / .v qw se stránkováním
+static void SendQuestListPaged(Player* player, ChatHandler* handler, ResetType rt, uint32 page)
+{
+    if (!player->GetGuild())
+    {
+        handler->SendSysMessage(T("Nejsi v žádné guildě.", "You are not in a guild."));
+        return;
+    }
+
+    uint32 gid = player->GetGuildId();
+
+    if (!GuildHasQuestsUpgrade(gid))
+    {
+        handler->SendSysMessage(
+            T("Tvoje guilda nemá zakoupené rozšíření na úkoly.",
+              "Your guild hasn't purchased the Quests expansion.")
+        );
+        return;
+    }
+
+    // Lazy-assign přes sdílenou logiku v quests.cpp
+    GuildVillage::GV_EnsureGuildQuestsAssignedForGuild(gid);
+
+    auto rows = LoadGuildQuestsForCmd(gid, rt);
+    bool en = (LangOpt() == Lang::EN);
+
+    char const* headCs = (rt == ResetType::Daily) ? "Denní úkol" : "Týdenní úkol";
+    char const* headEn = (rt == ResetType::Daily) ? "Daily quest" : "Weekly quest";
+    std::string headBase = en ? headEn : headCs;
+
+    if (rows.empty())
+    {
+        handler->SendSysMessage(
+            (headBase + std::string(": ") +
+             (en ? CWhite("No quest.") : CWhite("Žádný úkol."))).c_str()
+        );
+
+        {
+            std::string s = std::string(en ? "Progress: " : "Postup: ") + CWhite("—");
+            handler->SendSysMessage(s.c_str());
+        }
+        {
+            std::string s = std::string(en ? "Reward: " : "Odměna: ") + CWhite("—");
+            handler->SendSysMessage(s.c_str());
+        }
+        return;
+    }
+
+    uint32 total = (uint32)rows.size();
+
+    // Jednoduchý režim: jen jeden úkol => bez stránkování
+    if (total <= 1)
+    {
+        CmdGuildQuestRow const& row = rows[0];
+
+        // Titulek = quest_name (fallback na info, pak „Quest“)
+        std::string title = en ? row.name_en : row.name_cs;
+        if (title.empty()) title = en ? row.info_en : row.info_cs;
+        if (title.empty()) title = en ? "Quest" : "Úkol";
+
+        handler->SendSysMessage(headBase.c_str());
+        handler->SendSysMessage((std::string(en ? "Quest: " : "Úkol: ") + CWhite(title)).c_str());
+
+        // Popis (z info_cs/en)
+        {
+            std::string desc = en ? row.info_en : row.info_cs;
+            if (!desc.empty())
+            {
+                std::string label = en ? "Info: " : "Info: ";
+                handler->SendSysMessage((label + CWhite(desc)).c_str());
+            }
+        }
+
+        // Progress – hodnota bíle
+        {
+            std::string progLabel = en ? "Progress: " : "Postup: ";
+            std::string progVal   = std::to_string(row.progress) + "/" + std::to_string(row.goal);
+            handler->SendSysMessage((progLabel + CWhite(progVal)).c_str());
+        }
+
+        // Reward – BuildRewardLine už řeší barvy/link
+        std::string rewardLine = BuildRewardLine(row.questId);
+        handler->SendSysMessage(rewardLine.c_str());
+
+        // Status beze změny (má vlastní barvy)
+        {
+            std::string st = en ? "Status: " : "Stav: ";
+            if (row.completed)
+                st += en ? "|cff00ff00Quest completed|r"
+                         : "|cff00ff00Úkol splněný|r";
+            else
+                st += en ? "|cffff0000Quest not completed yet|r"
+                         : "|cffff0000Úkol ještě není dokončen|r";
+            handler->SendSysMessage(st.c_str());
+        }
+        return;
+    }
+
+    // --- víc questů => stránkování (1 quest = 1 strana) ---
+    if (page == 0) page = 1;
+    if (page > total)
+    {
+        if (en)
+            handler->SendSysMessage(Acore::StringFormat("Invalid page. Use 1-{}.", total).c_str());
+        else
+            handler->SendSysMessage(Acore::StringFormat("Neplatná stránka. Použij 1-{}.", total).c_str());
+        return;
+    }
+
+    CmdGuildQuestRow const& row = rows[page - 1];
+
+    // Nadpis s číslem slotu a info o stránce
+    std::string head;
+    if (en)
+        head = Acore::StringFormat("{} #{} (page {}/{})", headBase, (uint32)row.slot, page, total);
+    else
+        head = Acore::StringFormat("{} #{} (strana {}/{})", headBase, (uint32)row.slot, page, total);
+
+    // Titulek = quest_name (fallbacky jako výše)
+    std::string title = en ? row.name_en : row.name_cs;
+    if (title.empty()) title = en ? row.info_en : row.info_cs;
+    if (title.empty()) title = en ? "Quest" : "Úkol";
+
+    handler->SendSysMessage(head.c_str());
+    handler->SendSysMessage((std::string(en ? "Quest: " : "Úkol: ") + CWhite(title)).c_str());
+
+    // Popis
+    {
+        std::string desc = en ? row.info_en : row.info_cs;
+        if (!desc.empty())
+        {
+            std::string label = en ? "Info: " : "Info: ";
+            handler->SendSysMessage((label + CWhite(desc)).c_str());
+        }
+    }
+
+    // Progress – hodnota bíle
+    {
+        std::string progLabel = en ? "Progress: " : "Postup: ";
+        std::string progVal   = std::to_string(row.progress) + "/" + std::to_string(row.goal);
+        handler->SendSysMessage((progLabel + CWhite(progVal)).c_str());
+    }
+
+    // Reward – viz BuildRewardLine
+    {
+        std::string rewardLine = BuildRewardLine(row.questId);
+        handler->SendSysMessage(rewardLine.c_str());
+    }
+
+    // Status beze změny
+    {
+        std::string st = en ? "Status: " : "Stav: ";
+        if (row.completed)
+            st += en ? "|cff00ff00Quest completed|r"
+                     : "|cff00ff00Úkol splněný|r";
+        else
+            st += en ? "|cffff0000Quest not completed yet|r"
+                     : "|cffff0000Úkol ještě není dokončen|r";
+        handler->SendSysMessage(st.c_str());
+    }
+}
+
     // === Single command handler: ".village …" / ".v …" ===
     static bool HandleVillage(ChatHandler* handler, char const* args)
     {
@@ -569,12 +1095,12 @@ namespace
             {
                 handler->SendSysMessage("|cff00ff00[Guild Village]|r – commands:");
                 handler->SendSysMessage(" .village info – show village info (all)");
-                handler->SendSysMessage("    Aliases: .village i / in / inf / info");
-                handler->SendSysMessage("              .v i / in / inf / info");
+                handler->SendSysMessage("    Aliases: .village i / info");
+                handler->SendSysMessage("              .v i / info");
 
                 handler->SendSysMessage(" .village expedition – show active expeditions");
-                handler->SendSysMessage("    Aliases: .village e / exp / expedition");
-                handler->SendSysMessage("              .v e / exp / expedition");
+                handler->SendSysMessage("    Aliases: .village e / expedition");
+                handler->SendSysMessage("              .v e / expedition");
 
                 handler->SendSysMessage(" .village boss – show bosses status");
                 handler->SendSysMessage("    Aliases: .village b / boss");
@@ -588,6 +1114,15 @@ namespace
                 handler->SendSysMessage("    Aliases: .village p / production");
                 handler->SendSysMessage("              .v p / production");
 
+                handler->SendSysMessage(" .village questdaily [page] – show daily guild quests");
+                handler->SendSysMessage("    Aliases: .village qd");
+                handler->SendSysMessage("              .v qd");
+
+                handler->SendSysMessage(" .village questweekly [page] – show weekly guild quests");
+                handler->SendSysMessage("    Aliases: .village qw");
+                handler->SendSysMessage("              .v qw");
+
+
                 handler->SendSysMessage(" .village teleport – teleports you to the guild village");
                 handler->SendSysMessage("    Aliases: .village tp / teleport");
                 handler->SendSysMessage("              .v tp / teleport");
@@ -599,12 +1134,12 @@ namespace
             {
                 handler->SendSysMessage("|cff00ff00[Guildovní vesnice]|r – příkazy:");
                 handler->SendSysMessage(" .village info – zobrazí kompletní info");
-                handler->SendSysMessage("    Alias: .village i / in / inf / info");
-                handler->SendSysMessage("            .v i / in / inf / info");
+                handler->SendSysMessage("    Alias: .village i / info");
+                handler->SendSysMessage("            .v i / info");
 
                 handler->SendSysMessage(" .village expedition – ukáže probíhající expedice");
-                handler->SendSysMessage("    Alias: .village e / exp / expedition");
-                handler->SendSysMessage("            .v e / exp / expedition");
+                handler->SendSysMessage("    Alias: .village e / expedition");
+                handler->SendSysMessage("            .v e / expedition");
 
                 handler->SendSysMessage(" .village boss – zobrazí stav bossů");
                 handler->SendSysMessage("    Alias: .village b / boss");
@@ -617,6 +1152,15 @@ namespace
                 handler->SendSysMessage(" .village production – zobrazí produkci");
                 handler->SendSysMessage("    Alias: .village p / production");
                 handler->SendSysMessage("            .v p / production");
+
+                handler->SendSysMessage(" .village questdaily [strana] – zobrazí denní guildovní úkoly");
+                handler->SendSysMessage("    Alias: .village qd");
+                handler->SendSysMessage("            .v qd");
+
+                handler->SendSysMessage(" .village questweekly [strana] – zobrazí týdenní guildovní úkoly");
+                handler->SendSysMessage("    Alias: .village qw");
+                handler->SendSysMessage("            .v qw");
+
 
                 handler->SendSysMessage(" .village teleport – teleportuje tě do guild vesnice");
                 handler->SendSysMessage("    Alias: .village tp / teleport");
@@ -707,6 +1251,28 @@ namespace
                 return true;
             }
         }
+		
+		// --- QUESTY: .village questdaily / questweekly (+ volitelná stránka) ---
+        {
+            std::string tok1, rest;
+            SplitFirstToken(al, tok1, rest);
+
+            if (IsQuestDailyArg(tok1) || IsQuestWeeklyArg(tok1))
+            {
+                uint32 page = 1;
+                if (!rest.empty())
+                {
+                    bool numeric = std::all_of(rest.begin(), rest.end(),
+                                               [](unsigned char c){ return std::isdigit(c); });
+                    if (numeric)
+                        page = (uint32)std::strtoul(rest.c_str(), nullptr, 10);
+                }
+
+                ResetType rt = IsQuestDailyArg(tok1) ? ResetType::Daily : ResetType::Weekly;
+                SendQuestListPaged(player, handler, rt, page);
+                return true;
+            }
+        }
 
         // aliasy pro jednotlivé sekce
         bool isInfo =
@@ -723,7 +1289,6 @@ namespace
 
         bool isProduction =
             (al == "p" || al == "prod" || al == "production");
-
 
         if (isInfo || isExpedition || isBoss || isCurrency || isProduction)
         {

@@ -21,6 +21,8 @@ void RegisterGuildVillageVoltrix();
 void RegisterGuildVillageThranok();
 void RegisterGuildVillageThalgron();
 void RegisterGuildVillageThalor();
+void RegisterGuildVillageQuests();
+void RegisterGuildVillageQuestsWiring();
 
 // jediný export modulu
 void Addmod_guild_villageScripts()
@@ -44,4 +46,6 @@ void Addmod_guild_villageScripts()
 	RegisterGuildVillageThranok();
 	RegisterGuildVillageThalgron();
 	RegisterGuildVillageThalor();
+	RegisterGuildVillageQuests();
+	RegisterGuildVillageQuestsWiring();
 }

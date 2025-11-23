@@ -92,6 +92,12 @@ namespace GuildVillage
 			"DELETE FROM customs.gv_teleport_player WHERE guild={}",
 			guildId
 		);
+		
+		// 1.3) Vyčistit guild questy
+		WorldDatabase.Execute(
+			"DELETE FROM customs.gv_guild_quests WHERE guild={}",
+			guildId
+		);
 
         // 1.5) Vyčistit respawny v characters.* pro GUIDy této phase
         {
