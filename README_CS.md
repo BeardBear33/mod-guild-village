@@ -19,6 +19,11 @@ GRANT ALL PRIVILEGES ON customs.* TO 'acore'@'localhost';
 FLUSH PRIVILEGES;
 ```
 
+**acore_world: tento modul dodává SQL do modules/.../data/sql/world/**, takže je načítá/aktualizuje automaticky přes AzerothCore auto-updater.
+
+customs: vlastní doplňková DB mimo auto-updater. Obsah pro customs si každý importuje sám libovolným způsobem (CLI, GUI, CI, atd.). Modul nijak neupravuje WorldDatabaseInfo ani nepřidává customs do core configu.
+
+
 ### ⚠️ Upozornění
 Modul používá vlastní **entry** v tabulkách `gameobject_template`, `creature_template`, `creature_template_model`, `game_graveyard`, `graveyard_zone`, `fishing_loot_template`, `points_of_interest`.  
 Je nutné zajistit, že tato ID nejsou v `acore_world` již obsazená jiným obsahem:

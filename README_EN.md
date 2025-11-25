@@ -19,6 +19,10 @@ GRANT ALL PRIVILEGES ON customs.* TO 'acore'@'localhost';
 FLUSH PRIVILEGES;
 ```
 
+**acore_world: this module ships SQL into modules/.../data/sql/world/**, so it is loaded/updated automatically by the AzerothCore auto-updater.
+
+customs: a separate auxiliary DB outside the auto-updater. The contents for customs are imported manually by each user in any way they prefer (CLI, GUI, CI, etc.). The module does not modify WorldDatabaseInfo nor add customs to the core config.
+
 ### ⚠️ Warning
 The module uses its own **entries** in the following tables:  
 `gameobject_template`, `creature_template`, `creature_template_model`, `game_graveyard`, `graveyard_zone`, `fishing_loot_template`, `points_of_interest`.  
