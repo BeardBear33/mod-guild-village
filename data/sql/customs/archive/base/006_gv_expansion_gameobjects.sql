@@ -1,6 +1,9 @@
--- Exportování dat pro tabulku customs.gv_expansion_gameobjects
-DROP TABLE IF EXISTS `customs`.`gv_expansion_gameobjects`;
-CREATE TABLE IF NOT EXISTS `customs`.`gv_expansion_gameobjects` (
+-- Exportování struktury databáze pro
+CREATE DATABASE IF NOT EXISTS `customs` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */ /*!80016 DEFAULT ENCRYPTION='N' */;
+USE `customs`;
+
+-- Exportování struktury pro tabulka customs.gv_expansion_gameobjects
+CREATE TABLE IF NOT EXISTS `gv_expansion_gameobjects` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `expansion_key` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `entry` int unsigned NOT NULL,
@@ -17,10 +20,10 @@ CREATE TABLE IF NOT EXISTS `customs`.`gv_expansion_gameobjects` (
   `faction` tinyint unsigned NOT NULL DEFAULT '0',
   PRIMARY KEY (`id`),
   KEY `expansion_key` (`expansion_key`)
-) ENGINE=InnoDB AUTO_INCREMENT=819 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=719 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Exportování dat pro tabulku customs.gv_expansion_gameobjects
-INSERT INTO `customs`.`gv_expansion_gameobjects` (`id`, `expansion_key`, `entry`, `map`, `position_x`, `position_y`, `position_z`, `orientation`, `rotation0`, `rotation1`, `rotation2`, `rotation3`, `spawntimesecs`, `faction`) VALUES
+-- Exportování dat pro tabulku customs.gv_expansion_gameobjects: ~699 rows (přibližně)
+INSERT INTO `gv_expansion_gameobjects` (`id`, `expansion_key`, `entry`, `map`, `position_x`, `position_y`, `position_z`, `orientation`, `rotation0`, `rotation1`, `rotation2`, `rotation3`, `spawntimesecs`, `faction`) VALUES
 	(2, 'guild_bank', 187365, 37, 1084.4, 301.347, 339.372, 5.96864, 0, 0, 0, 1, 0, 0),
 	(3, 'guild_bank', 187365, 37, 1085.21, 292.74, 339.278, 0.445725, 0, 0, 0, 1, 0, 0),
 	(4, 'mailbox', 191955, 37, 1043.21, 278.811, 335.367, 3.14058, 0, 0, 0, 1, 0, 0),
@@ -719,7 +722,4 @@ INSERT INTO `customs`.`gv_expansion_gameobjects` (`id`, `expansion_key`, `entry`
 	(715, 'portal_exodar', 181747, 37, 1097.84, 282.651, 339.561, 5.09438, 0, 0, 0, 1, 0, 1),
 	(716, 'portal_darnassus', 181474, 37, 1104.51, 286.215, 339.561, 5.41247, 0, 0, 0, 1, 0, 1),
 	(717, 'portal_ironforge', 181474, 37, 1102.74, 311.224, 339.561, 1.08257, 0, 0, 0, 1, 0, 1),
-	(718, 'portal_stormwind', 181474, 37, 1095.92, 313.602, 339.561, 1.42422, 0, 0, 0, 1, 0, 1),
-	(719, 'expedition', 990203, 37, 113.003, 990.629, 296.39, -0.339317, 0, 0, 0, 0, 120, 0),
-	(720, 'exp_mailbox', 191955, 37, 112.675, 1024.16, 296.214, 5.5119, 0, 0, 0, 1, 0, 0),
-	(721, 'quests', 990204, 37, 1040.5, 309.411, 335.665, 3.3434, 0, 0, 0, 1, 0, 0);
+	(718, 'portal_stormwind', 181474, 37, 1095.92, 313.602, 339.561, 1.42422, 0, 0, 0, 1, 0, 1);

@@ -2,6 +2,7 @@
 #include "ScriptMgr.h"
 
 // dopředné deklarace "lokálních" registrátorů z ostatních cpp
+void RegisterGuildVillageCustomsUpdater();
 void RegisterGuildVillageCommands();
 void RegisterGuildVillageCreate();
 void RegisterGuildVillageUpgrade();
@@ -27,7 +28,8 @@ void RegisterGuildVillageQuestsWiring();
 // jediný export modulu
 void Addmod_guild_villageScripts()
 {
-    RegisterGuildVillageCommands();
+	RegisterGuildVillageCustomsUpdater();
+	RegisterGuildVillageCommands();
     RegisterGuildVillageCreate();
     RegisterGuildVillageUpgrade();
     RegisterGuildVillageRespawn();

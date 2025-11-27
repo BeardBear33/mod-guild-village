@@ -11,17 +11,24 @@ This module allows you to:
 - Configurable village limit, with optional auto-cleanup when the Guild Master is inactive.
 - Daily and Weekly guild quests
 
-### Requirements  
-Before using, make sure the database user from `WorldDatabaseInfo` (default `acore`) also has privileges for the new `customs` database:  
+### Installation / Requirements
+For the autoupdater to function correctly, it is necessary to ensure that the database user from `(WorldDatabaseInfo) – "127.0.0.1;3306;acore;acore;acore_world"`  
+has permissions for the new `customs` database as well:
 
-```sql
-GRANT ALL PRIVILEGES ON customs.* TO 'acore'@'localhost';
+```
+GRANT CREATE ON *.* TO 'acore'@'127.0.0.1';
+GRANT ALL PRIVILEGES ON customs.* TO 'acore'@'127.0.0.1';
 FLUSH PRIVILEGES;
 ```
 
-**acore_world: this module ships SQL into modules/.../data/sql/world/**, so it is loaded/updated automatically by the AzerothCore auto-updater.
+# ⚠️ WARNING: IMPORTANT CHANGE IN DATABASE STRUCTURE ⚠️
+> **Applies only to those who downloaded the module before November 27, 2025.**
 
-customs: a separate auxiliary DB outside the auto-updater. The contents for customs are imported manually by each user in any way they prefer (CLI, GUI, CI, etc.). The module does not modify WorldDatabaseInfo nor add customs to the core config.
+- The latest update can be found in customs/archive/updates/014_important_update.sql  
+Don’t forget to apply all previous updates as well if you skipped any of them.  
+- After applying 014_important_update.sql, the module will update itself automatically when the server starts.
+
+##
 
 ### ⚠️ Warning
 The module uses its own **entries** in the following tables:  

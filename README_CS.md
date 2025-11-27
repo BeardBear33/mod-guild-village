@@ -11,18 +11,23 @@ Tento modul umožňuje:
 - Nastavitelný limit pro vesnice, možnost nastavit automatické čištění při neaktivitě Guild Mastera
 - Denní a Týdenní úkoly pro guildu
 
-### Požadavky  
-Před použitím je nutné zajistit, aby uživatel databáze z `WorldDatabaseInfo` (standardně `acore`) měl práva i na novou databázi `customs`:  
-
-```sql
-GRANT ALL PRIVILEGES ON customs.* TO 'acore'@'localhost';
+### Instalace / Požadavky  
+Pro správnou funkčnost autoupdateru je nutné zajistit, aby uživatel databáze z `(WorldDatabaseInfo) – "127.0.0.1;3306;acore;acore;acore_world"`  
+měl práva i na novou databázi customs:
+```
+GRANT CREATE ON *.* TO 'acore'@'127.0.0.1';
+GRANT ALL PRIVILEGES ON customs.* TO 'acore'@'127.0.0.1';
 FLUSH PRIVILEGES;
 ```
 
-**acore_world: tento modul dodává SQL do modules/.../data/sql/world/**, takže je načítá/aktualizuje automaticky přes AzerothCore auto-updater.
+# ⚠️ POZOR: DŮLEŽITÁ ZMĚNA VE STRUKTUŘE DB ⚠️
+> **Platí pouze pro ty, kteří si stáhli modul před datem 27. 11. 2025**
 
-customs: vlastní doplňková DB mimo auto-updater. Obsah pro customs si každý importuje sám libovolným způsobem (CLI, GUI, CI, atd.). Modul nijak neupravuje WorldDatabaseInfo ani nepřidává customs do core configu.
+- Poslední update se nachází v customs/archive/updates/014_important_update.sql  
+Nezapomeňte aplikovat také všechny předchozí updaty, pokud jste je vynechali.  
+- Po aplikaci updatu 014_important_update.sql se bude modul bude aktualizovat automaticky při spuštění serveru.
 
+##
 
 ### ⚠️ Upozornění
 Modul používá vlastní **entry** v tabulkách `gameobject_template`, `creature_template`, `creature_template_model`, `game_graveyard`, `graveyard_zone`, `fishing_loot_template`, `points_of_interest`.  

@@ -1,6 +1,9 @@
--- Exportování struktury pro tabulku customs.gv_gameobject_template
-DROP TABLE IF EXISTS `customs`.`gv_gameobject_template`;
-CREATE TABLE IF NOT EXISTS `customs`.`gv_gameobject_template` (
+-- Exportování struktury databáze pro
+CREATE DATABASE IF NOT EXISTS `customs` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */ /*!80016 DEFAULT ENCRYPTION='N' */;
+USE `customs`;
+
+-- Exportování struktury pro tabulka customs.gv_gameobject_template
+CREATE TABLE IF NOT EXISTS `gv_gameobject_template` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `layout_key` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'base',
   `entry` int unsigned NOT NULL,
@@ -20,8 +23,8 @@ CREATE TABLE IF NOT EXISTS `customs`.`gv_gameobject_template` (
   KEY `idx_entry` (`entry`)
 ) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Exportování dat pro tabulku customs.gv_gameobject_template
-INSERT INTO `customs`.`gv_gameobject_template` (`id`, `layout_key`, `entry`, `map`, `position_x`, `position_y`, `position_z`, `orientation`, `rotation0`, `rotation1`, `rotation2`, `rotation3`, `spawntimesecs`, `comment`) VALUES
+-- Exportování dat pro tabulku customs.gv_gameobject_template: ~4 rows (přibližně)
+INSERT INTO `gv_gameobject_template` (`id`, `layout_key`, `entry`, `map`, `position_x`, `position_y`, `position_z`, `orientation`, `rotation0`, `rotation1`, `rotation2`, `rotation3`, `spawntimesecs`, `comment`) VALUES
 	(1, 'base', 180322, 37, -164.395, -75.5743, 268.8, 3.33241, 0, 0, 0, 0, 0, 'village object-wall'),
 	(2, 'base', 180322, 37, -167.811, -57.8902, 268, 3.33241, 0, 0, 0, 0, 0, 'village object-wall'),
 	(3, 'base', 180322, 37, -169.3, -50.0935, 268.5, 3.33241, 0, 0, 0, 0, 0, 'village object-wall'),

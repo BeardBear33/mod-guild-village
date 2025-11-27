@@ -1,6 +1,9 @@
--- Exportování struktury pro tabulku customs.gv_creature_template
-DROP TABLE IF EXISTS `customs`.`gv_creature_template`;
-CREATE TABLE IF NOT EXISTS `customs`.`gv_creature_template` (
+-- Exportování struktury databáze pro
+CREATE DATABASE IF NOT EXISTS `customs` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */ /*!80016 DEFAULT ENCRYPTION='N' */;
+USE `customs`;
+
+-- Exportování struktury pro tabulka customs.gv_creature_template
+CREATE TABLE IF NOT EXISTS `gv_creature_template` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `layout_key` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'base',
   `entry` int unsigned NOT NULL,
@@ -18,11 +21,11 @@ CREATE TABLE IF NOT EXISTS `customs`.`gv_creature_template` (
   KEY `idx_entry` (`entry`)
 ) ENGINE=InnoDB AUTO_INCREMENT=81 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Exportování dat pro tabulku customs.gv_creature_template
-INSERT INTO `customs`.`gv_creature_template` (`id`, `layout_key`, `entry`, `map`, `position_x`, `position_y`, `position_z`, `orientation`, `spawntimesecs`, `spawndist`, `movementtype`, `comment`) VALUES
-	(1, 'base', 987453, 37, 1042.49, 273.71, 335.013, 3.4, 120, 0, 0, 'village upgrade'),
+-- Exportování dat pro tabulku customs.gv_creature_template: ~72 rows (přibližně)
+INSERT INTO `gv_creature_template` (`id`, `layout_key`, `entry`, `map`, `position_x`, `position_y`, `position_z`, `orientation`, `spawntimesecs`, `spawndist`, `movementtype`, `comment`) VALUES
+	(1, 'base', 987453, 37, 1037.65, 278.946, 334.764, 3.2, 120, 0, 0, 'village upgrade'),
 	(2, 'base', 6491, 37, 833.867, 105.303, 269.313, 2.00583, 120, 0, 0, 'GV Spirit Healer (base)'),
-	(3, 'base', 987400, 37, 176.613, -348.106, 247.338, 6.27212, 604800, 0, 0, 'Village boss'),
+	(3, 'base', 987400, 37, 152.63, -349.04, 243.85, 6.16769, 604800, 0, 0, 'Village boss'),
 	(4, 'base', 987402, 37, 199.1, -349.839, 246.884, 0.0722031, 86400, 15, 1, 'Village mob'),
 	(5, 'base', 987402, 37, 271.367, -325.095, 248.559, 0.374581, 86400, 15, 1, 'Village mob'),
 	(6, 'base', 987402, 37, 351.689, -286.878, 258.747, 0.512025, 86400, 15, 1, 'Village mob'),

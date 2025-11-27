@@ -3,6 +3,7 @@ project(mod-guild-village)
 
 set(scripts_STAT_SRCS
   src/loader.cpp
+  src/guild_village_customs_updater.cpp
   src/guild_village_commands.cpp
   src/guild_village_create.cpp
   src/guild_village_upgrade.cpp
