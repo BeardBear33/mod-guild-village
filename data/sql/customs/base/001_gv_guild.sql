@@ -16,4 +16,4 @@ CREATE TABLE IF NOT EXISTS `customs`.`gv_guild` (
   KEY `idx_map` (`map`),
   KEY `idx_last_update` (`last_update`),
   CONSTRAINT `chk_gvguild_phase_valid` CHECK ((`phase` >= 1))
-) ENGINE=InnoDB AUTO_INCREMENT=29 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;

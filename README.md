@@ -90,4 +90,4 @@ Don’t forget to apply all previous updates as well if you skipped any of them.
 ----------------------------------------------------------------------------------------------------------------
 
 # License
-This module is licensed under the [GNU AFFERO GENERAL PUBLIC LICENSE](LICENSE).
+This module is licensed under the [GNU Affero General Public License v3.0](https://github.com/BeardBear33/mod-guild-village/blob/main/LICENSE).

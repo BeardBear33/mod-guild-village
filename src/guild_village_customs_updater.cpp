@@ -1,15 +1,11 @@
-// Minimalistický autoupdater pro CUSTOMS SQL (Guild Village)
-// - hledá .sql v data/sql/customs/{base,updates_include,updates}
-// - aplikuje po jednom SQL příkazu (parser ignoruje komentáře, USE, DELIMITER)
-// - trackuje v customs.gv_updates
-// - early bootstrap: vytvoří schéma `customs` + základní tabulky, aby první start nepadal
+// modules/mod-guild-village/src/guild_village_customs_updater.cpp
 
 #include "ScriptMgr.h"
 #include "DatabaseEnv.h"
 #include "Config.h"
 #include "Log.h"
-#include "CryptoHash.h"   // Acore::Crypto::SHA1
-#include "Util.h"         // StringEqualI
+#include "CryptoHash.h"
+#include "Util.h"
 
 #include <filesystem>
 #include <fstream>
@@ -41,7 +37,7 @@ static std::string StripSqlComments(std::string const& in)
     {
         char c=in[i], n = (i+1<in.size()? in[i+1] : '\0');
 
-        // přepínej stringy
+        // přepínat stringy
         if (!inD && !inB && c=='\''){ inS=!inS; out.push_back(c); ++i; continue; }
         if (!inS && !inB && c=='"'){  inD=!inD; out.push_back(c); ++i; continue; }
         if (!inS && !inD && c=='`'){  inB=!inB; out.push_back(c); ++i; continue; }
@@ -120,39 +116,85 @@ static std::string Sha1Hex(std::string const& data)
     return out;
 }
 
-// ---------- tracking tabulka ----------
-static void EnsureTrackingTable()
+// Název modulu detekovaný z cesty
+static std::string DetectModuleName()
 {
+    fs::path p(__FILE__);
+    fs::path modDir = p.parent_path().parent_path();
+    return modDir.filename().string();
+}
+
+// helpers
+static bool ColumnExists(char const* db, char const* tbl, char const* col)
+{
+    return WorldDatabase.Query(
+        "SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS "
+        "WHERE TABLE_SCHEMA='{}' AND TABLE_NAME='{}' AND COLUMN_NAME='{}' LIMIT 1",
+        db, tbl, col
+    ) != nullptr;
+}
+
+// --- tracking tabulka ---
+static void EnsureTrackingTable(std::string const& /*moduleName*/)
+{
+    WorldDatabase.DirectExecute(
+        "CREATE DATABASE IF NOT EXISTS `customs` "
+        "DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
+
     WorldDatabase.DirectExecute(
         "CREATE TABLE IF NOT EXISTS `customs`.`gv_updates` ("
         "  `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,"
+        "  `module` VARCHAR(64) NOT NULL,"                      /* nový tvar */
         "  `filename` VARCHAR(255) NOT NULL,"
         "  `sha1` CHAR(40) NOT NULL DEFAULT '',"
         "  `applied_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,"
         "  PRIMARY KEY (`id`),"
-        "  UNIQUE KEY `uq_filename` (`filename`)"
+        "  UNIQUE KEY `uq_module_file` (`module`,`filename`)"
         ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;"
     );
 }
 
-static std::unordered_set<std::string> LoadApplied()
+// --- čtení seznamu aplikovaných souborů ---
+static std::unordered_set<std::string> LoadApplied(std::string const& moduleName)
 {
     std::unordered_set<std::string> seen;
-    if (QueryResult r = WorldDatabase.Query("SELECT `filename` FROM `customs`.`gv_updates`"))
-        do { seen.insert(r->Fetch()[0].Get<std::string>()); } while (r->NextRow());
+    bool hasModule = ColumnExists("customs", "gv_updates", "module");
+
+    QueryResult r = hasModule
+        ? WorldDatabase.Query("SELECT `filename` FROM `customs`.`gv_updates` WHERE `module` = '{}'", moduleName)
+        : WorldDatabase.Query("SELECT `filename` FROM `customs`.`gv_updates`"); // starý tvar
+
+    if (r) do { seen.insert(r->Fetch()[0].Get<std::string>()); } while (r->NextRow());
     return seen;
 }
 
-static void MarkApplied(std::string const& filename, std::string const& sha1)
+// --- zapsání "applied" ---
+static void MarkApplied(std::string const& moduleName, std::string const& filename, std::string const& sha1)
 {
-    WorldDatabase.DirectExecute(
-        "INSERT IGNORE INTO `customs`.`gv_updates` (`filename`,`sha1`) VALUES ('{}','{}')",
-        filename, sha1
-    );
+    bool hasModule = ColumnExists("customs", "gv_updates", "module");
+
+    if (hasModule)
+    {
+        WorldDatabase.DirectExecute(
+            "INSERT INTO `customs`.`gv_updates` (`module`,`filename`,`sha1`) "
+            "VALUES ('{}','{}','{}') "
+            "ON DUPLICATE KEY UPDATE `sha1`=VALUES(`sha1`), `applied_at`=CURRENT_TIMESTAMP",
+            moduleName, filename, sha1
+        );
+    }
+    else
+    {
+        WorldDatabase.DirectExecute(
+            "INSERT INTO `customs`.`gv_updates` (`filename`,`sha1`) "
+            "VALUES ('{}','{}') "
+            "ON DUPLICATE KEY UPDATE `sha1`=VALUES(`sha1`), `applied_at`=CURRENT_TIMESTAMP",
+            filename, sha1
+        );
+    }
 }
 
 // ---------- early bootstrap ----------
-static void EnsureBootstrapEarly()
+static void EnsureBootstrapEarly(std::string const& moduleName)
 {
     // 1) Schéma `customs`
     WorldDatabase.DirectExecute("CREATE DATABASE IF NOT EXISTS `customs` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
@@ -170,8 +212,8 @@ static void EnsureBootstrapEarly()
         ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci"
     );
 
-    // tracking tabulka
-    EnsureTrackingTable();
+    // tracking tabulka (+ migrace)
+    EnsureTrackingTable(moduleName);
 }
 
 // ---------- file collect ----------
@@ -195,15 +237,15 @@ static void CollectSqlFiles(std::string const& root, std::vector<std::string>& o
 }
 
 // ---------- executor ----------
-static bool ExecuteSqlFile(std::string const& filePath, std::string const& keyForDb)
+static bool ExecuteSqlFile(std::string const& moduleName, std::string const& filePath, std::string const& filenameKey)
 {
     std::string raw = ReadFile(filePath);
     std::string sha = Sha1Hex(raw);
 
     if (raw.empty())
     {
-        LOG_WARN("gv.customs", "[customs] Empty file -> mark applied: {} (sha1={})", keyForDb, sha);
-        MarkApplied(keyForDb, sha);
+        LOG_WARN("gv.customs", "[customs] Empty file -> mark applied: {} (sha1={})", filenameKey, sha);
+        MarkApplied(moduleName, filenameKey, sha);
         return true;
     }
 
@@ -216,12 +258,12 @@ static bool ExecuteSqlFile(std::string const& filePath, std::string const& keyFo
 
     if (stmts.empty())
     {
-        LOG_INFO("gv.customs", "[customs] {}: nothing to execute after stripping comments (mark applied).", keyForDb);
-        MarkApplied(keyForDb, sha);
+        LOG_INFO("gv.customs", "[customs] {}: nothing to execute after stripping comments (mark applied).", filenameKey);
+        MarkApplied(moduleName, filenameKey, sha);
         return true;
     }
 
-    LOG_INFO("gv.customs", "[customs] Executing {} statement(s) from {}", stmts.size(), keyForDb);
+    LOG_INFO("gv.customs", "[customs] Executing {} statement(s) from {}", stmts.size(), filenameKey);
     for (auto const& s : stmts)
     {
         std::string prev = s.substr(0, std::min<size_t>(160, s.size()));
@@ -229,8 +271,8 @@ static bool ExecuteSqlFile(std::string const& filePath, std::string const& keyFo
         LOG_DEBUG("gv.customs", "[customs] exec: {}{}", prev.c_str(), s.size()>160?" ...":"");
     }
 
-    MarkApplied(keyForDb, sha);
-    LOG_INFO("gv.customs", "[customs] Applied: {}", keyForDb);
+    MarkApplied(moduleName, filenameKey, sha);
+    LOG_INFO("gv.customs", "[customs] Applied: {}", filenameKey);
     return true;
 }
 
@@ -242,14 +284,14 @@ static std::string RelKey(std::string const& root, std::string const& full)
     return fs::path(full).filename().string();
 }
 
-static void RunPass(char const* label, fs::path const& dir, std::unordered_set<std::string>& applied, uint32& nApplied)
+static void RunPass(char const* label, fs::path const& dir, std::string const& moduleName, std::unordered_set<std::string>& applied, uint32& nApplied)
 {
     std::vector<std::string> files; CollectSqlFiles(dir.string(), files);
     for (auto const& full : files)
     {
-        std::string key = (std::string(label) + "/" + RelKey(dir.string(), full));
-        if (applied.count(key)) continue;
-        if (ExecuteSqlFile(full, key)){ applied.insert(key); ++nApplied; }
+        std::string filenameKey = (std::string(label) + "/" + RelKey(dir.string(), full));
+        if (applied.count(filenameKey)) continue;
+        if (ExecuteSqlFile(moduleName, full, filenameKey)){ applied.insert(filenameKey); ++nApplied; }
     }
 }
 
@@ -257,7 +299,7 @@ static void RunPass(char const* label, fs::path const& dir, std::unordered_set<s
 static fs::path ModuleRoot()
 {
     fs::path p(__FILE__);
-    return p.parent_path().parent_path(); // .../modules/mod-guild-village
+    return p.parent_path().parent_path();
 }
 
 // ---------- WorldScript ----------
@@ -269,12 +311,15 @@ public:
 
     void OnAfterConfigLoad(bool /*reload*/) override
     {
-        LOG_INFO("gv.customs", "[customs] Early bootstrap (schema + minimal tables)...");
-        EnsureBootstrapEarly();
+        std::string moduleName = DetectModuleName();
+        LOG_INFO("gv.customs", "[customs] Early bootstrap (schema + minimal tables) for module '{}'", moduleName);
+        EnsureBootstrapEarly(moduleName);
     }
 
     void OnStartup() override
     {
+        std::string moduleName = DetectModuleName();
+
         fs::path root    = ModuleRoot();
         fs::path sqlRoot = root / "data/sql/customs";
         fs::path dirBase = sqlRoot / "base";
@@ -282,18 +327,19 @@ public:
         fs::path dirUpd  = sqlRoot / "updates";
 
         LOG_INFO("gv.customs", "┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓");
-        LOG_INFO("gv.customs", "┃    Guild Village – Customs SQL Updater (auto)      ┃");
+        LOG_INFO("gv.customs", "┃ Guild Village – Customs SQL Updater (auto) ┃");
         LOG_INFO("gv.customs", "┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛");
+        LOG_INFO("gv.customs", "[customs] Module: {}", moduleName);
         LOG_INFO("gv.customs", "[customs] SQL root: {}", sqlRoot.string());
 
-        EnsureTrackingTable();
+        EnsureTrackingTable(moduleName);
 
-        auto applied    = LoadApplied();
+        auto applied    = LoadApplied(moduleName);
         uint32 appliedN = 0;
 
-        RunPass("base",    dirBase, applied, appliedN);
-        RunPass("include", dirInc,  applied, appliedN);
-        RunPass("updates", dirUpd,  applied, appliedN);
+        RunPass("base",    dirBase, moduleName, applied, appliedN);
+        RunPass("include", dirInc,  moduleName, applied, appliedN);
+        RunPass("updates", dirUpd,  moduleName, applied, appliedN);
 
         if (appliedN==0) LOG_INFO("gv.customs","[customs] Nothing to update – up to date.");
         else             LOG_WARN("gv.customs","[customs] Applied {} file(s). If schema/gameplay changed, restart is recommended.", appliedN);

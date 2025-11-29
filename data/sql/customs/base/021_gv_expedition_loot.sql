@@ -10,4 +10,4 @@ CREATE TABLE IF NOT EXISTS `customs`.`gv_expedition_loot` (
   UNIQUE KEY `uniq_stack` (`guildId`,`itemid`),
   UNIQUE KEY `uq_gv_loot_guild_item` (`guildId`,`itemid`),
   KEY `idx_guild` (`guildId`)
-) ENGINE=InnoDB AUTO_INCREMENT=251 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;

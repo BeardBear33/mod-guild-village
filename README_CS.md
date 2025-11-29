@@ -14,6 +14,7 @@ Tento modul umožňuje:
 ### Instalace / Požadavky  
 Pro správnou funkčnost autoupdateru je nutné zajistit, aby uživatel databáze z `(WorldDatabaseInfo) – "127.0.0.1;3306;acore;acore;acore_world"`  
 měl práva i na novou databázi customs:
+ 
 ```
 GRANT CREATE ON *.* TO 'acore'@'127.0.0.1';
 GRANT ALL PRIVILEGES ON customs.* TO 'acore'@'127.0.0.1';
@@ -26,6 +27,10 @@ FLUSH PRIVILEGES;
 - Poslední update se nachází v customs/archive/updates/014_important_update.sql  
 Nezapomeňte aplikovat také všechny předchozí updaty, pokud jste je vynechali.  
 - Po aplikaci updatu 014_important_update.sql se bude modul bude aktualizovat automaticky při spuštění serveru.
+
+**Volitelné:**
+- Přidej do worldserver.conf tento řádek:  
+  Logger.gv.customs=3,Console Server
 
 ##
 

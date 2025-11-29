@@ -4,7 +4,7 @@ DELETE FROM `creature_template_model` WHERE `CreatureID` IN (
   987420,987421,987450,987451,987452,987453,987454
 );
 
-INSERT INTO `creature_template_model`
+INSERT IGNORE INTO `creature_template_model`
 (`CreatureID`,`Idx`,`CreatureDisplayID`,`DisplayScale`,`Probability`,`VerifiedBuild`)
 VALUES
 (987400,0,26298,1,1,12340),

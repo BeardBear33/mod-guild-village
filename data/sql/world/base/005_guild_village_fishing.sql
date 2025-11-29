@@ -3,7 +3,7 @@ DELETE FROM `fishing_loot_template` WHERE `Entry` = 268;
 DELETE FROM `skill_fishing_base_level` WHERE `entry` = 268;
 
 -- Loot rows
-INSERT INTO `fishing_loot_template`
+INSERT IGNORE INTO `fishing_loot_template`
 (`Entry`,`Item`,`Reference`,`Chance`,`QuestRequired`,`LootMode`,`GroupId`,`MinCount`,`MaxCount`,`Comment`)
 VALUES
 (268,1,11107,100,0,1,0,1,1,'(ReferenceTable)'),
@@ -24,6 +24,6 @@ VALUES
 (268,45904,0,50,1,1,0,1,1,'Terrorfish');
 
 -- Base skill
-INSERT INTO `skill_fishing_base_level` (`entry`,`skill`)
+INSERT IGNORE INTO `skill_fishing_base_level` (`entry`,`skill`)
 VALUES
 (268,400);

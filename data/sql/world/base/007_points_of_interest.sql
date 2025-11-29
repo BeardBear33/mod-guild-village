@@ -6,7 +6,7 @@ DELETE FROM `points_of_interest` WHERE `ID` IN (
   1240,1241,1242,1243,1244,1245,1246
 );
 
-INSERT INTO `points_of_interest`
+INSERT IGNORE INTO `points_of_interest`
 (`ID`,`PositionX`,`PositionY`,`Icon`,`Flags`,`Importance`,`Name`)
 VALUES
 (1200,1232.19,239.481,7,99,0,'Trainer: Paladin'),

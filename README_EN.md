@@ -28,6 +28,10 @@ FLUSH PRIVILEGES;
 Don’t forget to apply all previous updates as well if you skipped any of them.  
 - After applying 014_important_update.sql, the module will update itself automatically when the server starts.
 
+**Optional:**
+- Add this line to worldserver.conf:  
+  Logger.gv.customs=3,Console Server
+
 ##
 
 ### ⚠️ Warning

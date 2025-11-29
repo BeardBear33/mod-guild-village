@@ -6,7 +6,7 @@ USE `acore_world`;
 DELETE FROM `points_of_interest`
 WHERE `ID` = 1248;
 
-INSERT INTO `points_of_interest` (
+INSERT IGNORE INTO `points_of_interest` (
     `ID`,
     `PositionX`,
     `PositionY`,

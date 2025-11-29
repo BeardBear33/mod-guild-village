@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS `gv_loot` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- Exportování dat pro tabulku customs.gv_loot
-INSERT INTO `customs`.`gv_loot` (`entry`, `currency`, `chance`, `min_amount`, `max_amount`, `comment`) VALUES
+INSERT IGNORE INTO `customs`.`gv_loot` (`entry`, `currency`, `chance`, `min_amount`, `max_amount`, `comment`) VALUES
 	(987400, 'material2', 100, 80, 150, 'boss stone'),
 	(987401, 'material1', 100, 80, 150, 'boss wood'),
 	(987402, 'material2', 100, 5, 10, 'elite stone'),

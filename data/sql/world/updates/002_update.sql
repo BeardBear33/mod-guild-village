@@ -5,5 +5,5 @@ WHERE `ScriptName` IN (
 );
 
 -- Thranok: Rock Shards SpellScript patří na 58941 (ne 58678)
-INSERT INTO `spell_script_names` (`spell_id`, `ScriptName`) VALUES
+INSERT IGNORE INTO `spell_script_names` (`spell_id`, `ScriptName`) VALUES
   (58941, 'spell_thranok_rock_shards');
