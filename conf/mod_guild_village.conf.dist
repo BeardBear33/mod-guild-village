@@ -52,6 +52,12 @@ GuildVillage.RequireGuildMasterForPurchase = true
 #     false = show to everyone
 GuildVillage.HidePurchaseMenuForNonGM = true
 
+# CS: Povolit nebo zakázat funkci teleportace na poslední pozici po použití .v tp, pouze v otevřeném světě.
+#	  Instance, combat, BG a arény nepovolují teleportaci do vesnice ani zpět.
+# EN: Enable or disable the function that teleports you back to your last position after using .v tp, only in the open world.
+#	  Instances, combat, battlegrounds, and arenas do not allow teleporting to the village or back.
+GuildVillage.Teleport.Back = true
+
 
 #-----------------------------#
 #  CENA ZA ZALOŽENÍ VESNICE   #

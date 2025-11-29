@@ -101,6 +101,11 @@ SmartAI for cooking and riding trainers has been removed (movement only).
 > If more than one quest is enabled, pagination is used to switch between the quest pages.  
 > Example: .village questweekly 5
 
+.village back / b  
+.v back / b  
+➝ Teleports you back to your last position after using .v tp  
+> Only in the open world.  
+
 ### Admin Commands
 .gv list [PAGE]
 ➝ Lists the guild name and its ID

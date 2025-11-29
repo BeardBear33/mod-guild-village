@@ -14,9 +14,9 @@
 #include "gv_production.h"
 #include "ObjectMgr.h"
 #include "ItemTemplate.h"
+#include "Map.h"
+
 #include <cstdio>
-
-
 #include <string>
 #include <algorithm>
 #include <optional>
@@ -34,6 +34,11 @@ namespace GuildVillageMissions
     };
 
     std::vector<ExpeditionLine> BuildExpeditionLinesForGuild(uint32 guildId);
+}
+
+static inline bool BackEnabled()
+{
+    return sConfigMgr->GetOption<bool>("GuildVillage.Teleport.Back", true);
 }
 
 namespace GuildVillage
@@ -203,6 +208,67 @@ namespace
         return sLower == "teleport" || sLower == "tp";
     }
 	
+	// --- back alias helper ---
+	static inline bool IsBackArg(std::string const& sLower)
+	{
+		return sLower == "back" || sLower == "b";
+	}
+	
+	// --- uloží "back" bod před TP do vesnice (pouze mimo vesnici / BG / instanci / combat) ---
+	static void SaveBackPointIfEligible(Player* player)
+	{
+		if (!BackEnabled()) return;
+		if (!player) return;
+	
+		// nesmí být ve vesnici, v BG/areně, v instanci nebo v boji
+		if (player->GetMapId() == DefMap()) return;
+		if (player->InBattleground()) return;
+		if (player->IsInCombat()) return;
+		if (Map* m = player->GetMap()) { if (m->Instanceable()) return; }
+	
+		uint32 pguid = player->GetGUID().GetCounter();
+		uint32 map   = player->GetMapId();
+		double x     = player->GetPositionX();
+		double y     = player->GetPositionY();
+		double z     = player->GetPositionZ();
+		float  o     = player->GetOrientation();
+	
+		std::string q =
+			"REPLACE INTO customs.gv_teleport_back "
+			"(player, map, positionx, positiony, positionz, orientation, set_time) VALUES (" +
+			std::to_string(pguid) + ", " +
+			std::to_string(map)   + ", " +
+			std::to_string(x)     + ", " +
+			std::to_string(y)     + ", " +
+			std::to_string(z)     + ", " +
+			std::to_string(o)     + ", NOW())";
+	
+		WorldDatabase.Execute(q);
+	}
+	
+	// --- načte back bod ---
+	static bool LoadBackPoint(uint32 pguid,
+							/*out*/ uint32& map, /*out*/ double& x, /*out*/ double& y,
+							/*out*/ double& z, /*out*/ float& o)
+	{
+		if (QueryResult res = WorldDatabase.Query(
+				"SELECT map, positionx, positiony, positionz, orientation "
+				"FROM customs.gv_teleport_back WHERE player={} LIMIT 1", pguid))
+		{
+			Field* f = res->Fetch();
+			map = f[0].Get<uint32>(); x = f[1].Get<double>(); y = f[2].Get<double>();
+			z   = f[3].Get<double>(); o = f[4].Get<float>();
+			return true;
+		}
+		return false;
+	}
+	
+	// --- po úspěšném návratu smaž bod ---
+	static void ClearBackPoint(uint32 pguid)
+	{
+		WorldDatabase.Execute("DELETE FROM customs.gv_teleport_back WHERE player=" + std::to_string(pguid));
+	}
+	
     // --- rozdělení "arg1 arg2 ..." na 1. token a zbytek
     static inline void SplitFirstToken(std::string const& in, std::string& tok, std::string& rest)
     {
@@ -243,6 +309,7 @@ namespace
 		if (ItemTemplate const* it = sObjectMgr->GetItemTemplate(itemId))
 		{
 			char const* hex = QualityHex(it->Quality);
+			// minimální link: |cffHEX|Hitem:itemId:0:0:0:0:0:0:0|h[Name]|h|r
 			return Acore::StringFormat("|c{}|Hitem:{}:0:0:0:0:0:0:0|h[{}]|h|r", hex, itemId, it->Name1);
 		}
 		// fallback
@@ -265,6 +332,7 @@ namespace
             return false;
         }
 
+        // guildu a phase vezmu z customs.gv_guild (stejně jako při default TP)
         uint32 guildId = player->GetGuildId();
         uint32 phaseMask = 0;
         uint32 mapId = player->GetMapId();
@@ -489,6 +557,7 @@ namespace
 
         for (auto const& L : lines)
         {
+            // "Utgarde Keep - 1h 23m 15s"
             std::string row = Acore::StringFormat(
                 "{} - {}",
                 L.mission,
@@ -609,6 +678,7 @@ namespace
 
     static inline const char* ResetName(ResetType rt) { return (rt == ResetType::Daily) ? "daily" : "weekly"; }
 
+    // --- NOVÉ: konfig klíče pro quests (oddělené)
     static inline std::string DailyResetTimeStr()
     {
         return sConfigMgr->GetOption<std::string>("GuildVillage.Quests.DailyReset.Time", "04:00");
@@ -629,6 +699,7 @@ namespace
 			guildId) != nullptr;
 	}
 
+    // pomocné: parsování HH:MM a výpočet next TS (stejně jako v quests.cpp)
     static bool ParseHHMM(std::string const& s, int& outH, int& outM)
     {
         outH=0; outM=0;
@@ -663,6 +734,7 @@ namespace
         return ToUnix(target);
     }
 
+    // >>> ZMĚNĚNO: rozšířený parser dne (EN, CZ, čísla 0–6, 7→0) <<<
     static int DOWFromToken(std::string day)
     {
         // trim
@@ -873,9 +945,11 @@ namespace
 		uint32 goal = 0;
 		bool   completed = false;
 	
+		// NOVĚ: název questu
 		std::string name_cs;
 		std::string name_en;
 	
+		// Popis (dříve používaný jako titulek ve výpisu)
 		std::string info_cs;
 		std::string info_en;
 	};
@@ -980,7 +1054,7 @@ static void SendQuestListPaged(Player* player, ChatHandler* handler, ResetType r
         handler->SendSysMessage(headBase.c_str());
         handler->SendSysMessage((std::string(en ? "Quest: " : "Úkol: ") + CWhite(title)).c_str());
 
-        // Popis (z info_cs/en)
+        // Popis (z info_cs/en) – hned nad „Postup:“
         {
             std::string desc = en ? row.info_en : row.info_cs;
             if (!desc.empty())
@@ -1043,7 +1117,7 @@ static void SendQuestListPaged(Player* player, ChatHandler* handler, ResetType r
     handler->SendSysMessage(head.c_str());
     handler->SendSysMessage((std::string(en ? "Quest: " : "Úkol: ") + CWhite(title)).c_str());
 
-    // Popis
+    // Popis nad „Postup:“
     {
         std::string desc = en ? row.info_en : row.info_cs;
         if (!desc.empty())
@@ -1129,6 +1203,13 @@ static void SendQuestListPaged(Player* player, ChatHandler* handler, ResetType r
 				
 				handler->SendSysMessage(" .village tp set – set your personal village teleport point");
 				handler->SendSysMessage("    Aliases: .v tp set");
+				
+				if (BackEnabled())
+				{
+				handler->SendSysMessage(" .village back – return from village to your last position");
+				handler->SendSysMessage("    Aliases: .village b / back");
+				handler->SendSysMessage("              .v b / back");
+				}
             }
             else
             {
@@ -1168,9 +1249,72 @@ static void SendQuestListPaged(Player* player, ChatHandler* handler, ResetType r
 				
 				handler->SendSysMessage(" .village tp set – nastaví tvůj osobní bod teleportu ve vesnici");
 				handler->SendSysMessage("    Alias: .v tp set");
+				
+				if (BackEnabled())
+				{
+				handler->SendSysMessage(" .village back – návrat z vesnice na poslední pozici");
+				handler->SendSysMessage("    Alias: .village b / back");
+				handler->SendSysMessage("            .v b / back");
+				}
             }
             return true;
         }
+
+		// --- BACK: .village back / .village b / .v back / .v b ---
+		{
+			std::string tok1, rest;
+			SplitFirstToken(al, tok1, rest);
+		
+			if (IsBackArg(tok1))
+			{
+				
+				if (!BackEnabled())
+				{
+					handler->SendSysMessage(T("Funkce návratu je na tomto serveru vypnutá.",
+											"The back/return feature is disabled on this server."));
+					return true;
+				}
+				// povoleno pouze z vesnice
+				if (player->GetMapId() != DefMap())
+				{
+					handler->SendSysMessage(T("Příkaz lze použít pouze uvnitř guildovní vesnice.",
+											"This command can only be used inside the guild village."));
+					return true;
+				}
+		
+				// bezpečnost: žádný BG a žádný combat (vesnice není instance)
+				if (player->InBattleground())
+				{
+					handler->SendSysMessage(T("V bojišti/aréne se nemůžeš teleportovat.",
+											"You can't teleport while in a battleground/arena."));
+					return true;
+				}
+				if (player->IsInCombat())
+				{
+					handler->SendSysMessage(T("Nemůžeš teleportovat během boje.",
+											"You can't teleport while in combat."));
+					return true;
+				}
+		
+				uint32 pguid = player->GetGUID().GetCounter();
+				uint32 map = 0; double x=0,y=0,z=0; float o=0.f;
+		
+				if (!LoadBackPoint(pguid, map, x, y, z, o))
+				{
+					handler->SendSysMessage(T("Nemáš uloženou cílovou pozici pro návrat.",
+											"You have no saved position to return to."));
+					return true;
+				}
+		
+				// návrat – po úspěchu smazat bod
+				player->TeleportTo(map, x, y, z, o);
+				ClearBackPoint(pguid);
+		
+				handler->SendSysMessage(T("Teleportuji zpět na poslední pozici mimo vesnici…",
+										"Teleporting back to your last position outside the village…"));
+				return true;
+			}
+		}
 
         // --- TELEPORT / TELEPORT SET ---
         {
@@ -1191,13 +1335,34 @@ static void SendQuestListPaged(Player* player, ChatHandler* handler, ResetType r
                     SavePersonalVillageTp(player, handler);
                     return true;
                 }
-
+				
+				// PvP blok
                 if (player->InBattleground())
                 {
                     handler->SendSysMessage(T("V bojišti/aréne nemůžeš teleportovat.",
                                               "You can't teleport while in a battleground/arena."));
                     return true;
                 }
+				
+				// Combat blok
+				if (player->IsInCombat())
+				{
+					handler->SendSysMessage(T("Nemůžeš teleportovat během boje.",
+											"You can't teleport while in combat."));
+					return true;
+				}
+				
+				// Instance blok
+				if (Map* m = player->GetMap())
+				{
+					if (m->Instanceable())
+					{
+						handler->SendSysMessage(T("V instanci (dungeon/raid) nelze teleportovat.",
+												"Teleport is not allowed inside instances (dungeon/raid)."));
+						return true;
+					}
+				}
+
 
                 // 1) zkusit osobní bod
                 uint32 map = 0, phaseMaskPersonal = 0;
@@ -1239,7 +1404,9 @@ static void SendQuestListPaged(Player* player, ChatHandler* handler, ResetType r
                 // stash phase => PlayerScript ji aplikuje po dokončení TeleportTo
                 auto* stash = player->CustomData.GetDefault<GVPhaseData>("gv_phase");
                 stash->phaseMask = usePhase;
-
+				
+				SaveBackPointIfEligible(player);
+				
                 player->TeleportTo(useMap, useX, useY, useZ, useO);
                 handler->SendSysMessage(
                     hasPersonal

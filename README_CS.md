@@ -100,6 +100,11 @@ Odebrán smartAI pro cooking trenéra a ridding trenéra (pouze pohyb)
 > Pokud je povoleno více jak 1 úkol tak se používá stránkování pro přepínání stránek s úkoly.  
 > Příklad: .village questweekly 5
 
+.village back / b  
+.v back / b  
+➝ Teleportuje na poslední pozici po příkazu .v tp  
+> Funguje pouze v otevřeném světě  
+
 ### Admin Příkazy
 .gv list [PAGE]
 ➝ Vypíše název guildy a její ID
