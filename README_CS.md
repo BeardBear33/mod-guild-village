@@ -60,6 +60,6 @@ Odebrán smartAI pro cooking trenéra a ridding trenéra (pouze pohyb)
 - gv_creature_template - Pokud chcete aby bylo něco vygenerováno ještě před vytvořením vesnice tak stačí přidat záznam zde. Pozor tato tabulka se aplikuje pouze jednou při zakoupení vesnice.
 
 ## Databázové tabulky a jejich popis
-**WIP**
+**WIP** [Wikipedia](https://github.com/BeardBear33/mod-guild-village/wiki/%5BCZ%5D-Dokumentace)
 
 

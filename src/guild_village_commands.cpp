@@ -211,7 +211,7 @@ namespace
 	// --- back alias helper ---
 	static inline bool IsBackArg(std::string const& sLower)
 	{
-		return sLower == "back" || sLower == "b";
+		return sLower == "back";
 	}
 	
 	// --- uloží "back" bod před TP do vesnice (pouze mimo vesnici / BG / instanci / combat) ---
@@ -1210,7 +1210,7 @@ Aliases: |cff00ff00.v tp set|r
 -----------------------------
 |cff00ff00.village back|r
 Return from the village to your last saved position.
-Aliases: |cff00ff00.village b|r, |cff00ff00.v b|r, |cff00ff00.village back|r)");
+Aliases: |cff00ff00.v back|r)");
 				}
 				else
 				{
@@ -1269,7 +1269,7 @@ Alias: |cff00ff00.v tp set|r
 -----------------------------
 |cff00ff00.village back|r
 Návrat z vesnice na poslední uloženou pozici.
-Alias: |cff00ff00.village b|r, |cff00ff00.v b|r, |cff00ff00.village back|r)");
+Alias: |cff00ff00.v back|r)");
 				}
 				else
 				{
@@ -1286,7 +1286,7 @@ Alias: |cff00ff00.v tp set|r)");
 			return true;
 		}
 
-		// --- BACK: .village back / .village b / .v back / .v b ---
+		// --- BACK: .village back / .v back / ---
 		{
 			std::string tok1, rest;
 			SplitFirstToken(al, tok1, rest);
