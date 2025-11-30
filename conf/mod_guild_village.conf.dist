@@ -351,10 +351,10 @@ GuildVillage.Expeditions.Culling_of_Stratholme.time = 43200
 GuildVillage.Expeditions.Culling_of_Stratholme.extrachance = 10
 
 # Drak'Tharon Keep
-GuildVillage.Expeditions.Drak_Tharon_Keep.amount = 2
-GuildVillage.Expeditions.Drak_Tharon_Keep.itemids = 35620,35619,35618,35632,35631,35630,35635,35634,35633,35638,35637,35636
-GuildVillage.Expeditions.Drak_Tharon_Keep.time = 43200
-GuildVillage.Expeditions.Drak_Tharon_Keep.extrachance = 10
+GuildVillage.Expeditions.DrakTharon_Keep.amount = 2
+GuildVillage.Expeditions.DrakTharon_Keep.itemids = 35620,35619,35618,35632,35631,35630,35635,35634,35633,35638,35637,35636
+GuildVillage.Expeditions.DrakTharon_Keep.time = 43200
+GuildVillage.Expeditions.DrakTharon_Keep.extrachance = 10
 
 # Halls of Stone
 GuildVillage.Expeditions.Halls_of_Stone.amount = 2
@@ -387,10 +387,10 @@ GuildVillage.Expeditions.Violet_Hold.time = 43200
 GuildVillage.Expeditions.Violet_Hold.extrachance = 10
 
 # Ahn'Kahet
-GuildVillage.Expeditions.Ahn_Kahet.amount = 2
-GuildVillage.Expeditions.Ahn_Kahet.itemids = 35607,35608,35606,35611,35610,35609,43278,43279,43277,35612,35613,35614
-GuildVillage.Expeditions.Ahn_Kahet.time = 43200
-GuildVillage.Expeditions.Ahn_Kahet.extrachance = 10
+GuildVillage.Expeditions.AhnKahet.amount = 2
+GuildVillage.Expeditions.AhnKahet.itemids = 35607,35608,35606,35611,35610,35609,43278,43279,43277,35612,35613,35614
+GuildVillage.Expeditions.AhnKahet.time = 43200
+GuildVillage.Expeditions.AhnKahet.extrachance = 10
 
 # Trial of the Champion
 GuildVillage.Expeditions.Trial_of_the_Champion.amount = 1
@@ -455,10 +455,10 @@ GuildVillage.Expeditions.Culling_of_Stratholme_HC.time = 2700
 GuildVillage.Expeditions.Culling_of_Stratholme_HC.extrachance = 10
 
 # Drak'Tharon Keep (HC)
-GuildVillage.Expeditions.Drak_Tharon_Keep_HC.amount = 2
-GuildVillage.Expeditions.Drak_Tharon_Keep_HC.itemids = 37715,37714,37717,37712,37722,37718,37721,37725,37724,37726,37723,37733,37734,37732,37735,37784,37788,37791,37798
-GuildVillage.Expeditions.Drak_Tharon_Keep_HC.time = 86400
-GuildVillage.Expeditions.Drak_Tharon_Keep_HC.extrachance = 10
+GuildVillage.Expeditions.DrakTharon_Keep_HC.amount = 2
+GuildVillage.Expeditions.DrakTharon_Keep_HC.itemids = 37715,37714,37717,37712,37722,37718,37721,37725,37724,37726,37723,37733,37734,37732,37735,37784,37788,37791,37798
+GuildVillage.Expeditions.DrakTharon_Keep_HC.time = 86400
+GuildVillage.Expeditions.DrakTharon_Keep_HC.extrachance = 10
 
 # Halls of Stone (HC)
 GuildVillage.Expeditions.Halls_of_Stone_HC.amount = 2
@@ -491,10 +491,10 @@ GuildVillage.Expeditions.Violet_Hold_HC.time = 86400
 GuildVillage.Expeditions.Violet_Hold_HC.extrachance = 10
 
 # Ahn'Kahet (HC)
-GuildVillage.Expeditions.Ahn_Kahet_HC.amount = 2
-GuildVillage.Expeditions.Ahn_Kahet_HC.itemids = 37594,37593,37592,37591,37613,37614,37612,37595,43287,43286,43285,43284,43283,43280,43282,43281,37622,37623,37620,37619,37616,37618,37617,37615
-GuildVillage.Expeditions.Ahn_Kahet_HC.time = 86400
-GuildVillage.Expeditions.Ahn_Kahet_HC.extrachance = 10
+GuildVillage.Expeditions.AhnKahet_HC.amount = 2
+GuildVillage.Expeditions.AhnKahet_HC.itemids = 37594,37593,37592,37591,37613,37614,37612,37595,43287,43286,43285,43284,43283,43280,43282,43281,37622,37623,37620,37619,37616,37618,37617,37615
+GuildVillage.Expeditions.AhnKahet_HC.time = 86400
+GuildVillage.Expeditions.AhnKahet_HC.extrachance = 10
 
 # Trial of the Champion (HC) (ilvl 219+)
 GuildVillage.Expeditions.Trial_of_the_Champion_HC.amount = 1
