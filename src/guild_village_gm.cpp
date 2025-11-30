@@ -345,7 +345,7 @@ namespace
   |cff00ff00.gv delete <GUILDID>|r      kompletní odstranění vesnice
   |cff00ff00.gv reset <GUILDID>|r      wipe + reinstall base layout
   |cff00ff00.gv list [PAGE]|r      vypíše 10 vesnic na stránku
-  |cff00ff00.gv set <GUILDID> <material1|2|3|4> <50>|r      upraví množství materiálu
+  |cff00ff00.gv set <GUILDID> <material3> <50>|r      upraví množství materiálu
   |cff00ff00.gv teleport <GUILDID>|r      portne tě do vesnice dané guildy (alias: .gv tp)
   |cff00ff00.gv creature <ENTRY> [MOVEMENTTYPE SPAWNDIST SPAWNTIMESECS]|r
   |cff00ff00.gv object <ENTRY> [SPAWNTIMESECS]|r
@@ -356,7 +356,7 @@ namespace
   |cff00ff00.gv delete <GUILDID>|r      remove village completely
   |cff00ff00.gv reset <GUILDID>|r      wipe + reinstall base layout
   |cff00ff00.gv list [PAGE]|r      list 10 villages per page
-  |cff00ff00.gv set <GUILDID> <material1|2|3|4> <50>|r      modify material amount
+  |cff00ff00.gv set <GUILDID> <material3> <50>|r      modify material amount
   |cff00ff00.gv teleport <GUILDID>|r      teleport you to that guild's village (alias: .gv tp)
   |cff00ff00.gv creature <ENTRY> [MOVEMENTTYPE SPAWNDIST SPAWNTIMESECS]|r
   |cff00ff00.gv object <ENTRY> [SPAWNTIMESECS]|r
@@ -702,7 +702,7 @@ namespace
   |cff00ff00.gv delete <GUILDID>|r
   |cff00ff00.gv reset <GUILDID>|r
   |cff00ff00.gv list [PAGE]|r
-  |cff00ff00.gv set <GUILDID> <material1|2|3|4> <50>|r
+  |cff00ff00.gv set <GUILDID> <material3> <50>|r
   |cff00ff00.gv creature <ENTRY> [MOVEMENTTYPE SPAWNDIST SPAWNTIMESECS]|r
   |cff00ff00.gv object <ENTRY> [SPAWNTIMESECS]|r
   |cff00ff00.gv excreature <EXPKEY> <ENTRY> <FACTION> [MOVEMENTTYPE SPAWNDIMESECS]|r
