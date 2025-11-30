@@ -341,21 +341,23 @@ namespace
         {
             handler->SendSysMessage(T(
                 R"(|cffffd000[GV]|r Dostupné příkazy:
-  |cff00ff00.gv create [GUILDID] [ignorecap]|r - vytvoří vesnici pro guildy
-  |cff00ff00.gv delete <GUILDID>|r           - kompletní odstranění vesnice
-  |cff00ff00.gv reset <GUILDID>|r            - wipe + reinstall base layout
-  |cff00ff00.gv list [PAGE]|r                - vypíše 10 vesnic na stránku
-  |cff00ff00.gv teleport <GUILDID>|r         - portne tě do vesnice dané guildy (alias: .gv tp)
+  |cff00ff00.gv create [GUILDID] [ignorecap]|r      vytvoří vesnici pro guildy
+  |cff00ff00.gv delete <GUILDID>|r      kompletní odstranění vesnice
+  |cff00ff00.gv reset <GUILDID>|r      wipe + reinstall base layout
+  |cff00ff00.gv list [PAGE]|r      vypíše 10 vesnic na stránku
+  |cff00ff00.gv set <GUILDID> <material1|2|3|4> <50>|r      upraví množství materiálu
+  |cff00ff00.gv teleport <GUILDID>|r      portne tě do vesnice dané guildy (alias: .gv tp)
   |cff00ff00.gv creature <ENTRY> [MOVEMENTTYPE SPAWNDIST SPAWNTIMESECS]|r
   |cff00ff00.gv object <ENTRY> [SPAWNTIMESECS]|r
   |cff00ff00.gv excreature <EXPKEY> <ENTRY> <FACTION> [MOVEMENTTYPE SPAWNDIST SPAWNTIMESECS]|r
   |cff00ff00.gv exobject <EXPKEY> <ENTRY> <FACTION> [SPAWNTIMESECS]|r)",
                 R"(|cffffd000[GV]|r Available commands:
-  |cff00ff00.gv create [GUILDID] [ignorecap]|r - create village
-  |cff00ff00.gv delete <GUILDID>|r           - remove village completely
-  |cff00ff00.gv reset <GUILDID>|r            - wipe + reinstall base layout
-  |cff00ff00.gv list [PAGE]|r                - list 10 villages per page
-  |cff00ff00.gv teleport <GUILDID>|r         - teleport you to that guild's village (alias: .gv tp)
+  |cff00ff00.gv create [GUILDID] [ignorecap]|r      create village
+  |cff00ff00.gv delete <GUILDID>|r      remove village completely
+  |cff00ff00.gv reset <GUILDID>|r      wipe + reinstall base layout
+  |cff00ff00.gv list [PAGE]|r      list 10 villages per page
+  |cff00ff00.gv set <GUILDID> <material1|2|3|4> <50>|r      modify material amount
+  |cff00ff00.gv teleport <GUILDID>|r      teleport you to that guild's village (alias: .gv tp)
   |cff00ff00.gv creature <ENTRY> [MOVEMENTTYPE SPAWNDIST SPAWNTIMESECS]|r
   |cff00ff00.gv object <ENTRY> [SPAWNTIMESECS]|r
   |cff00ff00.gv excreature <EXPKEY> <ENTRY> <FACTION> [MOVEMENTTYPE SPAWNDIST SPAWNTIMESECS]|r
@@ -548,7 +550,151 @@ namespace
                   "|cffff5555[GV-GM]|r Delete failed."));
             return true;
         }
+	
+	        // ===== .gv set <GUILDID> <material1|material2|material3|material4> <delta> =====
+        if (cmd == "set")
+        {
+            if (rest.empty())
+            {
+                handler->SendSysMessage(T(
+                    "Použití: .gv set <GUILDID> <material1|material2|material3|material4> <delta>",
+                    "Usage: .gv set <GUILDID> <material1|material2|material3|material4> <delta>"));
+                return true;
+            }
 
+            std::stringstream ss(rest);
+            uint32 guildId = 0;
+            std::string matToken;
+            long long delta = 0;
+
+            if (!(ss >> guildId >> matToken >> delta))
+            {
+                handler->SendSysMessage(T(
+                    "Špatné parametry. Použití: .gv set <GUILDID> <material1|material2|material3|material4> <delta>",
+                    "Bad parameters. Usage: .gv set <GUILDID> <material1|material2|material3|material4> <delta>"));
+                return true;
+            }
+
+            // znormalizovat název materiálu
+            std::transform(matToken.begin(), matToken.end(), matToken.begin(),
+                           [](unsigned char c){ return std::tolower(c); });
+
+            std::string colName;
+            uint8 matIndex = 0;
+
+            if (matToken == "material1" || matToken == "mat1" || matToken == "m1")
+            {
+                colName = "material1"; matIndex = 1;
+            }
+            else if (matToken == "material2" || matToken == "mat2" || matToken == "m2")
+            {
+                colName = "material2"; matIndex = 2;
+            }
+            else if (matToken == "material3" || matToken == "mat3" || matToken == "m3")
+            {
+                colName = "material3"; matIndex = 3;
+            }
+            else if (matToken == "material4" || matToken == "mat4" || matToken == "m4")
+            {
+                colName = "material4"; matIndex = 4;
+            }
+            else
+            {
+                handler->SendSysMessage(T(
+                    "Neznámý materiál. Použij material1, material2, material3 nebo material4.",
+                    "Unknown material. Use material1, material2, material3 or material4."));
+                return true;
+            }
+
+            // volitelně: jen pro guildy, co mají vesnici
+            if (!GuildVillage::GuildHasVillage(guildId))
+            {
+                handler->SendSysMessage(T(
+                    "|cffffaa00[GV-GM]|r Tato guilda nemá vesnici (není co upravovat).",
+                    "|cffffaa00[GV-GM]|r This guild does not have a village (nothing to modify)."));
+                return true;
+            }
+
+            // načíst aktuální currency pro guildu (pokud existuje)
+            uint64 cur1 = 0, cur2 = 0, cur3 = 0, cur4 = 0;
+            bool haveRow = false;
+
+            if (QueryResult r = WorldDatabase.Query(
+                    "SELECT material1, material2, material3, material4 "
+                    "FROM customs.gv_currency WHERE guildId={}", guildId))
+            {
+                Field* f = r->Fetch();
+                cur1 = f[0].Get<uint64>();
+                cur2 = f[1].Get<uint64>();
+                cur3 = f[2].Get<uint64>();
+                cur4 = f[3].Get<uint64>();
+                haveRow = true;
+            }
+
+            uint64* target = nullptr;
+            switch (matIndex)
+            {
+                case 1: target = &cur1; break;
+                case 2: target = &cur2; break;
+                case 3: target = &cur3; break;
+                case 4: target = &cur4; break;
+                default: break;
+            }
+
+            if (!target)
+            {
+                handler->SendSysMessage(T(
+                    "Vnitřní chyba: target == nullptr.",
+                    "Internal error: target == nullptr."));
+                return true;
+            }
+
+            uint64 oldVal = *target;
+
+            // bezpečný výpočet: old + delta, clamp na [0, UINT64_MAX]
+            long double tmp = static_cast<long double>(oldVal) + static_cast<long double>(delta);
+            if (tmp < 0.0L)
+                tmp = 0.0L;
+            if (tmp > static_cast<long double>(std::numeric_limits<uint64>::max()))
+                tmp = static_cast<long double>(std::numeric_limits<uint64>::max());
+
+            uint64 newVal = static_cast<uint64>(tmp);
+            *target = newVal;
+
+            if (haveRow)
+            {
+                WorldDatabase.Execute(
+                    "UPDATE customs.gv_currency "
+                    "SET material1={}, material2={}, material3={}, material4={} "
+                    "WHERE guildId={}",
+                    cur1, cur2, cur3, cur4, guildId);
+            }
+            else
+            {
+                WorldDatabase.Execute(
+                    "INSERT INTO customs.gv_currency "
+                    "(guildId, material1, material2, material3, material4) "
+                    "VALUES ({}, {}, {}, {}, {})",
+                    guildId, cur1, cur2, cur3, cur4);
+            }
+
+            // feedback
+            if (LangOpt() == Lang::EN)
+            {
+                handler->SendSysMessage(Acore::StringFormat(
+                    "|cff00ff00[GV-GM]|r Guild {}: {} changed from {} to {} ({:+d}).",
+                    guildId, colName, oldVal, newVal, (int32)delta).c_str());
+            }
+            else
+            {
+                handler->SendSysMessage(Acore::StringFormat(
+                    "|cff00ff00[GV-GM]|r Guilda {}: {} změněn z {} na {} ({:+d}).",
+                    guildId, colName, oldVal, newVal, (int32)delta).c_str());
+            }
+
+            return true;
+        }
+	
         // === Default help ===
         handler->SendSysMessage(T(
             R"(|cffffd000[GV]|r Dostupné příkazy:
@@ -556,6 +702,7 @@ namespace
   |cff00ff00.gv delete <GUILDID>|r
   |cff00ff00.gv reset <GUILDID>|r
   |cff00ff00.gv list [PAGE]|r
+  |cff00ff00.gv set <GUILDID> <material1|2|3|4> <50>|r
   |cff00ff00.gv creature <ENTRY> [MOVEMENTTYPE SPAWNDIST SPAWNTIMESECS]|r
   |cff00ff00.gv object <ENTRY> [SPAWNTIMESECS]|r
   |cff00ff00.gv excreature <EXPKEY> <ENTRY> <FACTION> [MOVEMENTTYPE SPAWNDIMESECS]|r

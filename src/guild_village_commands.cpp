@@ -1167,98 +1167,124 @@ static void SendQuestListPaged(Player* player, ChatHandler* handler, ResetType r
         {
             if (LangOpt() == Lang::EN)
             {
-                handler->SendSysMessage("|cff00ff00[Guild Village]|r – commands:");
-                handler->SendSysMessage(" .village info – show village info (all)");
-                handler->SendSysMessage("    Aliases: .village i / info");
-                handler->SendSysMessage("              .v i / info");
-
-                handler->SendSysMessage(" .village expedition – show active expeditions");
-                handler->SendSysMessage("    Aliases: .village e / expedition");
-                handler->SendSysMessage("              .v e / expedition");
-
-                handler->SendSysMessage(" .village boss – show bosses status");
-                handler->SendSysMessage("    Aliases: .village b / boss");
-                handler->SendSysMessage("              .v b / boss");
-
-                handler->SendSysMessage(" .village currency – show materials & caps");
-                handler->SendSysMessage("    Aliases: .village c / currency");
-                handler->SendSysMessage("              .v c / currency");
-
-                handler->SendSysMessage(" .village production – show production status");
-                handler->SendSysMessage("    Aliases: .village p / production");
-                handler->SendSysMessage("              .v p / production");
-
-                handler->SendSysMessage(" .village questdaily [page] – show daily guild quests");
-                handler->SendSysMessage("    Aliases: .village qd");
-                handler->SendSysMessage("              .v qd");
-
-                handler->SendSysMessage(" .village questweekly [page] – show weekly guild quests");
-                handler->SendSysMessage("    Aliases: .village qw");
-                handler->SendSysMessage("              .v qw");
-
-
-                handler->SendSysMessage(" .village teleport – teleports you to the guild village");
-                handler->SendSysMessage("    Aliases: .village tp / teleport");
-                handler->SendSysMessage("              .v tp / teleport");
-				
-				handler->SendSysMessage(" .village tp set – set your personal village teleport point");
-				handler->SendSysMessage("    Aliases: .v tp set");
-				
+                handler->SendSysMessage(R"(
+|cffffd000[Guild Village]|r – commands:
+|cff00ff00.village info|r
+Show complete village info (materials, production, expeditions, bosses).
+Aliases: |cff00ff00.village i|r, |cff00ff00.village info|r, |cff00ff00.v i|r, |cff00ff00.v info|r
+-----------------------------
+|cff00ff00.village expedition|r
+Show active expeditions and remaining time.
+Aliases: |cff00ff00.village e|r, |cff00ff00.v e|r, |cff00ff00.v expedition|r
+-----------------------------
+|cff00ff00.village boss|r
+Show raid boss status (alive / respawn time).
+Aliases: |cff00ff00.village b|r, |cff00ff00.v b|r, |cff00ff00.v boss|r
+-----------------------------
+|cff00ff00.village currency|r
+Show your guild materials and caps.
+Aliases: |cff00ff00.village c|r, |cff00ff00.v c|r, |cff00ff00.v currency|r
+-----------------------------
+|cff00ff00.village production|r
+Show current production (active material, tick and amount).
+Aliases: |cff00ff00.village p|r, |cff00ff00.v p|r, |cff00ff00.v production|r
+-----------------------------
+|cff00ff00.village questdaily [page]|r
+Show daily guild quests (one quest per page).
+Aliases: |cff00ff00.village qd|r, |cff00ff00.v qd|r
+-----------------------------
+|cff00ff00.village questweekly [page]|r
+Show weekly guild quests (one quest per page).
+Aliases: |cff00ff00.village qw|r, |cff00ff00.v qw|r)");
 				if (BackEnabled())
 				{
-				handler->SendSysMessage(" .village back – return from village to your last position");
-				handler->SendSysMessage("    Aliases: .village b / back");
-				handler->SendSysMessage("              .v b / back");
+					handler->SendSysMessage(R"(
+-----------------------------
+|cff00ff00.village teleport|r
+Teleport you to the guild village (personal point if set).
+Aliases: |cff00ff00.village tp|r, |cff00ff00.v tp|r, |cff00ff00.village teleport|r, |cff00ff00.v teleport|r
+-----------------------------
+|cff00ff00.village tp set|r
+Set your personal teleport point inside the village.
+Aliases: |cff00ff00.v tp set|r
+-----------------------------
+|cff00ff00.village back|r
+Return from the village to your last saved position.
+Aliases: |cff00ff00.village b|r, |cff00ff00.v b|r, |cff00ff00.village back|r)");
 				}
-            }
-            else
-            {
-                handler->SendSysMessage("|cff00ff00[Guildovní vesnice]|r – příkazy:");
-                handler->SendSysMessage(" .village info – zobrazí kompletní info");
-                handler->SendSysMessage("    Alias: .village i / info");
-                handler->SendSysMessage("            .v i / info");
-
-                handler->SendSysMessage(" .village expedition – ukáže probíhající expedice");
-                handler->SendSysMessage("    Alias: .village e / expedition");
-                handler->SendSysMessage("            .v e / expedition");
-
-                handler->SendSysMessage(" .village boss – zobrazí stav bossů");
-                handler->SendSysMessage("    Alias: .village b / boss");
-                handler->SendSysMessage("            .v b / boss");
-
-                handler->SendSysMessage(" .village currency – zobrazí suroviny a cap");
-                handler->SendSysMessage("    Alias: .village c / currency");
-                handler->SendSysMessage("            .v c / currency");
-
-                handler->SendSysMessage(" .village production – zobrazí produkci");
-                handler->SendSysMessage("    Alias: .village p / production");
-                handler->SendSysMessage("            .v p / production");
-
-                handler->SendSysMessage(" .village questdaily [strana] – zobrazí denní guildovní úkoly");
-                handler->SendSysMessage("    Alias: .village qd");
-                handler->SendSysMessage("            .v qd");
-
-                handler->SendSysMessage(" .village questweekly [strana] – zobrazí týdenní guildovní úkoly");
-                handler->SendSysMessage("    Alias: .village qw");
-                handler->SendSysMessage("            .v qw");
-
-
-                handler->SendSysMessage(" .village teleport – teleportuje tě do guild vesnice");
-                handler->SendSysMessage("    Alias: .village tp / teleport");
-                handler->SendSysMessage("            .v tp / teleport");
-				
-				handler->SendSysMessage(" .village tp set – nastaví tvůj osobní bod teleportu ve vesnici");
-				handler->SendSysMessage("    Alias: .v tp set");
-				
+				else
+				{
+					handler->SendSysMessage(R"(
+|cff00ff00.village teleport|r
+Teleport you to the guild village (personal point if set).
+Aliases: |cff00ff00.village tp|r, |cff00ff00.v tp|r, |cff00ff00.village teleport|r, |cff00ff00.v teleport|r
+-----------------------------
+|cff00ff00.village tp set|r
+Set your personal teleport point inside the village.
+Aliases: |cff00ff00.v tp set|r)");
+				}
+			}
+			else
+			{
+				handler->SendSysMessage(R"(
+|cffffd000[Guildovní vesnice]|r – příkazy:
+|cff00ff00.village info|r
+Zobrazí kompletní info o vesnici (suroviny, produkce, expedice, bossové).
+Alias: |cff00ff00.village i|r, |cff00ff00.village info|r, |cff00ff00.v i|r, |cff00ff00.v info|r
+-----------------------------
+|cff00ff00.village expedition|r
+Ukáže probíhající expedice a zbývající čas.
+Alias: |cff00ff00.village e|r, |cff00ff00.v e|r, |cff00ff00.v expedition|r
+-----------------------------
+|cff00ff00.village boss|r
+Zobrazí stav bossů (naživu / čas respawnu).
+Alias: |cff00ff00.village b|r, |cff00ff00.v b|r, |cff00ff00.v boss|r
+-----------------------------
+|cff00ff00.village currency|r
+Zobrazí guildovní suroviny a případné capy.
+Alias: |cff00ff00.village c|r, |cff00ff00.v c|r, |cff00ff00.v currency|r
+-----------------------------
+|cff00ff00.village production|r
+Zobrazí aktuální produkci (materiál, interval, množství).
+Alias: |cff00ff00.village p|r, |cff00ff00.v p|r, |cff00ff00.v production|r
+-----------------------------
+|cff00ff00.village questdaily [strana]|r
+Zobrazí denní guildovní úkoly (jeden úkol = jedna strana).
+Alias: |cff00ff00.village qd|r, |cff00ff00.v qd|r
+-----------------------------
+|cff00ff00.village questweekly [strana]|r
+Zobrazí týdenní guildovní úkoly (jeden úkol = jedna strana).
+Alias: |cff00ff00.village qw|r, |cff00ff00.v qw|r)");
 				if (BackEnabled())
 				{
-				handler->SendSysMessage(" .village back – návrat z vesnice na poslední pozici");
-				handler->SendSysMessage("    Alias: .village b / back");
-				handler->SendSysMessage("            .v b / back");
+					handler->SendSysMessage(R"(
+-----------------------------
+|cff00ff00.village teleport|r
+Teleportuje tě do guildovní vesnice (pokud máš osobní bod, použije se ten).
+Alias: |cff00ff00.village tp|r, |cff00ff00.v tp|r, |cff00ff00.village teleport|r, |cff00ff00.v teleport|r
+-----------------------------
+|cff00ff00.village tp set|r
+Nastaví tvůj osobní bod teleportu ve vesnici.
+Alias: |cff00ff00.v tp set|r
+-----------------------------
+|cff00ff00.village back|r
+Návrat z vesnice na poslední uloženou pozici.
+Alias: |cff00ff00.village b|r, |cff00ff00.v b|r, |cff00ff00.village back|r)");
 				}
-            }
-            return true;
-        }
+				else
+				{
+					handler->SendSysMessage(R"(
+|cff00ff00.village teleport|r
+Teleportuje tě do guildovní vesnice (pokud máš osobní bod, použije se ten).
+Alias: |cff00ff00.village tp|r, |cff00ff00.v tp|r, |cff00ff00.village teleport|r, |cff00ff00.v teleport|r
+-----------------------------
+|cff00ff00.village tp set|r
+Nastaví tvůj osobní bod teleportu ve vesnici.
+Alias: |cff00ff00.v tp set|r)");
+				}
+			}
+			return true;
+		}
 
 		// --- BACK: .village back / .village b / .v back / .v b ---
 		{
