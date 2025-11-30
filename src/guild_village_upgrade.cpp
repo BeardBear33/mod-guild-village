@@ -250,7 +250,7 @@ namespace GuildVillage
                 "COALESCE(expansion_key_required, ''), COALESCE(enabled, 1), catalog_npc "
                 "FROM customs.gv_upgrade_catalog "
                 "WHERE category='{}' "
-                "AND (catalog_npc IS NULL OR catalog_npc = {}) "
+                "AND (catalog_npc IS NULL OR catalog_npc = 0 OR catalog_npc = {}) "
                 "ORDER BY sort_order, id",
                 catName, (uint32)catalogNpc))
         {
