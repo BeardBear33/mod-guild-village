@@ -45,6 +45,11 @@ namespace GuildVillageProduction
         return (LangOpt() == Lang::EN) ? en : cs;
     }
 
+    static inline char const* SeparatorLine()
+    {
+        return "|cff808080-------------------------------|r";
+    }
+
     // =========================
     // Práva guildy
     // =========================
@@ -120,7 +125,6 @@ namespace GuildVillageProduction
         }
     }
 
-    // Capy pro currency
     static inline uint32 CapMaterial1()
     {
         return sConfigMgr->GetOption<uint32>("GuildVillage.CurrencyCap.Material1", 1000);
@@ -140,13 +144,11 @@ namespace GuildVillageProduction
     {
         return sConfigMgr->GetOption<uint32>("GuildVillage.CurrencyCap.Material4", 1000);
     }
-	
-	// kolik minut mezi auto-tickama
-	static inline uint32 WorldTickMinutes()
-{
-    return sConfigMgr->GetOption<uint32>("GuildVillage.Production.WorldTickMinutes", 15);
-}
 
+    static inline uint32 WorldTickMinutes()
+    {
+        return sConfigMgr->GetOption<uint32>("GuildVillage.Production.WorldTickMinutes", 15);
+    }
 
     // =========================
     // DB struktury
@@ -154,8 +156,8 @@ namespace GuildVillageProduction
 
     struct UpgradeRanks
     {
-        uint8 amountRank = 0; // 0..3
-        uint8 speedRank  = 0; // 0..3
+        uint8 amountRank = 0;
+        uint8 speedRank  = 0;
     };
 
     static UpgradeRanks GetOrInitUpgradeRanks(uint32 guildId, uint8 materialId)
@@ -190,7 +192,7 @@ namespace GuildVillageProduction
     struct ActiveProductionRow
     {
         uint32 guildId;
-        uint8  materialId; // 1..4
+        uint8  materialId;
         uint32 startedAt;
         uint32 lastTick;
     };
@@ -271,34 +273,34 @@ namespace GuildVillageProduction
     };
 
     static std::optional<CatalogProdRow> LoadProductionCatalog(uint8 materialId, uint8 upgradeType, uint8 rankToBuy)
-	{
-		if (QueryResult r = WorldDatabase.Query(
-			"SELECT id, material_id, upgrade_type, `rank`, label_cs, label_en, "
-			"cost_material1, cost_material2, cost_material3, cost_material4 "
-			"FROM customs.gv_production_catalog "
-			"WHERE material_id={} AND upgrade_type={} AND `rank`={} "
-			"LIMIT 1",
-			(uint32)materialId, (uint32)upgradeType, (uint32)rankToBuy))
-		{
-			Field* f = r->Fetch();
-	
-			CatalogProdRow c;
-			c.id          = f[0].Get<uint32>();
-			c.materialId  = f[1].Get<uint8>();
-			c.upgradeType = f[2].Get<uint8>();
-			c.rank        = f[3].Get<uint8>();
-			c.label_cs    = f[4].Get<std::string>();
-			c.label_en    = f[5].Get<std::string>();
-			c.cost_mat1   = f[6].Get<uint32>();
-			c.cost_mat2   = f[7].Get<uint32>();
-			c.cost_mat3   = f[8].Get<uint32>();
-			c.cost_mat4   = f[9].Get<uint32>();
-	
-			return c;
-		}
-	
-		return std::nullopt;
-	}
+    {
+        if (QueryResult r = WorldDatabase.Query(
+                "SELECT id, material_id, upgrade_type, `rank`, label_cs, label_en, "
+                "cost_material1, cost_material2, cost_material3, cost_material4 "
+                "FROM customs.gv_production_catalog "
+                "WHERE material_id={} AND upgrade_type={} AND `rank`={} "
+                "LIMIT 1",
+                (uint32)materialId, (uint32)upgradeType, (uint32)rankToBuy))
+        {
+            Field* f = r->Fetch();
+
+            CatalogProdRow c;
+            c.id          = f[0].Get<uint32>();
+            c.materialId  = f[1].Get<uint8>();
+            c.upgradeType = f[2].Get<uint8>();
+            c.rank        = f[3].Get<uint8>();
+            c.label_cs    = f[4].Get<std::string>();
+            c.label_en    = f[5].Get<std::string>();
+            c.cost_mat1   = f[6].Get<uint32>();
+            c.cost_mat2   = f[7].Get<uint32>();
+            c.cost_mat3   = f[8].Get<uint32>();
+            c.cost_mat4   = f[9].Get<uint32>();
+
+            return c;
+        }
+
+        return std::nullopt;
+    }
 
     static std::string CostLineProd(CatalogProdRow const& c)
     {
@@ -405,7 +407,6 @@ namespace GuildVillageProduction
                 break;
             }
             default:
-
                 break;
         }
 
@@ -520,12 +521,21 @@ namespace GuildVillageProduction
 
     enum GossipAction : uint32
     {
-        ACT_BACK_ROOT        = 20000, // separator v rootu + zpět v submenu
-        ACT_PROD_TOGGLE_BASE = 21000, // +materialId -> start/stop
-        ACT_UPGRADE_MENU_BASE= 22000, // +materialId -> submenu upgrade
-        ACT_BUY_AMOUNT_BASE  = 23000, // +materialId*10 + rank
-        ACT_BUY_SPEED_BASE   = 24000  // +materialId*10 + rank
+        ACT_BACK_ROOT            = 20000,
+
+        ACT_SEP_ROOT             = 20001,
+        ACT_SEP_UPGRADE_BASE     = 20010,
+
+        ACT_PROD_TOGGLE_BASE     = 21000,
+        ACT_UPGRADE_MENU_BASE    = 22000,
+
+        ACT_UPGRADE_AM_MENU_BASE = 23000,
+        ACT_UPGRADE_SP_MENU_BASE = 24000,
+
+        ACT_BUY_AMOUNT_BASE      = 25000,
+        ACT_BUY_SPEED_BASE       = 26000
     };
+
 
     // =========================
     // Názvy materiálů
@@ -546,6 +556,8 @@ namespace GuildVillageProduction
 
     static void ShowRoot(Player* player, Creature* creature);
     static void ShowUpgradeMenu(Player* player, Creature* creature, uint8 materialId);
+    static void ShowAmountConfirmMenu(Player* player, Creature* creature, uint8 materialId);
+    static void ShowSpeedConfirmMenu(Player* player, Creature* creature, uint8 materialId);
 
     // =========================
     // Po start/stop produkce refresh gossipu
@@ -604,16 +616,13 @@ namespace GuildVillageProduction
             return;
         }
 
-        // dopočítej tick
         ProcessTicksForGuild(g->GetId());
 
-        // stav běžící produkce
         auto activeList = LoadActiveProduction(g->GetId());
         bool anyActive  = !activeList.empty();
 
         if (anyActive)
         {
-            // LOCK MODE
             for (auto const& row : activeList)
             {
                 uint8 m = row.materialId;
@@ -633,9 +642,7 @@ namespace GuildVillageProduction
             return;
         }
 
-        // žádná aktivní produkce → normální nabídka
 
-        // 1) start produkce pro všechny materiály
         for (uint8 m = 1; m <= 4; ++m)
         {
             std::string line = Acore::StringFormat(
@@ -650,15 +657,14 @@ namespace GuildVillageProduction
                 ACT_PROD_TOGGLE_BASE + m);
         }
 
-        // 2) separator
         AddGossipItemFor(
             player,
             0,
-            "|cff808080-------------------------------|r",
+            SeparatorLine(),
             GOSSIP_SENDER_MAIN,
-            ACT_BACK_ROOT);
+            ACT_SEP_ROOT);
 
-        // 3) submenu upgradu
+
         for (uint8 m = 1; m <= 4; ++m)
         {
             std::string line = Acore::StringFormat(
@@ -676,11 +682,103 @@ namespace GuildVillageProduction
         SendGossipMenuFor(player, 1, creature->GetGUID());
     }
 
+	// =========================
+	// Submenu upgradu pro konkrétní materiál
+	// (jen výběr: množství / rychlost)
+	// =========================
+	
+	static void ShowUpgradeMenu(Player* player, Creature* creature, uint8 materialId)
+	{
+		ClearGossipMenuFor(player);
+	
+		Guild* g = player->GetGuild();
+		if (!g)
+		{
+			SendGossipMenuFor(player, 1, creature->GetGUID());
+			return;
+		}
+	
+		ProcessTicksForGuild(g->GetId());
+	
+		UpgradeRanks ur = GetOrInitUpgradeRanks(g->GetId(), materialId);
+	
+		bool hasOption = false;
+	
+		if (ur.amountRank < 3)
+		{
+			uint8 nextRank = ur.amountRank + 1;
+			auto catOpt = LoadProductionCatalog(materialId, /*upgradeType=*/1, nextRank);
+			if (catOpt)
+			{
+				std::string labelBase = (LangOpt() == Lang::EN
+										? catOpt->label_en
+										: catOpt->label_cs);
+	
+				AddGossipItemFor(
+					player,
+					GOSSIP_ICON_MONEY_BAG,
+					labelBase,
+					GOSSIP_SENDER_MAIN,
+					ACT_UPGRADE_AM_MENU_BASE + materialId);
+	
+				hasOption = true;
+			}
+		}
+	
+		// speed upgrade (Zrychlit produkci)
+		if (ur.speedRank < 3)
+		{
+			uint8 nextRank = ur.speedRank + 1;
+			auto catOpt = LoadProductionCatalog(materialId, /*upgradeType=*/2, nextRank);
+			if (catOpt)
+			{
+				std::string labelBase = (LangOpt() == Lang::EN
+										? catOpt->label_en
+										: catOpt->label_cs);
+	
+				AddGossipItemFor(
+					player,
+					GOSSIP_ICON_MONEY_BAG,
+					labelBase,
+					GOSSIP_SENDER_MAIN,
+					ACT_UPGRADE_SP_MENU_BASE + materialId);
+	
+				hasOption = true;
+			}
+		}
+	
+		if (!hasOption)
+		{
+			ChatHandler(player->GetSession()).SendSysMessage(
+				T("Žádné další upgrady nejsou dostupné.", "No further upgrades available."));
+			ShowRoot(player, creature);
+			return;
+		}
+	
+		// separator nad "Zpátky"
+        AddGossipItemFor(
+            player,
+            0,
+            SeparatorLine(),
+            GOSSIP_SENDER_MAIN,
+            ACT_SEP_UPGRADE_BASE + materialId);
+	
+		// Zpátky → root
+		AddGossipItemFor(
+			player,
+			GOSSIP_ICON_TAXI,
+			T("Zpátky", "Back"),
+			GOSSIP_SENDER_MAIN,
+			ACT_BACK_ROOT);
+	
+		SendGossipMenuFor(player, 1, creature->GetGUID());
+	}
+
     // =========================
-    // Submenu upgradu pro konkrétní materiál
+    // Submenu: potvrzení nákupu (množství)
     // =========================
 
-    static void ShowUpgradeMenu(Player* player, Creature* creature, uint8 materialId)
+    static void ShowAmountConfirmMenu(Player* player, Creature* creature, uint8 materialId)
     {
         ClearGossipMenuFor(player);
 
@@ -695,62 +793,155 @@ namespace GuildVillageProduction
 
         UpgradeRanks ur = GetOrInitUpgradeRanks(g->GetId(), materialId);
 
-        // amount upgrade
-        if (ur.amountRank < 3)
+        if (ur.amountRank >= 3)
         {
-            uint8 nextRank = ur.amountRank + 1;
-            auto catOpt = LoadProductionCatalog(materialId, /*upgradeType=*/1, nextRank);
-            if (catOpt)
-            {
-                std::string labelBase = (LangOpt() == Lang::EN
-                                         ? catOpt->label_en
-                                         : catOpt->label_cs);
-
-                std::string line = Acore::StringFormat(
-                    "{} — {}",
-                    labelBase,
-                    CostLineProd(*catOpt));
-
-                AddGossipItemFor(
-                    player,
-                    GOSSIP_ICON_MONEY_BAG,
-                    line,
-                    GOSSIP_SENDER_MAIN,
-                    ACT_BUY_AMOUNT_BASE + (materialId * 10 + nextRank));
-            }
+            ChatHandler(player->GetSession()).SendSysMessage(
+                T("Máš již maximální rank množství.", "You already have maximum amount rank."));
+            ShowUpgradeMenu(player, creature, materialId);
+            return;
         }
 
-        // speed upgrade
-        if (ur.speedRank < 3)
+        uint8 nextRank = ur.amountRank + 1;
+        auto catOpt = LoadProductionCatalog(materialId, /*upgradeType=*/1, nextRank);
+        if (!catOpt)
         {
-            uint8 nextRank = ur.speedRank + 1;
-            auto catOpt = LoadProductionCatalog(materialId, /*upgradeType=*/2, nextRank);
-            if (catOpt)
-            {
-                std::string labelBase = (LangOpt() == Lang::EN
-                                         ? catOpt->label_en
-                                         : catOpt->label_cs);
-
-                std::string line = Acore::StringFormat(
-                    "{} — {}",
-                    labelBase,
-                    CostLineProd(*catOpt));
-
-                AddGossipItemFor(
-                    player,
-                    GOSSIP_ICON_MONEY_BAG,
-                    line,
-                    GOSSIP_SENDER_MAIN,
-                    ACT_BUY_SPEED_BASE + (materialId * 10 + nextRank));
-            }
+            ChatHandler(player->GetSession()).SendSysMessage(
+                T("Upgrade nenalezen v katalogu.", "Upgrade not found in catalog."));
+            ShowUpgradeMenu(player, creature, materialId);
+            return;
         }
 
+        // 1) blok jen "Cena:"
+        std::string pretty = CostLineProd(*catOpt);
+        if (pretty.empty())
+            pretty = T("zdarma", "free");
+
+        std::string multi = pretty;
+        std::string::size_type pos = 0;
+        while ((pos = multi.find(" + ", pos)) != std::string::npos)
+            multi.replace(pos, 3, "\n");
+
+        std::string info;
+        info += T("Cena:", "Cost:");
+        info += "\n";
+        info += multi;
+
+        AddGossipItemFor(
+            player,
+            GOSSIP_ICON_MONEY_BAG,
+            info,
+            GOSSIP_SENDER_MAIN,
+            ACT_UPGRADE_AM_MENU_BASE + materialId);
+
+        // 2) separator
+        AddGossipItemFor(
+            player,
+            0,
+            SeparatorLine(),
+            GOSSIP_SENDER_MAIN,
+            ACT_UPGRADE_AM_MENU_BASE + materialId);
+
+        // 3) Ano, zakoupit
+        AddGossipItemFor(
+            player,
+            GOSSIP_ICON_TRAINER,
+            T("Ano, zakoupit", "Confirm purchase"),
+            GOSSIP_SENDER_MAIN,
+            ACT_BUY_AMOUNT_BASE + (materialId * 10 + nextRank));
+
+        // 4) Zpátky -> zpět na submenu materiálu (množství/rychlost)
         AddGossipItemFor(
             player,
             GOSSIP_ICON_TAXI,
             T("Zpátky", "Back"),
             GOSSIP_SENDER_MAIN,
-            ACT_BACK_ROOT);
+            ACT_UPGRADE_MENU_BASE + materialId);
+
+        SendGossipMenuFor(player, 1, creature->GetGUID());
+    }
+
+    // =========================
+    // Submenu: potvrzení nákupu (rychlost)
+    // =========================
+
+    static void ShowSpeedConfirmMenu(Player* player, Creature* creature, uint8 materialId)
+    {
+        ClearGossipMenuFor(player);
+
+        Guild* g = player->GetGuild();
+        if (!g)
+        {
+            SendGossipMenuFor(player, 1, creature->GetGUID());
+            return;
+        }
+
+        ProcessTicksForGuild(g->GetId());
+
+        UpgradeRanks ur = GetOrInitUpgradeRanks(g->GetId(), materialId);
+
+        if (ur.speedRank >= 3)
+        {
+            ChatHandler(player->GetSession()).SendSysMessage(
+                T("Máš již maximální rank rychlosti.", "You already have maximum speed rank."));
+            ShowUpgradeMenu(player, creature, materialId);
+            return;
+        }
+
+        uint8 nextRank = ur.speedRank + 1;
+        auto catOpt = LoadProductionCatalog(materialId, /*upgradeType=*/2, nextRank);
+        if (!catOpt)
+        {
+            ChatHandler(player->GetSession()).SendSysMessage(
+                T("Upgrade nenalezen v katalogu.", "Upgrade not found in catalog."));
+            ShowUpgradeMenu(player, creature, materialId);
+            return;
+        }
+
+        // 1) blok jen "Cena:"
+        std::string pretty = CostLineProd(*catOpt);
+        if (pretty.empty())
+            pretty = T("zdarma", "free");
+
+        std::string multi = pretty;
+        std::string::size_type pos = 0;
+        while ((pos = multi.find(" + ", pos)) != std::string::npos)
+            multi.replace(pos, 3, "\n");
+
+        std::string info;
+        info += T("Cena:", "Cost:");
+        info += "\n";
+        info += multi;
+
+        AddGossipItemFor(
+            player,
+            GOSSIP_ICON_MONEY_BAG,
+            info,
+            GOSSIP_SENDER_MAIN,
+            ACT_UPGRADE_SP_MENU_BASE + materialId);
+
+        // 2) separator
+        AddGossipItemFor(
+            player,
+            0,
+            SeparatorLine(),
+            GOSSIP_SENDER_MAIN,
+            ACT_UPGRADE_SP_MENU_BASE + materialId);
+
+        // 3) Ano, zakoupit
+        AddGossipItemFor(
+            player,
+            GOSSIP_ICON_TRAINER,
+            T("Ano, zakoupit", "Confirm purchase"),
+            GOSSIP_SENDER_MAIN,
+            ACT_BUY_SPEED_BASE + (materialId * 10 + nextRank));
+
+        // 4) Zpátky -> zpět na submenu materiálu
+        AddGossipItemFor(
+            player,
+            GOSSIP_ICON_TAXI,
+            T("Zpátky", "Back"),
+            GOSSIP_SENDER_MAIN,
+            ACT_UPGRADE_MENU_BASE + materialId);
 
         SendGossipMenuFor(player, 1, creature->GetGUID());
     }
@@ -805,7 +996,22 @@ namespace GuildVillageProduction
 
             bool leader = IsGuildLeader(player);
 
-            // separator v rootu
+            // root separator
+            if (action == ACT_SEP_ROOT)
+            {
+                ShowRoot(player, creature);
+                return true;
+            }
+
+            // separator v submenu upgradu (materiál)
+            if (action >= ACT_SEP_UPGRADE_BASE && action < ACT_SEP_UPGRADE_BASE + 100)
+            {
+                uint8 materialId = action - ACT_SEP_UPGRADE_BASE;
+                ShowUpgradeMenu(player, creature, materialId);
+                return true;
+            }
+
+            // Zpátky do rootu
             if (action == ACT_BACK_ROOT)
             {
                 ShowRoot(player, creature);
@@ -815,7 +1021,7 @@ namespace GuildVillageProduction
             // otevření submenu upgradu
             if (action >= ACT_UPGRADE_MENU_BASE && action < ACT_UPGRADE_MENU_BASE + 100)
             {
-                uint8 materialId = action - ACT_UPGRADE_MENU_BASE; // 1..4
+                uint8 materialId = action - ACT_UPGRADE_MENU_BASE;
 
                 if (!leader)
                 {
@@ -827,6 +1033,42 @@ namespace GuildVillageProduction
                 }
 
                 ShowUpgradeMenu(player, creature, materialId);
+                return true;
+            }
+
+            // submenu "Zvýšit množství"
+            if (action >= ACT_UPGRADE_AM_MENU_BASE && action < ACT_UPGRADE_AM_MENU_BASE + 100)
+            {
+                uint8 materialId = action - ACT_UPGRADE_AM_MENU_BASE; // 1..4
+
+                if (!leader)
+                {
+                    ChatHandler(player->GetSession()).SendSysMessage(
+                        T("Spravovat produkci mohou pouze Guild Master a Zástupce.",
+                          "Only Guild Master and Officers can manage production."));
+                    ShowRoot(player, creature);
+                    return true;
+                }
+
+                ShowAmountConfirmMenu(player, creature, materialId);
+                return true;
+            }
+
+            // submenu "Zrychlit produkci"
+            if (action >= ACT_UPGRADE_SP_MENU_BASE && action < ACT_UPGRADE_SP_MENU_BASE + 100)
+            {
+                uint8 materialId = action - ACT_UPGRADE_SP_MENU_BASE; // 1..4
+
+                if (!leader)
+                {
+                    ChatHandler(player->GetSession()).SendSysMessage(
+                        T("Spravovat produkci mohou pouze Guild Master a Zástupce.",
+                          "Only Guild Master and Officers can manage production."));
+                    ShowRoot(player, creature);
+                    return true;
+                }
+
+                ShowSpeedConfirmMenu(player, creature, materialId);
                 return true;
             }
 
@@ -875,9 +1117,9 @@ namespace GuildVillageProduction
                     return true;
                 }
 
-                uint32 diff = action - ACT_BUY_AMOUNT_BASE; // materialId*10 + rankToBuy
+                uint32 diff = action - ACT_BUY_AMOUNT_BASE;
                 uint8 materialId = diff / 10;
-                uint8 rankToBuy  = diff % 10; // 1..3
+                uint8 rankToBuy  = diff % 10;
 
                 UpgradeRanks ur = GetOrInitUpgradeRanks(g->GetId(), materialId);
 
@@ -903,7 +1145,7 @@ namespace GuildVillageProduction
                 {
                     ChatHandler(player->GetSession()).SendSysMessage(
                         T("Nedostatek materiálu.", "Not enough materials."));
-                    ShowUpgradeMenu(player, creature, materialId);
+                    ShowAmountConfirmMenu(player, creature, materialId);
                     return true;
                 }
 
@@ -932,9 +1174,9 @@ namespace GuildVillageProduction
                     return true;
                 }
 
-                uint32 diff = action - ACT_BUY_SPEED_BASE; // materialId*10 + rankToBuy
+                uint32 diff = action - ACT_BUY_SPEED_BASE;
                 uint8 materialId = diff / 10;
-                uint8 rankToBuy  = diff % 10; // 1..3
+                uint8 rankToBuy  = diff % 10;
 
                 UpgradeRanks ur = GetOrInitUpgradeRanks(g->GetId(), materialId);
 
@@ -960,7 +1202,7 @@ namespace GuildVillageProduction
                 {
                     ChatHandler(player->GetSession()).SendSysMessage(
                         T("Nedostatek materiálu.", "Not enough materials."));
-                    ShowUpgradeMenu(player, creature, materialId);
+                    ShowSpeedConfirmMenu(player, creature, materialId);
                     return true;
                 }
 
@@ -981,50 +1223,47 @@ namespace GuildVillageProduction
             return true;
         }
     };
-	
-	// ===== helper: projede všechny guildy, které právě něco produkují
-	static void TickAllGuilds()
-	{
 
-		if (QueryResult r = WorldDatabase.Query(
-			"SELECT DISTINCT guildId FROM customs.gv_production_active"))
-		{
-			do
-			{
-				uint32 guildId = r->Fetch()[0].Get<uint32>();
-				ProcessTicksForGuild(guildId);
-			}
-			while (r->NextRow());
-		}
-	}
-	
-	// ===== world-level periodic updater
-	class GVProductionWorldUpdate : public WorldScript
-	{
-	public:
-		GVProductionWorldUpdate() : WorldScript("GVProductionWorldUpdate") { }
-	
-		void OnUpdate(uint32 diff) override
-		{
-			static uint32 acc = 0;
-			acc += diff;
-	
-			// přepočet z minut v configu na ms
-			uint32 intervalMs = WorldTickMinutes() * 60 * 1000;
-	
-			// safety: minimálně 1s aby to nebyla nula
-			if (intervalMs < 1000)
-				intervalMs = 1000;
-	
-			if (acc >= intervalMs)
-			{
-				acc = 0;
-				TickAllGuilds();
-			}
-		}
-	};
+    // ===== helper: projede všechny guildy, které právě něco produkují
+    static void TickAllGuilds()
+    {
+        if (QueryResult r = WorldDatabase.Query(
+                "SELECT DISTINCT guildId FROM customs.gv_production_active"))
+        {
+            do
+            {
+                uint32 guildId = r->Fetch()[0].Get<uint32>();
+                ProcessTicksForGuild(guildId);
+            }
+            while (r->NextRow());
+        }
+    }
 
-        ProdStatusForMat GetProductionStatus(uint32 guildId, uint8 materialId)
+    // ===== world-level periodic updater
+    class GVProductionWorldUpdate : public WorldScript
+    {
+    public:
+        GVProductionWorldUpdate() : WorldScript("GVProductionWorldUpdate") { }
+
+        void OnUpdate(uint32 diff) override
+        {
+            static uint32 acc = 0;
+            acc += diff;
+
+            uint32 intervalMs = WorldTickMinutes() * 60 * 1000;
+
+            if (intervalMs < 1000)
+                intervalMs = 1000;
+
+            if (acc >= intervalMs)
+            {
+                acc = 0;
+                TickAllGuilds();
+            }
+        }
+    };
+
+    ProdStatusForMat GetProductionStatus(uint32 guildId, uint8 materialId)
     {
         ProdStatusForMat st;
         st.active        = IsMaterialActive(guildId, materialId);
@@ -1033,12 +1272,12 @@ namespace GuildVillageProduction
 
         // kolik kusů za tick
         uint32 baseAmount  = BaseAmount();
-        uint32 bonusAmount = AmountBonusForRank(ur.amountRank); // 0..3
+        uint32 bonusAmount = AmountBonusForRank(ur.amountRank);
         st.amountPerTick   = baseAmount + bonusAmount;
 
         // perioda v hodinách
         float baseHours  = BasePeriodHours();
-        float speedMul   = SpeedMultForRank(ur.speedRank);      // 0..3
+        float speedMul   = SpeedMultForRank(ur.speedRank);
         float realHours  = baseHours * speedMul;
         if (realHours < 0.001f)
             realHours = 0.001f;
@@ -1049,7 +1288,6 @@ namespace GuildVillageProduction
 
     uint8 GetCurrentlyActiveMaterial(uint32 guildId)
     {
-
         if (QueryResult r = WorldDatabase.Query(
                 "SELECT material_id FROM customs.gv_production_active "
                 "WHERE guildId={} LIMIT 1",
@@ -1064,9 +1302,7 @@ namespace GuildVillageProduction
 
     std::optional<GuildCurrency> SyncGuildProduction(uint32 guildId)
     {
-
         ProcessTicksForGuild(guildId);
-
         return LoadGuildCurrencyNow(guildId);
     }
 
@@ -1079,5 +1315,5 @@ namespace GuildVillageProduction
 void RegisterGuildVillageProduction()
 {
     new GuildVillageProduction::npc_gv_production();
-	new GuildVillageProduction::GVProductionWorldUpdate();
+    new GuildVillageProduction::GVProductionWorldUpdate();
 }

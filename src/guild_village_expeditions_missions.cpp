@@ -1665,16 +1665,25 @@ namespace GuildVillageMissions
 		
 			std::string pretty = CostLine(mc.mat1, mc.mat2, mc.mat3, mc.mat4, mc.gold);
 		
-			std::string costLine = Acore::StringFormat(
-				T("Cena: {}", "Cost: {}"),
-				pretty);
+			if (!pretty.empty())
+			{
+				std::string multi = pretty;
+				std::string::size_type pos = 0;
+				while ((pos = multi.find(" + ", pos)) != std::string::npos)
+				{
+					multi.replace(pos, 3, "\n");
+				}
+				std::string costBlock = T("Cena:", "Cost:");
+				costBlock += "\n";
+				costBlock += multi;
 		
-			AddGossipItemFor(
-				player,
-				GOSSIP_ICON_MONEY_BAG,
-				costLine,
-				GOSSIP_SENDER_MAIN,
-				ACT_CONFIRM_MISSION_BASE + missionIndex);
+				AddGossipItemFor(
+					player,
+					GOSSIP_ICON_MONEY_BAG,
+					costBlock,
+					GOSSIP_SENDER_MAIN,
+					ACT_CONFIRM_MISSION_BASE + missionIndex);
+			}
 		}
 
         // separator

@@ -490,19 +490,30 @@ namespace GuildVillageExpeditions
 
         HeroCatalogRow const& c = *catOpt;
 
-        // 1) cena
-        {
-            std::string costLine = Acore::StringFormat(
-                T("Cena: {}", "Cost: {}"),
-                CostLineHero(c));
-
-            AddGossipItemFor(
-                player,
-                GOSSIP_ICON_MONEY_BAG,
-                costLine,
-                GOSSIP_SENDER_MAIN,
-                ACT_HIRE_MENU);
-        }
+        // 1) cena (víceřádková)
+		{
+			std::string pretty = CostLineHero(c);
+		
+			if (!pretty.empty())
+			{
+				std::string multi = pretty;
+				std::string::size_type pos = 0;
+				while ((pos = multi.find(" + ", pos)) != std::string::npos)
+				{
+					multi.replace(pos, 3, "\n");
+				}
+				std::string costBlock = T("Cena:", "Cost:");
+				costBlock += "\n";
+				costBlock += multi;
+		
+				AddGossipItemFor(
+					player,
+					GOSSIP_ICON_MONEY_BAG,
+					costBlock,
+					GOSSIP_SENDER_MAIN,
+					ACT_HIRE_MENU);
+			}
+		}
 
         // 2) separator
         AddGossipItemFor(
@@ -579,19 +590,31 @@ namespace GuildVillageExpeditions
                 ACT_GEAR_MENU);
         }
 
-        // cena
-        {
-            std::string costLine = Acore::StringFormat(
-                T("Cena: {}", "Cost: {}"),
-                CostLineGear(gt));
-
-            AddGossipItemFor(
-                player,
-                GOSSIP_ICON_MONEY_BAG,
-                costLine,
-                GOSSIP_SENDER_MAIN,
-                ACT_GEAR_MENU);
-        }
+		// cena (víceřádková)
+		{
+			std::string pretty = CostLineGear(gt);
+		
+			if (!pretty.empty())
+			{
+				std::string multi = pretty;
+				std::string::size_type pos = 0;
+				while ((pos = multi.find(" + ", pos)) != std::string::npos)
+				{
+					multi.replace(pos, 3, "\n");
+				}
+		
+				std::string costBlock = T("Cena:", "Cost:");
+				costBlock += "\n";
+				costBlock += multi;
+		
+				AddGossipItemFor(
+					player,
+					GOSSIP_ICON_MONEY_BAG,
+					costBlock,
+					GOSSIP_SENDER_MAIN,
+					ACT_GEAR_MENU);
+			}
+		}
 
         // separator před potvrzením nákupu
         AddGossipItemFor(

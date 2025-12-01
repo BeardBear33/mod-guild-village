@@ -558,52 +558,65 @@ namespace GuildVillage
         }
 
         static void ShowConfirm(Player* player, Creature* creature, CatalogRow const& c)
-        {
-            ClearGossipMenuFor(player);
-
-            std::string info  = LocalizedInfo(c);
-            std::string cost  = CostLine(c);
-
-            auto& state = s_menu[player->GetGUID().GetCounter()];
-            auto it = std::find_if(
-                state.items.begin(),
-                state.items.end(),
-                [&](CatalogRow const& x){ return x.id == c.id; }
-            );
-            uint32 idx = (it==state.items.end()) ? 0u : uint32(std::distance(state.items.begin(), it));
-            uint32 confirmAction = ACT_CONFIRM_BASE + idx;
-
-            if (!info.empty())
-            {
-                std::string infoLine = Acore::StringFormat("{} {}", T("Info:", "Info:"), info);
-                AddGossipItemFor(player, GOSSIP_ICON_CHAT, infoLine, GOSSIP_SENDER_MAIN, ACT_SEPARATOR);
-            }
-
-            {
-                std::string costLine = Acore::StringFormat("{} {}", T("Cena:", "Cost:"), cost);
-                AddGossipItemFor(player, GOSSIP_ICON_MONEY_BAG, costLine, GOSSIP_SENDER_MAIN, ACT_SEPARATOR);
-            }
-
-            AddGossipItemFor(player, 0, SeparatorLine(), GOSSIP_SENDER_MAIN, ACT_SEPARATOR);
-
-            AddGossipItemFor(player, GOSSIP_ICON_MONEY_BAG, T("Ano, zakoupit", "Yes, purchase"), GOSSIP_SENDER_MAIN, confirmAction);
-            AddGossipItemFor(player, GOSSIP_ICON_TAXI, T("Zpátky", "Back"), GOSSIP_SENDER_MAIN, ACT_BACK_TO_CATEGORY);
-
-            if (Cfg_PurchaseGMOnly() && !IsGuildLeader(player))
-            {
-                ChatHandler(player->GetSession()).SendSysMessage(
-                    T("|cffff4444Tento nákup mohou provést pouze Guild Master a Zástupce.|r",
-                      "|cffff4444Only the Guild Master and Officers can perform this purchase.|r"));
-            }
-
-            SendGossipMenuFor(player, 1, creature->GetGUID());
-        }
+		{
+			ClearGossipMenuFor(player);
+		
+			std::string info  = LocalizedInfo(c);
+			std::string cost  = CostLine(c);
+		
+			auto& state = s_menu[player->GetGUID().GetCounter()];
+			auto it = std::find_if(
+				state.items.begin(),
+				state.items.end(),
+				[&](CatalogRow const& x){ return x.id == c.id; }
+			);
+			uint32 idx = (it==state.items.end()) ? 0u : uint32(std::distance(state.items.begin(), it));
+			uint32 confirmAction = ACT_CONFIRM_BASE + idx;
+		
+			// --- Info řádek ---
+			if (!info.empty())
+			{
+				std::string infoLine = Acore::StringFormat("{} {}", T("Info:", "Info:"), info);
+				AddGossipItemFor(player, GOSSIP_ICON_CHAT, infoLine, GOSSIP_SENDER_MAIN, ACT_SEPARATOR);
+			}
+		
+			// --- CENA VÍCEŘÁDKOVĚ V JEDNOM GOSSIP ITEMU ---
+			if (!cost.empty())
+			{		
+				std::string multi = cost;
+		
+				std::string::size_type pos = 0;
+				while ((pos = multi.find(" + ", pos)) != std::string::npos)
+				{
+					multi.replace(pos, 3, "\n");
+				}
+		
+				std::string costBlock = T("Cena:", "Cost:");
+				costBlock += "\n";
+				costBlock += multi;
+		
+				AddGossipItemFor(player, GOSSIP_ICON_MONEY_BAG, costBlock, GOSSIP_SENDER_MAIN, ACT_SEPARATOR);
+			}
+		
+			AddGossipItemFor(player, 0, SeparatorLine(), GOSSIP_SENDER_MAIN, ACT_SEPARATOR);
+		
+			AddGossipItemFor(player, GOSSIP_ICON_MONEY_BAG, T("Ano, zakoupit", "Yes, purchase"), GOSSIP_SENDER_MAIN, confirmAction);
+			AddGossipItemFor(player, GOSSIP_ICON_TAXI, T("Zpátky", "Back"), GOSSIP_SENDER_MAIN, ACT_BACK_TO_CATEGORY);
+		
+			if (Cfg_PurchaseGMOnly() && !IsGuildLeader(player))
+			{
+				ChatHandler(player->GetSession()).SendSysMessage(
+					T("|cffff4444Tento nákup mohou provést pouze Guild Master a Zástupce.|r",
+					"|cffff4444Only the Guild Master and Officers can perform this purchase.|r"));
+			}
+		
+			SendGossipMenuFor(player, 1, creature->GetGUID());
+		}
 		
 		        static void ShowRequirement(Player* player, Creature* creature, CatalogRow const& c)
         {
             ClearGossipMenuFor(player);
 
-            // Zjistíme jméno požadované položky
             std::string reqName = c.req_key;
             if (auto label = LocalizedLabelForKey(c.req_key))
                 reqName = *label;
@@ -733,7 +746,7 @@ namespace GuildVillage
 
                 CatalogRow const& c = it->second.items[idx];
 
-                // bezpečnostní kontrola: pokud už je odemčeno, pošli rovnou do confirm
+                // bezpečnostní kontrola
                 auto purchased = LoadPurchasedKeys(g->GetId());
                 bool locked = (!c.req_key.empty() && purchased.find(c.req_key) == purchased.end());
                 if (!locked)
