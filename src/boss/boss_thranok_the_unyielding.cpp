@@ -13,6 +13,8 @@
 #include <chrono>
 #include <cmath>
 
+using namespace std::chrono;
+
 // -------- Lokalizace (cs/en) --------
 namespace GuildVillageLoc
 {
@@ -57,20 +59,20 @@ enum ThranokEvents : uint32
 };
 
 // Časování
-static constexpr uint32 MS_FIRST_DELAY_MS        = 5000;  // 5s od začátku boje
-static constexpr uint32 VE_AFTER_MS_MS           = 15000; // 15s po Massive Stomp
-static constexpr uint32 VE_CAST_MS               = 1140;  // 1.14 s cast (orientačně)
-static constexpr uint32 QUAKE_AFTER_VE_END_MS    = 15000; // 15s po skončení Violent Earth
-static constexpr uint32 MS_AFTER_QUAKE_END_MS    = 5000;  // 5s po skončení Earthquake
+static constexpr uint32 MS_FIRST_DELAY_MS        = 5000;
+static constexpr uint32 VE_AFTER_MS_MS           = 15000;
+static constexpr uint32 VE_CAST_MS               = 1140;
+static constexpr uint32 QUAKE_AFTER_VE_END_MS    = 15000;
+static constexpr uint32 MS_AFTER_QUAKE_END_MS    = 5000;
 
-// Heroic aura – malé „posuny“, aby šla tesně po/vedle hlavních kouzel (nebrzdí plán)
-static constexpr uint32 AURA_AFTER_STOMP_MS      = 50;    // cca „hned po dupnutí“
-static constexpr uint32 AURA_WITH_QUAKE_MS       = 0;     // společně s Earthquake
+// Heroic aura – malé „posuny“
+static constexpr uint32 AURA_AFTER_STOMP_MS      = 50;
+static constexpr uint32 AURA_WITH_QUAKE_MS       = 0;
 
 // Výběr cíle pro Violent Earth – parametry
 static constexpr float  VE_MAX_RANGE             = 60.0f;
-static constexpr float  VE_SAFE_RADIUS           = 4.0f;  // chceme cíl, který má co nejméně spojenců v 4yd
-static constexpr float  LOS_RANGE                = 70.0f; // bezpečný horní limit pro LOS check
+static constexpr float  VE_SAFE_RADIUS           = 4.0f;
+static constexpr float  LOS_RANGE                = 70.0f;
 
 struct boss_thranok_the_unyielding : public ScriptedAI
 {
@@ -221,15 +223,13 @@ struct boss_thranok_the_unyielding : public ScriptedAI
 
     void JustEngagedWith(Unit* /*who*/) override
     {
-        using namespace std::chrono;
-
         me->setActive(true);
         me->CallForHelp(175.0f);
         YellAggro();
 
         events.ScheduleEvent(EVENT_MASSIVE_STOMP, milliseconds(MS_FIRST_DELAY_MS));
 
-        events.ScheduleEvent(EVENT_BERSERK, 5min);
+        events.ScheduleEvent(EVENT_BERSERK, minutes(5));
     }
 
     void JustDied(Unit* /*killer*/) override
@@ -240,8 +240,6 @@ struct boss_thranok_the_unyielding : public ScriptedAI
     // -------- Jednotlivé akce --------
     void DoMassiveStomp()
     {
-        using namespace std::chrono;
-
         YellMassiveStomp();
         me->CastSpell(me, SPELL_MASSIVE_STOMP, true);
 
@@ -268,8 +266,6 @@ struct boss_thranok_the_unyielding : public ScriptedAI
 
     void DoEarthquake()
     {
-        using namespace std::chrono;
-
         YellEarthquake();
         me->CastSpell(me, SPELL_EARTHQUAKE, true);
 
@@ -289,8 +285,6 @@ struct boss_thranok_the_unyielding : public ScriptedAI
 
         events.Update(diff);
 
-        using namespace std::chrono;
-
         uint32 ev;
         while ((ev = events.ExecuteEvent()))
         {
@@ -300,7 +294,7 @@ struct boss_thranok_the_unyielding : public ScriptedAI
                 {
                     if (me->HasUnitState(UNIT_STATE_CASTING))
                     {
-                        events.ScheduleEvent(EVENT_MASSIVE_STOMP, 500ms);
+                        events.ScheduleEvent(EVENT_MASSIVE_STOMP, milliseconds(500));
                         break;
                     }
 
@@ -314,7 +308,7 @@ struct boss_thranok_the_unyielding : public ScriptedAI
                 {
                     if (me->HasUnitState(UNIT_STATE_CASTING))
                     {
-                        events.ScheduleEvent(EVENT_VIOLENT_EARTH, 500ms);
+                        events.ScheduleEvent(EVENT_VIOLENT_EARTH, milliseconds(500));
                         break;
                     }
 
@@ -328,7 +322,7 @@ struct boss_thranok_the_unyielding : public ScriptedAI
                 {
                     if (me->HasUnitState(UNIT_STATE_CASTING))
                     {
-                        events.ScheduleEvent(EVENT_EARTHQUAKE, 200ms);
+                        events.ScheduleEvent(EVENT_EARTHQUAKE, milliseconds(200));
                         break;
                     }
 

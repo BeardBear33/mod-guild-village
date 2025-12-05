@@ -13,6 +13,9 @@
 #include <chrono>
 #include <limits>
 
+using namespace std::chrono;
+using namespace std::chrono_literals;
+
 // -------- Lokalizace (cs/en) --------
 namespace GuildVillageLoc
 {

@@ -14,6 +14,8 @@
 #include <chrono>
 #include <limits>
 
+using namespace std::chrono;
+
 // -------- Lokalizace (cs/en) --------
 namespace GuildVillageLoc
 {
@@ -61,34 +63,31 @@ enum ThalgronEvents : uint32
 };
 
 // --- Časování (ms) ---
-static constexpr uint32 PUNCH_FIRST_NORMAL_MS      = 10000; // 10s
-static constexpr uint32 PUNCH_FIRST_HEROIC_MS      = 10000; // 10s
+static constexpr uint32 PUNCH_FIRST_NORMAL_MS      = 10000;
+static constexpr uint32 PUNCH_FIRST_HEROIC_MS      = 10000;
 
-static constexpr uint32 BREATH_AFTER_PUNCH_N_MS    = 25000; // 25s po Punch (Normal)
-static constexpr uint32 BREATH_AFTER_PUNCH_H_MS    = 15000; // 15s po Punch (Heroic)
+static constexpr uint32 BREATH_AFTER_PUNCH_N_MS    = 25000;
+static constexpr uint32 BREATH_AFTER_PUNCH_H_MS    = 15000;
 
-static constexpr uint32 METEOR_AFTER_BREATH_H_MS   = 15000; // 15s po Breath (Heroic only)
+static constexpr uint32 METEOR_AFTER_BREATH_H_MS   = 15000;
 
-static constexpr uint32 STARFALL_AFTER_BREATH_N_MS = 25000; // 25s po Breath (Normal)
-static constexpr uint32 STARFALL_AFTER_METEOR_MS   = 20000; // 20s po Meteor Strike (Heroic)
+static constexpr uint32 STARFALL_AFTER_BREATH_N_MS = 25000;
+static constexpr uint32 STARFALL_AFTER_METEOR_MS   = 20000;
 
-static constexpr uint32 BLOOM_PERIOD_NORMAL_MS     = 18000; // každých 18s
-static constexpr uint32 BLOOM_PERIOD_HEROIC_MS     = 13000; // každých 13s
+static constexpr uint32 BLOOM_PERIOD_NORMAL_MS     = 18000;
+static constexpr uint32 BLOOM_PERIOD_HEROIC_MS     = 13000;
 
-static constexpr uint32 BREATH_CAST_MS             = 1000;  // ~1.0s
-static constexpr uint32 STARFALL_TICK_MS           = 700;   // rozestup mezi jednotlivými Starfall
+static constexpr uint32 BREATH_CAST_MS             = 1000;
+static constexpr uint32 STARFALL_TICK_MS           = 700;
 static constexpr uint32 STARFALL_COUNT_NORMAL      = 3;
 static constexpr uint32 STARFALL_COUNT_HEROIC      = 6;
 
-// Bezpečnostní prodleva pro přeplánování, když zrovna boss castí
 static constexpr uint32 SAFETY_RETRY_MS            = 200;
 
-// Dosahem/LOS
 static constexpr float  MELEE_RANGE_PICK           = 5.5f;
 static constexpr float  CHAINS_RANGE               = 30.0f;
 static constexpr float  MAX_LOS_RANGE              = 70.0f;
 
-// --- Pomocná hodnota "nekonečno" ---
 static constexpr uint32 TIMER_INF                  = std::numeric_limits<uint32>::max();
 
 struct boss_thalgron_the_earthshaker : public ScriptedAI
@@ -97,12 +96,10 @@ struct boss_thalgron_the_earthshaker : public ScriptedAI
 
     EventMap events;
 
-    // Počítadlo pro sekvenční Starfall
     uint32 starfallLeft = 0;
 
     bool chainsRetryPending = false;
 
-    // -------- Hlášky --------
     void YellAggro()
     {
         me->Yell(GuildVillageLoc::T(
@@ -153,7 +150,6 @@ struct boss_thalgron_the_earthshaker : public ScriptedAI
         ), LANG_UNIVERSAL, nullptr);
     }
 
-    // -------- Utility: sběr hráčů --------
     void CollectPlayers(std::vector<Player*>& out, float radius = MAX_LOS_RANGE)
     {
         out.clear();
@@ -208,7 +204,6 @@ struct boss_thalgron_the_earthshaker : public ScriptedAI
         return nullptr;
     }
 
-    // -------- Lifecycle --------
     void Reset() override
     {
         events.Reset();
@@ -225,8 +220,6 @@ struct boss_thalgron_the_earthshaker : public ScriptedAI
 
     void JustEngagedWith(Unit* /*who*/) override
     {
-        using namespace std::chrono;
-
         me->setActive(true);
         me->CallForHelp(175.0f);
         YellAggro();
@@ -237,7 +230,7 @@ struct boss_thalgron_the_earthshaker : public ScriptedAI
         uint32 bloomPeriod = ThalgronHeroic() ? BLOOM_PERIOD_HEROIC_MS : BLOOM_PERIOD_NORMAL_MS;
         events.ScheduleEvent(EVENT_BLOOM_PAIR, milliseconds(bloomPeriod));
 
-        events.ScheduleEvent(EVENT_BERSERK, 5min);
+        events.ScheduleEvent(EVENT_BERSERK, minutes(5));
     }
 
     void JustDied(Unit* /*killer*/) override
@@ -245,25 +238,24 @@ struct boss_thalgron_the_earthshaker : public ScriptedAI
         YellDeath();
     }
 
-    // -------- Akce --------
-	void ApplyCrystalBloom()
-	{
-		Aura* a = me->GetAura(SPELL_CRYSTAL_BLOOM);
-	
-		if (!a)
-		{
-			me->AddAura(SPELL_CRYSTAL_BLOOM, me);
-			return;
-		}
-	
-		uint8 stacks = a->GetStackAmount();
-		if (stacks < 15)
-			a->SetStackAmount(uint8(stacks + 1));
-	
-		if (a->GetMaxDuration() > 0)
-			a->SetDuration(a->GetMaxDuration());
-	}
-	
+    void ApplyCrystalBloom()
+    {
+        Aura* a = me->GetAura(SPELL_CRYSTAL_BLOOM);
+
+        if (!a)
+        {
+            me->AddAura(SPELL_CRYSTAL_BLOOM, me);
+            return;
+        }
+
+        uint8 stacks = a->GetStackAmount();
+        if (stacks < 15)
+            a->SetStackAmount(uint8(stacks + 1));
+
+        if (a->GetMaxDuration() > 0)
+            a->SetDuration(a->GetMaxDuration());
+    }
+
     void DoRunePunch()
     {
         if (Player* t = PickMeleeTarget())
@@ -299,7 +291,7 @@ struct boss_thalgron_the_earthshaker : public ScriptedAI
         --starfallLeft;
 
         if (starfallLeft > 0)
-            events.ScheduleEvent(EVENT_STARFALL_TICK, std::chrono::milliseconds(STARFALL_TICK_MS));
+            events.ScheduleEvent(EVENT_STARFALL_TICK, milliseconds(STARFALL_TICK_MS));
     }
 
     void DoStarfallTick()
@@ -311,7 +303,7 @@ struct boss_thalgron_the_earthshaker : public ScriptedAI
         --starfallLeft;
 
         if (starfallLeft > 0)
-            events.ScheduleEvent(EVENT_STARFALL_TICK, std::chrono::milliseconds(STARFALL_TICK_MS));
+            events.ScheduleEvent(EVENT_STARFALL_TICK, milliseconds(STARFALL_TICK_MS));
     }
 
     void DoCrystalBloomWithChains()
@@ -322,7 +314,7 @@ struct boss_thalgron_the_earthshaker : public ScriptedAI
         if (me->HasUnitState(UNIT_STATE_CASTING))
         {
             chainsRetryPending = true;
-            events.ScheduleEvent(EVENT_BLOOM_PAIR, std::chrono::milliseconds(SAFETY_RETRY_MS));
+            events.ScheduleEvent(EVENT_BLOOM_PAIR, milliseconds(SAFETY_RETRY_MS));
             return;
         }
 
@@ -334,17 +326,15 @@ struct boss_thalgron_the_earthshaker : public ScriptedAI
         chainsRetryPending = false;
 
         uint32 period = ThalgronHeroic() ? BLOOM_PERIOD_HEROIC_MS : BLOOM_PERIOD_NORMAL_MS;
-        events.ScheduleEvent(EVENT_BLOOM_PAIR, std::chrono::milliseconds(period));
+        events.ScheduleEvent(EVENT_BLOOM_PAIR, milliseconds(period));
     }
 
-    // -------- Update --------
     void UpdateAI(uint32 diff) override
     {
         if (!UpdateVictim())
             return;
 
         events.Update(diff);
-        using namespace std::chrono;
 
         uint32 ev;
         while ((ev = events.ExecuteEvent()))
@@ -361,9 +351,8 @@ struct boss_thalgron_the_earthshaker : public ScriptedAI
 
                     DoRunePunch();
 
-                    events.ScheduleEvent(EVENT_BREATH, milliseconds(
-                        ThalgronHeroic() ? BREATH_AFTER_PUNCH_H_MS : BREATH_AFTER_PUNCH_N_MS
-                    ));
+                    uint32 delay = ThalgronHeroic() ? BREATH_AFTER_PUNCH_H_MS : BREATH_AFTER_PUNCH_N_MS;
+                    events.ScheduleEvent(EVENT_BREATH, milliseconds(delay));
                     break;
                 }
 
@@ -413,10 +402,11 @@ struct boss_thalgron_the_earthshaker : public ScriptedAI
                         break;
                     }
 
-                    StartStarfallSequence(ThalgronHeroic() ? STARFALL_COUNT_HEROIC : STARFALL_COUNT_NORMAL);
+                    uint32 count = ThalgronHeroic() ? STARFALL_COUNT_HEROIC : STARFALL_COUNT_NORMAL;
+                    StartStarfallSequence(count);
 
-                    uint32 finishBuffer = (ThalgronHeroic() ? STARFALL_COUNT_HEROIC : STARFALL_COUNT_NORMAL) * STARFALL_TICK_MS;
-                    events.ScheduleEvent(EVENT_RUNE_PUNCH, milliseconds(finishBuffer + 200));
+                    uint32 finishBuffer = count * STARFALL_TICK_MS;
+                    events.ScheduleEvent(EVENT_RUNE_PUNCH, milliseconds(finishBuffer + 200u));
                     break;
                 }
 

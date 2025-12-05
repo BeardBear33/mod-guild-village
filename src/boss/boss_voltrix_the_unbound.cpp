@@ -11,6 +11,8 @@
 #include <algorithm>
 #include <queue>
 
+using namespace std::chrono;
+
 // -------- Lokalizace (cs/en) --------
 namespace GuildVillageLoc
 {
@@ -37,44 +39,42 @@ static inline bool VoltrixHeroic()
 
 enum Spells : uint32
 {
-    SPELL_FIRE_MISSILE_VISUAL = 45971,  // vizuál rakety (instant, bez dmg)
-    SPELL_FIRE_MISSILE_DAMAGE = 74421,  // skutečný zásah rakety (instant dmg)
-    SPELL_FLAME_BREATH        = 50989,  // channeled ~3s
-    SPELL_SMASH               = 62465,  // úder na aktuální aggro target
-    SPELL_BERSERK              = 62555, // berserk (5 min)
+    SPELL_FIRE_MISSILE_VISUAL = 45971,
+    SPELL_FIRE_MISSILE_DAMAGE = 74421,
+    SPELL_FLAME_BREATH        = 50989,
+    SPELL_SMASH               = 62465,
+    SPELL_BERSERK             = 62555,
 
-    // --- Core thresholds ---
-    SPELL_CORE_BURST_SINGLE   = 54531, // instant AOE výboj 2 targety – používá se jen v Heroic
-    SPELL_CORE_SELF_DEBUFF    = 39095  // self debuff (připínám přes AddAura)
+    SPELL_CORE_BURST_SINGLE   = 54531,
+    SPELL_CORE_SELF_DEBUFF    = 39095
 };
 
 enum Events : uint32
 {
-    EVENT_FIRE_VOLLEY = 1,   // spustí novou „salvu“ raket
-    EVENT_FIRE_VOLLEY_TICK,  // postupné vypouštění vizuálů
-    EVENT_FIRE_VOLLEY_HIT,   // opožděné hity raket (dmg)
-    EVENT_FLAME_BREATH,      // channeled plamenomet na nejbližší melee
-    EVENT_SMASH,             // Smash na aktuální oběť (aggro target)
+    EVENT_FIRE_VOLLEY = 1,
+    EVENT_FIRE_VOLLEY_TICK,
+    EVENT_FIRE_VOLLEY_HIT,
+    EVENT_FLAME_BREATH,
+    EVENT_SMASH,
     EVENT_BERSERK
 };
 
 // -------- Parametry salvy raket (Normal/Heroic) --------
-static constexpr uint32 FIRE_VOLLEY_TOTAL_PROJECTILES_N = 20; // Normal
+static constexpr uint32 FIRE_VOLLEY_TOTAL_PROJECTILES_N = 20;
 static constexpr uint32 FIRE_VOLLEY_TARGETS_N           = 5;
 static constexpr uint32 FIRE_PER_TARGET_N               = 4;
 
-static constexpr uint32 FIRE_VOLLEY_TOTAL_PROJECTILES_H = 50; // Heroic
+static constexpr uint32 FIRE_VOLLEY_TOTAL_PROJECTILES_H = 50;
 static constexpr uint32 FIRE_VOLLEY_TARGETS_H           = 10;
 static constexpr uint32 FIRE_PER_TARGET_H               = 5;
 
-// Getter funkce (čtou přepínač Heroic)
 static inline uint32 FIRE_VOLLEY_TOTAL_PROJECTILES() { return VoltrixHeroic() ? FIRE_VOLLEY_TOTAL_PROJECTILES_H : FIRE_VOLLEY_TOTAL_PROJECTILES_N; }
 static inline uint32 FIRE_VOLLEY_TARGETS()           { return VoltrixHeroic() ? FIRE_VOLLEY_TARGETS_H           : FIRE_VOLLEY_TARGETS_N; }
 static inline uint32 FIRE_PER_TARGET()               { return VoltrixHeroic() ? FIRE_PER_TARGET_H               : FIRE_PER_TARGET_N; }
 
 // Časování vizuálů/hitů
-static constexpr uint32 FIRE_TICK_DELAY_MS = 120; // rozestup mezi vizuály
-static constexpr uint32 FIRE_HIT_DELAY_MS  = 140; // zpoždění mezi vizuálem a dmg
+static constexpr uint32 FIRE_TICK_DELAY_MS = 120;
+static constexpr uint32 FIRE_HIT_DELAY_MS  = 140;
 
 struct boss_voltrix_the_unbound : public ScriptedAI
 {
@@ -86,11 +86,10 @@ struct boss_voltrix_the_unbound : public ScriptedAI
     std::vector<ObjectGuid> volleyOrder;
     uint32                  volleyTickIndex = 0;
 
-    std::queue<ObjectGuid> pendingHits;
+    std::queue<ObjectGuid>  pendingHits;
 
     uint8                   coreBurstStage = 0;
 
-    // Lokalizované hlášky
     void YellAggro()
     {
         me->Yell(GuildVillageLoc::T(
@@ -192,15 +191,12 @@ struct boss_voltrix_the_unbound : public ScriptedAI
 
     void JustEngagedWith(Unit* /*who*/) override
     {
-        using namespace std::chrono;
-
         me->setActive(true);
         me->CallForHelp(175.0f);
         YellAggro();
 
-        events.ScheduleEvent(EVENT_SMASH, 10s);
-
-        events.ScheduleEvent(EVENT_BERSERK, 5min);
+        events.ScheduleEvent(EVENT_SMASH, milliseconds(10000));
+        events.ScheduleEvent(EVENT_BERSERK, minutes(5));
     }
 
     void JustDied(Unit* /*killer*/) override
@@ -329,8 +325,6 @@ struct boss_voltrix_the_unbound : public ScriptedAI
 
     void StartFireVolley()
     {
-        using namespace std::chrono;
-
         PickVolleyTargets();
         if (volleyTargets.empty())
             return;
@@ -342,13 +336,11 @@ struct boss_voltrix_the_unbound : public ScriptedAI
         YellVolley();
         volleyTickIndex = 0;
 
-        events.ScheduleEvent(EVENT_FIRE_VOLLEY_TICK, 0ms);
+        events.ScheduleEvent(EVENT_FIRE_VOLLEY_TICK, milliseconds(0));
     }
 
     void DoFireVolleyTick()
     {
-        using namespace std::chrono;
-
         if (volleyOrder.empty() || volleyTickIndex >= volleyOrder.size())
             return;
 
@@ -361,7 +353,7 @@ struct boss_voltrix_the_unbound : public ScriptedAI
                 me->CastSpell(t, SPELL_FIRE_MISSILE_VISUAL, false);
 
                 pendingHits.push(g);
-                events.ScheduleEvent(EVENT_FIRE_VOLLEY_HIT, std::chrono::milliseconds(FIRE_HIT_DELAY_MS));
+                events.ScheduleEvent(EVENT_FIRE_VOLLEY_HIT, milliseconds(FIRE_HIT_DELAY_MS));
             }
         }
 
@@ -369,7 +361,7 @@ struct boss_voltrix_the_unbound : public ScriptedAI
 
         if (volleyTickIndex < FIRE_VOLLEY_TOTAL_PROJECTILES())
         {
-            events.ScheduleEvent(EVENT_FIRE_VOLLEY_TICK, std::chrono::milliseconds(FIRE_TICK_DELAY_MS));
+            events.ScheduleEvent(EVENT_FIRE_VOLLEY_TICK, milliseconds(FIRE_TICK_DELAY_MS));
         }
     }
 
@@ -415,8 +407,6 @@ struct boss_voltrix_the_unbound : public ScriptedAI
 
         events.Update(diff);
 
-        using namespace std::chrono;
-
         uint32 evId;
         while ((evId = events.ExecuteEvent()))
         {
@@ -426,12 +416,12 @@ struct boss_voltrix_the_unbound : public ScriptedAI
                 {
                     if (me->HasUnitState(UNIT_STATE_CASTING))
                     {
-                        events.ScheduleEvent(EVENT_SMASH, 1s);
+                        events.ScheduleEvent(EVENT_SMASH, milliseconds(1000));
                         break;
                     }
 
                     DoSmash();
-                    events.ScheduleEvent(EVENT_FIRE_VOLLEY, 25s);
+                    events.ScheduleEvent(EVENT_FIRE_VOLLEY, milliseconds(25000));
                     break;
                 }
 
@@ -439,12 +429,12 @@ struct boss_voltrix_the_unbound : public ScriptedAI
                 {
                     if (me->HasUnitState(UNIT_STATE_CASTING))
                     {
-                        events.ScheduleEvent(EVENT_FIRE_VOLLEY, 1s);
+                        events.ScheduleEvent(EVENT_FIRE_VOLLEY, milliseconds(1000));
                         break;
                     }
 
                     StartFireVolley();
-                    events.ScheduleEvent(EVENT_FLAME_BREATH, 25s);
+                    events.ScheduleEvent(EVENT_FLAME_BREATH, milliseconds(25000));
                     break;
                 }
 
@@ -463,7 +453,7 @@ struct boss_voltrix_the_unbound : public ScriptedAI
                 case EVENT_FLAME_BREATH:
                 {
                     StartFlameBreath();
-                    events.ScheduleEvent(EVENT_SMASH, 10s);
+                    events.ScheduleEvent(EVENT_SMASH, milliseconds(10000));
                     break;
                 }
 
