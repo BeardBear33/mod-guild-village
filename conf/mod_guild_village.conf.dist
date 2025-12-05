@@ -249,6 +249,11 @@ GuildVillage.Production.SpeedMult3      = 0.25
 #     for display. Also executed on gossip open and .village info.
 GuildVillage.Production.WorldTickMinutes = 15
 
+# CS: Po kolika dnech neaktivity Guild Mastera se automaticky zastaví produkce.
+#     0 = kontrola vypnuta.
+# EN: After how many days of Guild Master inactivity the production is automatically stopped.
+#     0 = check disabled.
+GuildVillage.Production.GMMaxOfflineDays = 7
 
 #================================================#
 # Guild Village – EXPEDICE / EXPEDITIONS (PVE)   #

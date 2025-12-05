@@ -84,6 +84,11 @@ namespace GuildVillageProduction
     // =========================
     // Config helpers
     // =========================
+	
+	static inline uint32 GMMaxOfflineDays()
+	{
+		return sConfigMgr->GetOption<uint32>("GuildVillage.Production.GMMaxOfflineDays", 0);
+	}
 
     static inline uint32 BaseAmount()
     {
@@ -1224,20 +1229,68 @@ namespace GuildVillageProduction
         }
     };
 
+	static bool IsGuildMasterInactive(uint32 guildId)
+	{
+		uint32 maxDays = GMMaxOfflineDays();
+		if (maxDays == 0)
+			return false;
+	
+		Guild* g = sGuildMgr->GetGuildById(guildId);
+		if (!g)
+			return false;
+	
+		ObjectGuid gmGuid = g->GetLeaderGUID();
+		if (!gmGuid)
+			return false;
+	
+		uint32 gmLow = gmGuid.GetCounter();
+	
+		if (QueryResult q = CharacterDatabase.Query(
+				"SELECT logout_time FROM characters WHERE guid={}",
+				gmLow))
+		{
+			uint32 logout = q->Fetch()[0].Get<uint32>();
+			uint32 now    = (uint32)GameTime::GetGameTime().count();
+	
+			if (now <= logout)
+				return false;
+	
+			uint32 diffSec = now - logout;
+			uint32 days    = diffSec / (24u * 60u * 60u);
+	
+			return days >= maxDays;
+		}
+	
+		return false;
+	}
+
     // ===== helper: projede všechny guildy, které právě něco produkují
-    static void TickAllGuilds()
-    {
-        if (QueryResult r = WorldDatabase.Query(
-                "SELECT DISTINCT guildId FROM customs.gv_production_active"))
-        {
-            do
-            {
-                uint32 guildId = r->Fetch()[0].Get<uint32>();
-                ProcessTicksForGuild(guildId);
-            }
-            while (r->NextRow());
-        }
-    }
+	static void TickAllGuilds()
+	{
+		if (QueryResult r = WorldDatabase.Query(
+				"SELECT DISTINCT guildId FROM customs.gv_production_active"))
+		{
+			do
+			{
+				uint32 guildId = r->Fetch()[0].Get<uint32>();
+	
+				if (IsGuildMasterInactive(guildId))
+				{
+					WorldDatabase.DirectExecute(
+						"DELETE FROM customs.gv_production_active WHERE guildId={}",
+						guildId);
+	
+					LOG_INFO("guildvillage",
+							"GuildVillageProduction: guild {} production auto-stopped (GM inactive for too long).",
+							guildId);
+					continue;
+				}
+	
+				ProcessTicksForGuild(guildId);
+			}
+			while (r->NextRow());
+		}
+	}
 
     // ===== world-level periodic updater
     class GVProductionWorldUpdate : public WorldScript
