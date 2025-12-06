@@ -21,17 +21,10 @@
 #include <vector>
 #include <optional>
 
-// ======================================================================
-//  Guild Village – AoE loot backend
-//  - per-session toggle (v paměti)
-//  - auto AoE loot při CMSG_LOOT
-//  - veřejné API pro .village aoeloot / .v aoeloot
-// ======================================================================
-
 namespace GuildVillageAoe
 {
     // --------------------------------------------------------------
-    //  Per-session stav (jen v paměti, žádná DB)
+    //  Per-session stav
     // --------------------------------------------------------------
     namespace
     {
@@ -54,7 +47,6 @@ namespace GuildVillageAoe
             return it != s_playerAoeLootState.end() && it->second;
         }
 
-        // Toggle ON/OFF, vrací nový stav
         bool TogglePlayerAoeLootInternal(Player* player)
         {
             uint64 guid = GetPlayerGuidRaw(player);
@@ -79,7 +71,6 @@ namespace GuildVillageAoe
             return newState;
         }
 
-        // Po loginu / logoutu vždy vypneme (default OFF)
         void ClearPlayerAoeLootInternal(Player* player)
         {
             uint64 guid = GetPlayerGuidRaw(player);
@@ -91,11 +82,6 @@ namespace GuildVillageAoe
         }
     }
 
-    // --------------------------------------------------------------
-    // Config režim: 0 = OFF, 1 = solo only, 2 = solo+group
-    // Klíč: GuildVillage.Aoe.Loot
-    // --------------------------------------------------------------
-
     bool IsAoeLootEnabledForPlayer(Player* player)
     {
         if (!player)
@@ -105,11 +91,11 @@ namespace GuildVillageAoe
 
         switch (mode)
         {
-            case 0: // úplně vypnuto
+            case 0:
                 return false;
-            case 1: // jen solo
+            case 1:
                 return !player->GetGroup();
-            case 2: // solo + group
+            case 2:
             default:
                 return true;
         }
@@ -125,10 +111,6 @@ namespace GuildVillageAoe
         ClearPlayerAoeLootInternal(player);
     }
 
-    // Veřejné API pro .village aoeloot / .v aoeloot
-    //  - std::nullopt  => config nedovoluje (OFF / group při solo-only)
-    //  - true          => nově ZAPNUTO
-    //  - false         => nově VYPNUTO
     std::optional<bool> ToggleAoeLootForPlayer(Player* player)
     {
         if (!player)
@@ -159,7 +141,6 @@ namespace GuildVillageAoe
             if (!go)
                 return false;
 
-            // vlastní objekty / fishing hole = vždy ok
             if (go->GetOwnerGUID() == player->GetGUID() || go->GetGoType() == GAMEOBJECT_TYPE_FISHINGHOLE)
                 return true;
 
@@ -168,7 +149,6 @@ namespace GuildVillageAoe
         else if (lguid.IsItem())
         {
             ::Item* pItem = player->GetItemByGuid(lguid);
-            // item v inventáři – bez distance checku
             return (pItem != nullptr);
         }
         else if (lguid.IsCorpse())
@@ -179,13 +159,12 @@ namespace GuildVillageAoe
 
             return corpse->IsWithinDistInMap(player, maxDistance);
         }
-        else // Creature
+        else
         {
             Creature* creature = player->GetMap()->GetCreature(lguid);
             if (!creature)
                 return false;
 
-            // pickpocketing = interaction distance
             if (creature->IsAlive() &&
                 player->IsClass(CLASS_ROGUE, CLASS_CONTEXT_ABILITY) &&
                 creature->loot.loot_type == LOOT_PICKPOCKETING)
@@ -314,10 +293,9 @@ namespace GuildVillageAoe
             if (!pItem)
                 return;
 
-            // item loot neřešíme dál
             return;
         }
-        else // Creature
+        else
         {
             Creature* creature = player->GetMap()->GetCreature(lguid);
             if (!creature)
@@ -335,7 +313,6 @@ namespace GuildVillageAoe
 
             if (loot->isLooted())
             {
-                // skip pickpocketing: jen corpse loot
                 if (!creature->IsAlive())
                     creature->AllLootRemovedFromCorpse();
 
@@ -481,7 +458,7 @@ namespace GuildVillageAoe
         bool isRoundRobin = false;
         bool isThreshold = false;
         LootMethod lootMethod = GROUP_LOOT;
-        uint8 groupLootThreshold = 2; // default Uncommon
+        uint8 groupLootThreshold = 2;
 
         isFFA = loot->items[lootSlot].freeforall;
 
@@ -497,7 +474,6 @@ namespace GuildVillageAoe
             isThreshold = (itemTemplate && itemTemplate->Quality >= groupLootThreshold);
         }
 
-        // Group loot roll
         if (group && isGroupLoot && isThreshold && !isFFA && !isMasterLooter)
         {
             if (!loot->items[lootSlot].is_blocked)
@@ -623,13 +599,11 @@ namespace GuildVillageAoe
 
             player->SetLootGUID(lguid);
 
-            // normální itemy
             for (uint8 lootSlot = 0; lootSlot < loot->items.size(); ++lootSlot)
             {
                 ProcessSingleLootSlot(player, lguid, lootSlot);
             }
 
-            // per-player quest items
             const QuestItemMap& questItems = loot->GetPlayerQuestItems();
             auto q_itr = questItems.find(player->GetGUID());
             if (q_itr != questItems.end())
@@ -642,7 +616,6 @@ namespace GuildVillageAoe
                 }
             }
 
-            // per-player FFA quest items
             const QuestItemMap& ffaItems = loot->GetPlayerFFAItems();
             auto ffa_itr = ffaItems.find(player->GetGUID());
             if (ffa_itr != ffaItems.end())
@@ -656,7 +629,6 @@ namespace GuildVillageAoe
                 }
             }
 
-            // gold
             if (loot->gold > 0)
                 ProcessCreatureGold(player, creature);
 
@@ -668,7 +640,7 @@ namespace GuildVillageAoe
     }
 
     // --------------------------------------------------------------
-    // Quest loot helper – FF quest item (zůstává stejné jako dřív)
+    // Quest loot helper
     // --------------------------------------------------------------
 
     class guild_village_AoeLootQuestParty : public PlayerScript
@@ -692,11 +664,6 @@ namespace GuildVillageAoe
 
 } // namespace GuildVillageAoe
 
-// ======================================================================
-//  Script classy – ve stylu Guild Village (lokální, registrace přes
-//  helper funkci na konci souboru)
-// ======================================================================
-
 namespace
 {
     class guild_village_AoeLootServer : public ServerScript
@@ -713,22 +680,18 @@ namespace
             if (!player)
                 return true;
 
-            // Config 0/1/2
             if (!GuildVillageAoe::IsAoeLootEnabledForPlayer(player))
                 return true;
 
-            // per-session toggle (default OFF)
             if (!GuildVillageAoe::IsSessionActive(player))
                 return true;
 
             if (!player->IsInWorld() || player->isDead())
                 return true;
 
-            // vytáhneme GUID cíle z packetu
             ObjectGuid targetGuid;
             packet >> targetGuid;
 
-            // jen mrtvé CREATURE
             if (Creature* creature = player->GetMap()->GetCreature(targetGuid))
             {
                 if (creature->IsAlive())
@@ -736,7 +699,6 @@ namespace
                     if (player->IsClass(CLASS_ROGUE, CLASS_CONTEXT_ABILITY) &&
                         creature->loot.loot_type == LOOT_PICKPOCKETING)
                     {
-                        // pickpocketing necháváme default
                         return true;
                     }
                     return true;
@@ -747,7 +709,6 @@ namespace
             }
             else
             {
-                // GO / corpse / cokoliv jiného – AoE neřešíme
                 return true;
             }
 
@@ -767,13 +728,11 @@ namespace
 
         void OnPlayerLogin(Player* player) override
         {
-            // Po loginu vždy default OFF (jen v paměti)
             GuildVillageAoe::ClearSession(player);
         }
 
         void OnPlayerLogout(Player* player) override
         {
-            // Po logoutu AoE loot OFF
             GuildVillageAoe::ClearSession(player);
         }
     };
