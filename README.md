@@ -30,7 +30,7 @@
 
 [mod-playerbots (master branch)](https://github.com/liyunfan1223/mod-playerbots)
 
-> **Doporučený addon pro WoW 3.3.5a zajišťující správné zobrazování diakritiky:**
+> **Doporučený addon pro WoW 3.3.5a zajišťující správné zobrazování diakritiky:**  
 > [CzechFontFix (3.3.5a Addon)](https://github.com/BeardBear33/mod-guild-village/releases/tag/CFF_1.0)  
 
 > **Doporučený addon pro WoW 3.3.5a, který zobrazuje informace o vesnici:**  
