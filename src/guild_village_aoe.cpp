@@ -14,18 +14,27 @@
 #include "ObjectMgr.h"
 #include "GameObject.h"
 #include "ObjectAccessor.h"
+#include "Chat.h"
+#include "DatabaseEnv.h"
 
 #include <mutex>
 #include <unordered_map>
 #include <list>
 #include <vector>
 #include <optional>
+#include <string>
+#include <algorithm>
+#include <cctype>
+
+// ======================================================================
+//  Guild Village – AoE loot backend
+//  - per-session toggle (v paměti)
+//  - auto AoE loot při CMSG_LOOT
+//  - veřejné API pro .village aoeloot / .v aoeloot
+// ======================================================================
 
 namespace GuildVillageAoe
 {
-    // --------------------------------------------------------------
-    //  Per-session stav
-    // --------------------------------------------------------------
     namespace
     {
         std::unordered_map<uint64, bool> s_playerAoeLootState;
@@ -80,6 +89,75 @@ namespace GuildVillageAoe
             std::lock_guard<std::mutex> lock(s_playerAoeLootStateMutex);
             s_playerAoeLootState.erase(guid);
         }
+
+        enum class AoeErrorReason : uint8
+        {
+            None = 0,
+            NoGuild,
+            NoVillage,
+            ConfigDisabled
+        };
+
+        bool IsEnglishLocale()
+        {
+            std::string loc = sConfigMgr->GetOption<std::string>("GuildVillage.Locale", "cs");
+            std::transform(loc.begin(), loc.end(), loc.begin(),
+                [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+            return (loc == "en" || loc == "english");
+        }
+
+        void SendAoeError(Player* player, AoeErrorReason reason)
+        {
+            if (!player)
+                return;
+
+            WorldSession* session = player->GetSession();
+            if (!session)
+                return;
+
+            ChatHandler handler(session);
+            bool en = IsEnglishLocale();
+
+            switch (reason)
+            {
+                case AoeErrorReason::NoGuild:
+                    if (en)
+                        handler.SendSysMessage("To use AoE loot, you must be in a guild that owns a guild village.");
+                    else
+                        handler.SendSysMessage("Pro AoE loot musíš mít guildu, která vlastní guildovní vesnici.");
+                    break;
+                case AoeErrorReason::NoVillage:
+                    if (en)
+                        handler.SendSysMessage("Your guild must own a guild village to enable AoE loot.");
+                    else
+                        handler.SendSysMessage("Tvá guilda musí vlastnit guildovní vesnici pro aktivaci AoE lootu.");
+                    break;
+                case AoeErrorReason::ConfigDisabled:
+                    if (en)
+                        handler.SendSysMessage("AoE loot is not enabled on this server.");
+                    else
+                        handler.SendSysMessage("Na tomto serveru není povolen AoE loot.");
+                    break;
+                default:
+                    break;
+            }
+        }
+
+        bool PlayerHasGuildVillage(Player* player)
+        {
+            if (!player)
+                return false;
+
+            uint32 guildId = player->GetGuildId();
+            if (!guildId)
+                return false;
+
+            if (QueryResult res = WorldDatabase.Query(
+                    "SELECT 1 FROM customs.gv_guild WHERE guild={} LIMIT 1", guildId))
+                return true;
+
+            return false;
+        }
     }
 
     bool IsAoeLootEnabledForPlayer(Player* player)
@@ -116,16 +194,31 @@ namespace GuildVillageAoe
         if (!player)
             return std::nullopt;
 
+        uint32 mode = sConfigMgr->GetOption<uint32>("GuildVillage.Aoe.Loot", 2);
+        if (mode == 0)
+        {
+            SendAoeError(player, AoeErrorReason::ConfigDisabled);
+            return std::nullopt;
+        }
+
+        if (!player->GetGuildId())
+        {
+            SendAoeError(player, AoeErrorReason::NoGuild);
+            return std::nullopt;
+        }
+
+        if (!PlayerHasGuildVillage(player))
+        {
+            SendAoeError(player, AoeErrorReason::NoVillage);
+            return std::nullopt;
+        }
+
         if (!IsAoeLootEnabledForPlayer(player))
             return std::nullopt;
 
         bool newState = TogglePlayerAoeLootInternal(player);
         return std::optional<bool>(newState);
     }
-
-    // --------------------------------------------------------------
-    // Validace vzdálenosti – používá GuildVillage.Aoe.Loot.Range
-    // --------------------------------------------------------------
 
     bool ValidateLootingDistance(Player* player, ObjectGuid lguid, float maxDistance)
     {
@@ -175,10 +268,6 @@ namespace GuildVillageAoe
             return creature->IsWithinDistInMap(player, maxDistance);
         }
     }
-
-    // --------------------------------------------------------------
-    // Gold loot
-    // --------------------------------------------------------------
 
     bool ProcessCreatureGold(Player* player, Creature* creature)
     {
@@ -240,10 +329,6 @@ namespace GuildVillageAoe
         loot->NotifyMoneyRemoved();
         return true;
     }
-
-    // --------------------------------------------------------------
-    // Uvolnění / clear loot objektu
-    // --------------------------------------------------------------
 
     void ReleaseAndCleanupLoot(ObjectGuid lguid, Player* player, Loot* /*lootPtr*/)
     {
@@ -339,10 +424,6 @@ namespace GuildVillageAoe
         }
     }
 
-    // --------------------------------------------------------------
-    // Zpracování jednoho loot slotu (standardní loot logika)
-    // --------------------------------------------------------------
-
     bool ProcessSingleLootSlot(Player* player, ObjectGuid lguid, uint8 lootSlot)
     {
         if (!player)
@@ -400,7 +481,6 @@ namespace GuildVillageAoe
         if (!loot)
             return false;
 
-        // Quest & FFA quest sloty
         if (lootSlot >= loot->items.size())
         {
             uint8 questItemOffset = loot->items.size();
@@ -529,10 +609,6 @@ namespace GuildVillageAoe
         return true;
     }
 
-    // --------------------------------------------------------------
-    // Interní AoE loot trigger – používá Range z configu
-    // --------------------------------------------------------------
-
     bool TriggerAoeLoot(Player* player)
     {
         if (!player)
@@ -639,10 +715,6 @@ namespace GuildVillageAoe
         return true;
     }
 
-    // --------------------------------------------------------------
-    // Quest loot helper
-    // --------------------------------------------------------------
-
     class guild_village_AoeLootQuestParty : public PlayerScript
     {
     public:
@@ -737,10 +809,6 @@ namespace
         }
     };
 }
-
-// ======================================================================
-//  Registrace pro loader mod-guild-village
-// ======================================================================
 
 void RegisterGuildVillageAoe()
 {

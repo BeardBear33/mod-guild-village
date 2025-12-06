@@ -213,14 +213,14 @@ GuildVillage.Loot.Debug = 0
 # Guild Village – AOE LOOT / AOE LOOT  #
 #======================================#
 
-# Globální AoE Loot
+# Globální AoE loot lze zapnout jen v případě, že hráč má guildu a ta již vlastní vesnici.
 # CS: 0 = Zakázat funkci AoE lootování
 #     1 = Povolit funkci AoE lootování (Aktivní pouze mimo partu)
 #     2 = Povolit funkci AoE lootování (Aktivní v partě/raidu i mimo partu)
-# Global AoE Loot
+# Global AoE loot can be enabled only if the player has a guild and that guild already owns a village.
 # EN: 0 = Disable AoE looting feature
 #     1 = Enable AoE looting feature (Active only outside of a party)
-#     2 = Enable AoE looting feature ((Active in a party/raid and outside of a party))
+#     2 = Enable AoE looting feature (Active in a party/raid and outside of a party)
 GuildVillage.Aoe.Loot = 2
 
 # CS: Poloměr oblasti pro AoE lootování

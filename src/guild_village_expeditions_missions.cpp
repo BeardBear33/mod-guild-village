@@ -2546,7 +2546,7 @@ namespace GuildVillageMissions
 		
 		// 1) klik na separator nebo infolinku uvnitř confirm okna
 		// action = ACT_NOOP_CONFIRM_BASE + missionIndex
-		if (action >= ACT_NOOP_CONFIRM_BASE && action < ACT_LOOTBANK_PAGE_BASE)
+		if (action >= ACT_NOOP_CONFIRM_BASE)
 		{
 			uint32 missionIndex = action - ACT_NOOP_CONFIRM_BASE;
 			ShowConfirmMission(player, creature, info, missionIndex);

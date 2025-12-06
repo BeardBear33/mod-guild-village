@@ -1366,31 +1366,28 @@ Alias: |cff00ff00.v aoeloot|r)");
 
             if (tok1 == "aoeloot")
             {
-                auto res = GuildVillageAoe::ToggleAoeLootForPlayer(player);
+				auto res = GuildVillageAoe::ToggleAoeLootForPlayer(player);
+		
+				if (res.has_value())
+				{
+					if (*res)
+					{
+						handler->SendSysMessage(
+							T("Zapnul jsi AoE loot, po odpojení ze hry se deaktivuje.",
+							"You have enabled AoE loot; it will be disabled when you log out.")
+						);
+					}
+					else
+					{
+						handler->SendSysMessage(
+							T("Vypnul jsi AoE loot.",
+							"You have disabled AoE loot.")
+						);
+					}
+				}
+		
+				return true;
 
-                if (!res.has_value())
-                {
-                    handler->SendSysMessage(
-                        T("AoE loot není na tomto serveru povolen, nebo ho nemůžeš použít v aktuální situaci.",
-                          "AoE loot is disabled on this server, or it cannot be used in the current context.")
-                    );
-                }
-                else if (*res)
-                {
-                    handler->SendSysMessage(
-                        T("Zapnul jsi AoE loot, po odpojení ze hry se deaktivuje.",
-                          "You have enabled AoE loot; it will be disabled when you log out.")
-                    );
-                }
-                else
-                {
-                    handler->SendSysMessage(
-                        T("Vypnul jsi AoE loot.",
-                          "You have disabled AoE loot.")
-                    );
-                }
-
-                return true;
             }
         }
 
