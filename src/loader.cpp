@@ -4,6 +4,7 @@
 // dopředné deklarace "lokálních" registrátorů z ostatních cpp
 void RegisterGuildVillageCustomsUpdater();
 void RegisterGuildVillageCommands();
+void RegisterGuildVillageAoe();
 void RegisterGuildVillageCreate();
 void RegisterGuildVillageUpgrade();
 void RegisterGuildVillageRespawn();
@@ -30,6 +31,7 @@ void Addmod_guild_villageScripts()
 {
 	RegisterGuildVillageCustomsUpdater();
 	RegisterGuildVillageCommands();
+	RegisterGuildVillageAoe();
     RegisterGuildVillageCreate();
     RegisterGuildVillageUpgrade();
     RegisterGuildVillageRespawn();

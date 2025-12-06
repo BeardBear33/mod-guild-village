@@ -208,6 +208,25 @@ GuildVillage.Loot.OnlyInVillage = 1
 # EN: Verbose debug output for loot system (log / chat spam).
 GuildVillage.Loot.Debug = 0
 
+ 
+#======================================#
+# Guild Village – AOE LOOT / AOE LOOT  #
+#======================================#
+
+# Globální AoE Loot
+# CS: 0 = Zakázat funkci AoE lootování
+#     1 = Povolit funkci AoE lootování (Aktivní pouze mimo partu)
+#     2 = Povolit funkci AoE lootování (Aktivní v partě/raidu i mimo partu)
+# Global AoE Loot
+# EN: 0 = Disable AoE looting feature
+#     1 = Enable AoE looting feature (Active only outside of a party)
+#     2 = Enable AoE looting feature ((Active in a party/raid and outside of a party))
+GuildVillage.Aoe.Loot = 2
+
+# CS: Poloměr oblasti pro AoE lootování
+# EN: Radius for AoE looting area
+GuildVillage.Aoe.Loot.Range = 55.0
+
 
 #=================================================#
 # Guild Village – PRODUKCE MATERIÁLŮ / PRODUCTION #

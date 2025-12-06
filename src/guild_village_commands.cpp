@@ -25,6 +25,12 @@
 #include <ctime>
 #include <cmath>
 
+
+namespace GuildVillageAoe
+{
+    std::optional<bool> ToggleAoeLootForPlayer(Player* player);
+}
+
 namespace GuildVillageMissions
 {
     struct ExpeditionLine
@@ -1223,6 +1229,11 @@ Aliases: |cff00ff00.village tp|r, |cff00ff00.v tp|r, |cff00ff00.village teleport
 Set your personal teleport point inside the village.
 Aliases: |cff00ff00.v tp set|r)");
 				}
+					handler->SendSysMessage(R"(
+-----------------------------
+|cff00ff00.village aoeloot|r
+Toggle AoE loot for your character (session only – resets on logout).
+Alias: |cff00ff00.v aoeloot|r)");
 			}
 			else
 			{
@@ -1282,6 +1293,12 @@ Alias: |cff00ff00.village tp|r, |cff00ff00.v tp|r, |cff00ff00.village teleport|r
 Nastaví tvůj osobní bod teleportu ve vesnici.
 Alias: |cff00ff00.v tp set|r)");
 				}
+					handler->SendSysMessage(R"(
+-----------------------------
+|cff00ff00.village aoeloot|r
+Přepne AoE loot pro tvou postavu (jen pro toto přihlášení – po odhlášení se vypne).
+Alias: |cff00ff00.v aoeloot|r)");
+
 			}
 			return true;
 		}
@@ -1341,6 +1358,41 @@ Alias: |cff00ff00.v tp set|r)");
 				return true;
 			}
 		}
+		
+		// --- AoE loot: .village aoeloot / .v aoeloot ---
+        {
+            std::string tok1, rest;
+            SplitFirstToken(al, tok1, rest);
+
+            if (tok1 == "aoeloot")
+            {
+                auto res = GuildVillageAoe::ToggleAoeLootForPlayer(player);
+
+                if (!res.has_value())
+                {
+                    handler->SendSysMessage(
+                        T("AoE loot není na tomto serveru povolen, nebo ho nemůžeš použít v aktuální situaci.",
+                          "AoE loot is disabled on this server, or it cannot be used in the current context.")
+                    );
+                }
+                else if (*res)
+                {
+                    handler->SendSysMessage(
+                        T("Zapnul jsi AoE loot, po odpojení ze hry se deaktivuje.",
+                          "You have enabled AoE loot; it will be disabled when you log out.")
+                    );
+                }
+                else
+                {
+                    handler->SendSysMessage(
+                        T("Vypnul jsi AoE loot.",
+                          "You have disabled AoE loot.")
+                    );
+                }
+
+                return true;
+            }
+        }
 
         // --- TELEPORT / TELEPORT SET ---
         {
