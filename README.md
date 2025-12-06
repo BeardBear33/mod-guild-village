@@ -9,24 +9,6 @@
 
 ----------------------------------------------------------------------------------------------------------------
 
-# ⚠️ POZOR: DŮLEŽITÁ ZMĚNA VE STRUKTUŘE DB ⚠️
-> **Platí pouze pro ty, kteří si stáhli modul před datem 27. 11. 2025**
-
-- Poslední update se nachází v customs/archive/updates/014_important_update.sql  
-Nezapomeňte aplikovat také všechny předchozí updaty, pokud jste je vynechali.  
-- Po aplikaci updatu 014_important_update.sql se bude modul aktualizovat automaticky při spuštění serveru.
-
-##
-
-# ⚠️ WARNING: IMPORTANT CHANGE IN DATABASE STRUCTURE ⚠️
-> **Applies only to those who downloaded the module before November 27, 2025.**
-
-- The latest update can be found in customs/archive/updates/014_important_update.sql  
-Don’t forget to apply all previous updates as well if you skipped any of them.  
-- After applying 014_important_update.sql, the module will update itself automatically when the server starts.
-
-----------------------------------------------------------------------------------------------------------------
-
 🌍 Vyber jazyk / Choose language:
 - [Čeština](https://github.com/BeardBear33/mod-guild-village/blob/main/README_CS.md)
 - [English](https://github.com/BeardBear33/mod-guild-village/blob/main/README_EN.md)
@@ -71,7 +53,7 @@ Don’t forget to apply all previous updates as well if you skipped any of them.
 - NPC, které by z guildovní měny vyrábělo náhodné materiály pro profese (např. Linen Cloth, Copper Ore, Light Leather, atd.).
 
 **Aktuálně se pracuje na:**
-- Čištění od starých funkcí v modulu a popis tabulek v [README_CS](https://github.com/BeardBear33/mod-guild-village/blob/main/README_CS.md)
+- Čištění od starých funkcí v modulu
 
 ##
   
@@ -84,7 +66,7 @@ Don’t forget to apply all previous updates as well if you skipped any of them.
 - An NPC that converts guild currency into random crafting materials (e.g. Linen Cloth, Copper Ore, Light Leather, etc.).
 
 **Currently working on:**
-- Cleaning out old functions in the module and describing the tables in [README_EN](https://github.com/BeardBear33/mod-guild-village/blob/main/README_EN.md)
+- Cleaning out old functions in the module
 
 
 ----------------------------------------------------------------------------------------------------------------

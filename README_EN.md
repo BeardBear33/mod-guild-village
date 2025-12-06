@@ -61,4 +61,4 @@ SmartAI for cooking and riding trainers has been removed (movement only).
 - `gv_creature_template` – Add records here to pre-spawn creatures **before** village creation. Applied only once during purchase.
 
 ## Database tables and their descriptions
-**WIP** [Wikipedia](https://github.com/BeardBear33/mod-guild-village/wiki/%5BEN%5D-Documentation)
+[Wikipedia](https://github.com/BeardBear33/mod-guild-village/wiki/%5BEN%5D-Documentation)
