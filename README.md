@@ -31,10 +31,10 @@
 [mod-playerbots (master branch)](https://github.com/liyunfan1223/mod-playerbots)
 
 > **Doporučený addon pro WoW 3.3.5a zajišťující správné zobrazování diakritiky:**  
-> [CzechFontFix (3.3.5a Addon)](https://github.com/BeardBear33/mod-guild-village/releases/tag/CFF_1.0)  
+> [CzechFontFix (3.3.5a Addon)](https://github.com/BeardBear33/mod-guild-village/releases/tag/CFF_2.0)  
 
 > **Doporučený addon pro WoW 3.3.5a, který zobrazuje informace o vesnici:**  
-> [Guild Village Helper (3.3.5a Addon)](https://github.com/BeardBear33/mod-guild-village/releases/tag/GVH_1.0)   
+> [Guild Village Helper (3.3.5a Addon)](https://github.com/BeardBear33/mod-guild-village/releases/tag/GVH_2.0)   
 
 ##
 
@@ -44,7 +44,7 @@
 [mod-playerbots (master branch)](https://github.com/liyunfan1223/mod-playerbots)
 
 > **Recommended addon for WoW 3.3.5a that displays village information:**  
-> [Guild Village Helper (3.3.5a Addon)](https://github.com/BeardBear33/mod-guild-village/releases/tag/GVH_1.0)  
+> [Guild Village Helper (3.3.5a Addon)](https://github.com/BeardBear33/mod-guild-village/releases/tag/GVH_2.0)  
 
 
 ----------------------------------------------------------------------------------------------------------------
