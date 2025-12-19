@@ -14,7 +14,7 @@
 > [Guild Village Helper (3.3.5a Addon)](https://github.com/BeardBear33/mod-guild-village/releases/tag/GVH_2.0)  
 
 > **Doporučený addon pro WoW 3.3.5a zajišťující správné zobrazování diakritiky:**  
-> [CzechFontFix (3.3.5a Addon)](https://github.com/BeardBear33/mod-guild-village/releases/tag/CFF_2.0)
+> [CzechFontFix (3.3.5a Addon)](https://github.com/BeardBear33/Czech-font-fix-addon/releases)
 
 > **Recommended addon for WoW 3.3.5a that displays village information:**  
 > [Guild Village Helper (3.3.5a Addon)](https://github.com/BeardBear33/mod-guild-village/releases/tag/GVH_2.0)  
@@ -26,13 +26,13 @@
 - [English](https://github.com/BeardBear33/mod-guild-village/blob/main/README_EN.md)
 
 > ⚠️ **Upozornění (CZ):**  
-> Před použitím tohoto modulu si **důkladně** přečti soubor [README_CS.md](https://github.com/BeardBear33/mod-guild-village/blob/main/README_CS.md)
+> Před použitím tohoto modulu si **důkladně** přečti soubor [README_CS.md](https://github.com/BeardBear33/mod-guild-village/blob/main/README_CS.md)  
 > Obsahuje zásadní informace o fungování a omezeních modulu.  
 
 ##   
 
 > ⚠️ **Notice (EN):**  
-> Before applying this module, make sure to **carefully** read [README_EN.md](https://github.com/BeardBear33/mod-guild-village/blob/main/README_EN.md)
+> Before applying this module, make sure to **carefully** read [README_EN.md](https://github.com/BeardBear33/mod-guild-village/blob/main/README_EN.md)  
 > It contains important information about the module’s behavior and limitations.  
 
 ----------------------------------------------------------------------------------------------------------------
