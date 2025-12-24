@@ -22,6 +22,7 @@
 #include <vector>
 #include <optional>
 #include <algorithm>
+#include <cctype>
 
 namespace GuildVillage
 {
@@ -100,14 +101,50 @@ namespace GuildVillage
         return out;
     }
 
-    // ---------- Menustate (drží výpis naposledy zobrazené kategorie pro hráče) ----------
-    struct MenuState
+    // ---------- Pomocné: převod category string -> Cat ----------
+    static std::optional<Cat> CatFromString(std::string const& s)
     {
-        Cat cat;
-        std::vector<CatalogRow> items;
-    };
-    static std::unordered_map<ObjectGuid::LowType, MenuState> s_menu;
+        if (s == "trainers")     return Cat::Trainers;
+        if (s == "professions")  return Cat::Professions;
+        if (s == "vendor")       return Cat::Vendor;
+        if (s == "portal")       return Cat::Portal;
+        if (s == "objects")      return Cat::Objects;
+        if (s == "others")       return Cat::Others;
+        return std::nullopt;
+    }
 
+    // ---------- Načtení katalogové položky podle ID ----------
+    static std::optional<CatalogRow> LoadCatalogRowById(uint32 id)
+    {
+        if (QueryResult r = WorldDatabase.Query(
+            "SELECT id, category, expansion_key, label_cs, label_en, cost_material1, cost_material2, cost_material3, cost_material4, sort_order "
+            "FROM customs.gv_upgrade_catalog WHERE id={}", id))
+        {
+            Field* f = r->Fetch();
+
+            std::string catStr = f[1].Get<std::string>();
+            std::transform(catStr.begin(), catStr.end(), catStr.begin(), ::tolower);
+
+            auto catOpt = CatFromString(catStr);
+            if (!catOpt)
+                return std::nullopt;
+
+            CatalogRow c;
+            c.id        = f[0].Get<uint32>();
+            c.cat       = *catOpt;
+            c.key       = f[2].Get<std::string>();
+            c.label_cs  = f[3].Get<std::string>();
+            c.label_en  = f[4].Get<std::string>();
+            c.cost_mat1 = f[5].Get<uint32>();
+            c.cost_mat2 = f[6].Get<uint32>();
+            c.cost_mat3 = f[7].Get<uint32>();
+            c.cost_mat4 = f[8].Get<uint32>();
+            c.sort      = f[9].Get<uint8>();
+            return c;
+        }
+        return std::nullopt;
+    }
+	
     // ---------- POI podpora ----------
     struct PoiRow
     {
@@ -162,7 +199,7 @@ namespace GuildVillage
     // ---------- „Kde se nachází?“ UI ----------
     enum GossipAction : uint32
     {
-        ACT_BACK_CATEGORY   = 9000, // jen pro návrat z where-rootu
+        ACT_BACK_CATEGORY   = 9000,
         ACT_WHERE_ROOT      = 20000,
         ACT_WHERE_TRAINERS,
         ACT_WHERE_PROFESSIONS,
@@ -171,24 +208,29 @@ namespace GuildVillage
         ACT_WHERE_OBJECTS,
         ACT_WHERE_OTHERS,
 
-        ACT_WHERE_ITEM_BASE = 21000 // ACT_WHERE_ITEM_BASE + index
+        ACT_WHERE_ITEM_BASE = 21000
     };
 
-    static void ShowWhereRoot(Player* player, Creature* creature)
+	static void ShowWhereRoot(Player* player, Creature* creature)
     {
         ClearGossipMenuFor(player);
-        AddGossipItemFor(player, 0, T("|cff00ff00Vyber si koho chceš najít:|r", "|cff00ff00Select who you want to find:|r"), GOSSIP_SENDER_MAIN, ACT_WHERE_ROOT);
-        AddGossipItemFor(player, 0, "|cff808080---------------------------|r", GOSSIP_SENDER_MAIN, ACT_WHERE_ROOT);
+
+        AddGossipItemFor(player, 0, T("|cff00ff00Vyber si koho chceš najít:|r", "|cff00ff00Select who you want to find:|r"),
+            GOSSIP_SENDER_MAIN, ACT_WHERE_ROOT);
+        AddGossipItemFor(player, 0, "|cff808080---------------------------|r",
+            GOSSIP_SENDER_MAIN, ACT_WHERE_ROOT);
+
         AddGossipItemFor(player, GOSSIP_ICON_BATTLE,     T("Trenér", "Trainers"),      GOSSIP_SENDER_MAIN, ACT_WHERE_TRAINERS);
         AddGossipItemFor(player, GOSSIP_ICON_TRAINER,    T("Profese", "Professions"),  GOSSIP_SENDER_MAIN, ACT_WHERE_PROFESSIONS);
         AddGossipItemFor(player, GOSSIP_ICON_VENDOR,     T("Vendor", "Vendors"),       GOSSIP_SENDER_MAIN, ACT_WHERE_VENDOR);
         AddGossipItemFor(player, GOSSIP_ICON_INTERACT_1, T("Portály", "Portal"),       GOSSIP_SENDER_MAIN, ACT_WHERE_PORTAL);
         AddGossipItemFor(player, GOSSIP_ICON_INTERACT_1, T("Objekty", "Objects"),      GOSSIP_SENDER_MAIN, ACT_WHERE_OBJECTS);
         AddGossipItemFor(player, GOSSIP_ICON_TABARD,     T("Ostatní", "Others"),       GOSSIP_SENDER_MAIN, ACT_WHERE_OTHERS);
+
         SendGossipMenuFor(player, 1, creature->GetGUID());
     }
-
-    static void ShowWhereCategory(Player* player, Creature* creature, Cat cat, uint8 factionFilter)
+	
+	static void ShowWhereCategory(Player* player, Creature* creature, Cat cat, uint8 factionFilter)
     {
         ClearGossipMenuFor(player);
 
@@ -205,32 +247,34 @@ namespace GuildVillage
 
         auto all = LoadCatalog(cat);
         std::vector<CatalogRow> list;
+        list.reserve(all.size());
 
         for (auto const& c : all)
         {
-            if (std::find(purchased.begin(), purchased.end(), c.key) == purchased.end())
+            if (purchased.find(c.key) == purchased.end())
                 continue;
+
             if (!LoadPoi(c.key, factionFilter).has_value())
                 continue;
+
             list.push_back(c);
         }
 
         if (list.empty())
         {
-            ChatHandler(player->GetSession()).SendSysMessage(T("V této kategorii nemáš nic zakoupeno.", "You have no purchased items in this category."));
+            ChatHandler(player->GetSession()).SendSysMessage(
+                T("V této kategorii nemáš nic zakoupeno.", "You have no purchased items in this category."));
             ShowWhereRoot(player, creature);
             return;
         }
 
-        s_menu[player->GetGUID().GetCounter()] = MenuState{ cat, list };
-
-        for (uint32 i = 0; i < list.size(); ++i)
+        for (auto const& c : list)
         {
-            auto const& c = list[i];
-            std::string label = (LangOpt()==Lang::EN ? c.label_en : c.label_cs);
-            AddGossipItemFor(player, GOSSIP_ICON_CHAT, label, GOSSIP_SENDER_MAIN, ACT_WHERE_ITEM_BASE + i);
+            std::string label = (LangOpt() == Lang::EN ? c.label_en : c.label_cs);
+            AddGossipItemFor(player, GOSSIP_ICON_CHAT, label, GOSSIP_SENDER_MAIN, ACT_WHERE_ITEM_BASE + c.id);
         }
-        AddGossipItemFor(player, GOSSIP_ICON_TAXI, T("Zpet", "Back"), GOSSIP_SENDER_MAIN, ACT_WHERE_ROOT);
+
+        AddGossipItemFor(player, GOSSIP_ICON_TAXI, T("Zpět", "Back"), GOSSIP_SENDER_MAIN, ACT_WHERE_ROOT);
         SendGossipMenuFor(player, 1, creature->GetGUID());
     }
 
@@ -287,25 +331,43 @@ namespace GuildVillage
                 default: break;
             }
 
-            // Klik na konkrétní položku – POI / fallback souřadnice
-            if (action >= ACT_WHERE_ITEM_BASE && action < ACT_WHERE_ITEM_BASE + 2000)
+            // Klik na konkrétní položku – podle ID v gv_upgrade_catalog (bez menustate cache)
+            if (action >= ACT_WHERE_ITEM_BASE && action < ACT_WHERE_ITEM_BASE + 1000000)
             {
-                uint32 idx = action - ACT_WHERE_ITEM_BASE;
-                auto it = s_menu.find(player->GetGUID().GetCounter());
-                if (it == s_menu.end() || idx >= it->second.items.size())
-                { ShowWhereRoot(player, creature); return true; }
+                uint32 catalogId = action - ACT_WHERE_ITEM_BASE;
 
-                CatalogRow const& c = it->second.items[idx];
+                Guild* g2 = player->GetGuild();
+                if (!g2) { CloseGossipMenuFor(player); return true; }
+
+                auto rowOpt = LoadCatalogRowById(catalogId);
+                if (!rowOpt)
+                {
+                    ShowWhereRoot(player, creature);
+                    return true;
+                }
+
+                CatalogRow const& c = *rowOpt;
+
+                // Musí být zakoupeno (ochrana proti “starému” / ručně poslanému actionu)
+                auto purchased = LoadPurchasedKeys(g2->GetId());
+                if (purchased.find(c.key) == purchased.end())
+                {
+                    ChatHandler(player->GetSession()).SendSysMessage(
+                        T("Tato položka není zakoupena.", "This item is not purchased."));
+                    ShowWhereCategory(player, creature, c.cat, factionFilter);
+                    return true;
+                }
+
                 auto poiOpt = LoadPoi(c.key, factionFilter);
                 if (!poiOpt)
                 {
-                    ChatHandler(player->GetSession()).SendSysMessage(T("Pro tuto položku není definován POI.", "No POI defined for this item."));
-                    ShowWhereCategory(player, creature, it->second.cat, factionFilter);
+                    ChatHandler(player->GetSession()).SendSysMessage(
+                        T("Pro tuto položku není definován POI.", "No POI defined for this item."));
+                    ShowWhereCategory(player, creature, c.cat, factionFilter);
                     return true;
                 }
 
                 auto const& poi = *poiOpt;
-                std::string name = (LangOpt()==Lang::EN ? poi.name_en : poi.name_cs);
 
                 if (player->GetMapId() == poi.map && poi.poiId != 0)
                 {
@@ -313,13 +375,14 @@ namespace GuildVillage
                 }
                 else
                 {
-                    std::string msg = (LangOpt()==Lang::EN)
+                    std::string msg = (LangOpt() == Lang::EN)
                         ? Acore::StringFormat("Target is on map {} (X: {:.1f}, Y: {:.1f})", poi.map, poi.x, poi.y)
                         : Acore::StringFormat("Cíl je na mapě {} (X: {:.1f}, Y: {:.1f})", poi.map, poi.x, poi.y);
+
                     ChatHandler(player->GetSession()).SendSysMessage(msg.c_str());
                 }
 
-                ShowWhereCategory(player, creature, it->second.cat, factionFilter);
+                ShowWhereCategory(player, creature, c.cat, factionFilter);
                 return true;
             }
 
