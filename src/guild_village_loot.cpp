@@ -9,8 +9,10 @@
 #include "Config.h"
 #include "Group.h"
 #include "Log.h"
+#include "ObjectMgr.h"
 #include "gv_names.h"
 
+#include <ctime>
 #include <unordered_map>
 #include <vector>
 #include <string>
@@ -19,13 +21,13 @@
 
 namespace GuildVillage
 {
-    // ===== Config: mapa vesnice (sjednoceno s ostatními soubory) =====
+    // ===== Config: mapa vesnice =====
     static inline uint32 DefMap()
     {
         return sConfigMgr->GetOption<uint32>("GuildVillage.Default.Map", 37);
     }
 
-    // ===== Config flags =====
+    // ===== Configy =====
     static bool  CFG_ENABLED         = true;
     static bool  CFG_ONLY_IN_VILLAGE = true;
     static bool  CFG_DEBUG           = false;
@@ -36,7 +38,7 @@ namespace GuildVillage
     static uint32 CAP_material3     = 1000;
     static uint32 CAP_material4  = 1000;
 
-    // === Locale handling (cs|en) ===
+    // === Lokalizace (cs|en) ===
     enum class Lang { CS, EN };
 
     static inline Lang LangOpt()
@@ -57,12 +59,11 @@ namespace GuildVillage
     struct LootRow
     {
         Cur     cur;
-        float   chance;       // 0..100
+        float   chance;
         uint32  minAmount;
         uint32  maxAmount;
     };
 
-    // entry -> loot rows
     static std::unordered_map<uint32, std::vector<LootRow>> s_loot;
 
     // --- helpers ---
@@ -73,12 +74,10 @@ namespace GuildVillage
 
 	static bool ParseCurrency(std::string s, Cur& out)
 	{
-		// ořež whitespace
 		auto ltrim = [](std::string& x){ x.erase(0, x.find_first_not_of(" \t\r\n")); };
 		auto rtrim = [](std::string& x){ x.erase(x.find_last_not_of(" \t\r\n") + 1); };
 		ltrim(s); rtrim(s);
 	
-		// na lowercase
 		std::transform(s.begin(), s.end(), s.begin(), ::tolower);
 	
 		if (s == "random" || s == "all") { out = Cur::Random;     return true; }
@@ -138,7 +137,6 @@ namespace GuildVillage
         LoadLootTable();
     }
 
-    // Náhodné číslo <min;max>
     static uint32 RandInRange(uint32 a, uint32 b)
     {
         if (a == b) return a;
@@ -163,23 +161,19 @@ namespace GuildVillage
 		}
 	}
 
-		// Rozdělení náhodného počtu mezi 1–4 materiály (stejný styl jako v quests.cpp)
 	static void AddRandomSplit(Gain& g, uint32 count)
 	{
 		if (!count)
 			return;
 	
-		// Edge case: 1 kus – stačí čistě jeden náhodný materiál
 		if (count == 1)
 		{
-			uint32 r = urand(0, 3); // 0..3 -> 4 materiály
+			uint32 r = urand(0, 3);
 			Cur c = static_cast<Cur>(r);
 			AddGain(g, c, 1);
 			return;
 		}
 	
-		// Kolik různých typů použiju (2–4) s weightingem jako v quests:
-		// 2 typy ~40 %, 3 typy ~35 %, 4 typy ~25 %
 		uint32 k;
 		uint32 roll = urand(1, 100);
 		if (roll <= 40)
@@ -192,10 +186,8 @@ namespace GuildVillage
 		if (count < k)
 			k = count;
 	
-		// Indexy 0..3 = m1..m4
 		uint8 idx[4] = {0, 1, 2, 3};
 	
-		// Fisher–Yates shuffle přes urand
 		for (uint8 i = 0; i < 4; ++i)
 		{
 			uint8 j = urand(i, 3);
@@ -204,20 +196,17 @@ namespace GuildVillage
 	
 		uint32 tmp[4] = {0, 0, 0, 0};
 	
-		// Každý z vybraných typů dostane nejdřív 1 kus
 		for (uint32 i = 0; i < k; ++i)
 			++tmp[idx[i]];
 	
 		uint32 remaining = count - k;
 	
-		// Zbytek náhodně rozházet mezi vybrané typy
 		while (remaining--)
 		{
 			uint32 r = urand(0, k - 1);
 			++tmp[idx[r]];
 		}
 	
-		// Připsat do gainu
 		AddGain(g, Cur::Material1, tmp[0]);
 		AddGain(g, Cur::Material2, tmp[1]);
 		AddGain(g, Cur::Material3, tmp[2]);
@@ -233,7 +222,6 @@ namespace GuildVillage
 
         if (!CFG_CAP_ENABLED)
         {
-            // bez capu
             WorldDatabase.DirectExecute(Acore::StringFormat(
                 "UPDATE customs.gv_currency SET "
                 "material1=material1+{}, material2=material2+{}, material3=material3+{}, material4=material4+{}, last_update=NOW() "
@@ -242,7 +230,6 @@ namespace GuildVillage
             return g;
         }
 
-        // načíst aktuální stav
         uint32 curmat1=0, curmat2=0, curmat3=0, curmat4=0;
         if (QueryResult q = WorldDatabase.Query(
                 "SELECT material1, material2, material3, material4 FROM customs.gv_currency WHERE guildId={}", guildId))
@@ -258,7 +245,7 @@ namespace GuildVillage
 
         auto room = [](uint32 cur, uint32 cap)->uint32
         {
-            if (cap == 0) return UINT32_MAX; // 0 = bez limitu
+            if (cap == 0) return UINT32_MAX;
             if (cur >= cap) return 0;
             return cap - cur;
         };
@@ -284,12 +271,14 @@ namespace GuildVillage
     }
 
     static void DebugMsg(Player* p, std::string const& msg)
-    {
-        if (!CFG_DEBUG || !p) return;
-        ChatHandler(p->GetSession()).SendSysMessage(("[GV-LOOT] " + msg).c_str());
-    }
+	{
+		if (!CFG_DEBUG || !p)
+			return;
+	
+		if (WorldSession* s = p->GetSession())
+			ChatHandler(s).SendSysMessage(("[GV-LOOT] " + msg).c_str());
+	}
 
-    // === Broadcast helper: poslat zprávu celé party/raidu poblíž killer-a (default 100 yd) ===
     static void BroadcastToGroup(Player* killer, std::string const& msg, float rangeYards = 100.f)
     {
         if (!killer) return;
@@ -303,14 +292,16 @@ namespace GuildVillage
                     if (m->IsInWorld() && m->GetMapId() == killer->GetMapId() &&
                         killer->GetDistance(m) <= rangeYards)
                     {
-                        ChatHandler(m->GetSession()).SendSysMessage(msg.c_str());
+                        if (WorldSession* s = m->GetSession())
+							ChatHandler(s).SendSysMessage(msg.c_str());
                     }
                 }
             }
         }
         else
         {
-            ChatHandler(killer->GetSession()).SendSysMessage(msg.c_str());
+            if (WorldSession* s = killer->GetSession())
+				ChatHandler(s).SendSysMessage(msg.c_str());
         }
     }
 
@@ -344,7 +335,6 @@ namespace GuildVillage
 		
 				if (row.cur == Cur::Random)
 				{
-					// náhodné rozdělení mezi material1..4, stejně jako "random" v quests
 					AddRandomSplit(gain, amount);
 				}
 				else
@@ -359,7 +349,6 @@ namespace GuildVillage
 
         Gain applied = ApplyGainToGuild(g->GetId(), gain);
 
-        // Co bylo uříznuto capem (gain - applied)
         Gain blocked{};
         blocked.material1  = (gain.material1  > applied.material1)  ? (gain.material1  - applied.material1)  : 0;
         blocked.material2   = (gain.material2   > applied.material2)   ? (gain.material2   - applied.material2)   : 0;
@@ -389,7 +378,10 @@ namespace GuildVillage
             if (blocked.material4) addCap(N.status.material4, CAP_material4);
 
             if (first == false)
-                ChatHandler(killer->GetSession()).SendSysMessage(capMsg.c_str());
+			{
+				if (WorldSession* s = killer->GetSession())
+					ChatHandler(s).SendSysMessage(capMsg.c_str());
+			}
 
             return;
         }
@@ -406,7 +398,6 @@ namespace GuildVillage
 			{
 				if (!v) return;
 				if (!first) msg += ", ";
-				// "+3 prkna" / "+3 material1s"
 				msg += "+" + std::to_string(v) + " " + CountName(m, v);
 				first = false;
 			};
@@ -419,7 +410,6 @@ namespace GuildVillage
 			BroadcastToGroup(killer, msg);
 		}
 
-        // Pokud cap něco ořízl
         if (blocked.material1 || blocked.material2 || blocked.material3 || blocked.material4)
         {
             auto const& N = GuildVillage::Names::Get();
@@ -445,7 +435,6 @@ namespace GuildVillage
                 BroadcastToGroup(killer, capMsg);
         }
 
-		// volitelně hláška – respektuje názvy z configu
 		if (CFG_DEBUG)
 		{
 			using namespace GuildVillage::Names;
@@ -456,7 +445,6 @@ namespace GuildVillage
 			{
 				if (!v) return;
 				if (!first) msg += ", ";
-				// "+3 prkna" / "+3 material1s"
 				msg += "+" + std::to_string(v) + " " + CountName(m, v);
 				first = false;
 			};
@@ -470,16 +458,24 @@ namespace GuildVillage
 		}
     }
 
-    static inline void ForceSaveRespawn(Creature* killed)
-    {
-        if (!killed)
-            return;
-
-        if (!killed->GetSpawnId())
-            return;
-
-        killed->SaveRespawnTime();
-    }
+	static inline void CreatureRespawn(Creature* c)
+	{
+		if (!c)
+			return;
+	
+		if (c->GetMapId() != DefMap())
+			return;
+	
+		if (!c->GetSpawnId())
+			return;
+	
+		if (CreatureData const* data = c->GetCreatureData())
+		{
+			uint32 delay = data->spawntimesecs;
+			c->SetRespawnDelay(delay);
+			c->SetRespawnTime(delay + c->GetCorpseDelay());
+		}
+	}
 
     // ===== Scripts =====
 
@@ -498,13 +494,13 @@ namespace GuildVillage
         void OnPlayerCreatureKill(Player* killer, Creature* killed) override
         {
             ProcessKill(killer, killed);
-            if (killed->GetMapId() == DefMap()) ForceSaveRespawn(killed);
+			CreatureRespawn(killed);
         }
 
         void OnPlayerCreatureKilledByPet(Player* petOwner, Creature* killed) override
         {
             ProcessKill(petOwner, killed);
-            if (killed->GetMapId() == DefMap()) ForceSaveRespawn(killed);
+			CreatureRespawn(killed);
         }
     };
 }
