@@ -95,7 +95,7 @@ namespace GuildVillage
 		
 		// 1.3) Vyčistit guild questy
 		WorldDatabase.Execute(
-			"DELETE FROM customs.gv_guild_quests WHERE guild={}",
+			"DELETE FROM customs.gv_guild_quests WHERE guildId={}",
 			guildId
 		);
 
