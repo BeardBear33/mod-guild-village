@@ -282,7 +282,7 @@ namespace
 		void OnPlayerVictimRewardAfter(Player* killer,
 									Player* victim,
 									uint32& /*killer_title*/,
-									uint32& /*victim_rank*/,
+									int32& /*victim_rank*/,
 									float& honor_f) override
 		{
 			if (!killer || !victim) return;
