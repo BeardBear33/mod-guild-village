@@ -19,7 +19,6 @@ INSERT INTO `creature_template` (
     `detection_range`, `scale`, `rank`, `dmgschool`, `DamageModifier`,
     `BaseAttackTime`, `RangeAttackTime`, `BaseVariance`, `RangeVariance`,
     `unit_class`, `unit_flags`, `unit_flags2`, `dynamicflags`, `family`,
-    `trainer_type`, `trainer_spell`, `trainer_class`, `trainer_race`,
     `type`, `type_flags`, `lootid`, `pickpocketloot`, `skinloot`,
     `PetSpellDataId`, `VehicleId`, `mingold`, `maxgold`, `AIName`,
     `MovementType`, `HoverHeight`, `HealthModifier`, `ManaModifier`,
@@ -28,8 +27,7 @@ INSERT INTO `creature_template` (
     `flags_extra`, `ScriptName`, `VerifiedBuild`
 ) VALUES
 (987448, 0, 0, 0, 0, 0, 'GV-Fabricator 01', '', NULL, 0, 85, 85, 0, 35, 1,
- 1, 1.14286, 1, 1, 20, 1, 2, 0, 13, 500, 1000, 1, 1, 1, 0, 0, 0, 0, 0, 0,
- 0, 0, 7, 76, 0, 0, 0, 0, 0, 0, 0, '', 0, 1, 10, 1, 1, 1, 0, 0, 1, 0, 0, 0,
+ 1, 1.14286, 1, 1, 20, 1, 2, 0, 13, 500, 1000, 1, 1, 1, 0, 0, 0, 0, 7, 76, 0, 0, 0, 0, 0, 0, 0, '', 0, 1, 10, 1, 1, 1, 0, 0, 1, 0, 0, 0,
  'npc_gv_production', 12340)
 AS new
 ON DUPLICATE KEY UPDATE
@@ -65,10 +63,6 @@ ON DUPLICATE KEY UPDATE
   `unit_flags2`        = new.`unit_flags2`,
   `dynamicflags`       = new.`dynamicflags`,
   `family`             = new.`family`,
-  `trainer_type`       = new.`trainer_type`,
-  `trainer_spell`      = new.`trainer_spell`,
-  `trainer_class`      = new.`trainer_class`,
-  `trainer_race`       = new.`trainer_race`,
   `type`               = new.`type`,
   `type_flags`         = new.`type_flags`,
   `lootid`             = new.`lootid`,
