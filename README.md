@@ -21,6 +21,15 @@
 
 ----------------------------------------------------------------------------------------------------------------
 
+## Client patch
+> **Doporučený client fix pro modul guild village:**  
+> [Worldmap fix-mod guild village](https://github.com/BeardBear33/Worldmap_fix-mod-guild-village/releases/tag/v1.0)
+
+> **Recommended client fix for guild village module:**  
+> [Worldmap fix-mod guild village](https://github.com/BeardBear33/Worldmap_fix-mod-guild-village/releases/tag/v1.0)  
+
+----------------------------------------------------------------------------------------------------------------
+
 🌍 Vyber jazyk / Choose language:
 - [Čeština](https://github.com/BeardBear33/mod-guild-village/blob/main/README_CS.md)
 - [English](https://github.com/BeardBear33/mod-guild-village/blob/main/README_EN.md)
