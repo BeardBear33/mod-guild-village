@@ -11,13 +11,13 @@
 
 ## Addon
 > **Doporučený addon pro WoW 3.3.5a, který zobrazuje informace o vesnici:**  
-> [Guild Village Helper (3.3.5a Addon)](https://github.com/BeardBear33/mod-guild-village/releases/tag/GVH_2.0)  
+> [Guild Village Helper (3.3.5a Addon)](https://github.com/BeardBear33/Guild-Village-Helper-3.3.5a/releases/tag/GVH_2.1)  
 
 > **Doporučený addon pro WoW 3.3.5a zajišťující správné zobrazování diakritiky:**  
 > [CzechFontFix (3.3.5a Addon)](https://github.com/BeardBear33/Czech-font-fix-addon/releases)
 
 > **Recommended addon for WoW 3.3.5a that displays village information:**  
-> [Guild Village Helper (3.3.5a Addon)](https://github.com/BeardBear33/mod-guild-village/releases/tag/GVH_2.0)  
+>> [Guild Village Helper (3.3.5a Addon)](https://github.com/BeardBear33/Guild-Village-Helper-3.3.5a/releases/tag/GVH_2.1)   
 
 ----------------------------------------------------------------------------------------------------------------
 
