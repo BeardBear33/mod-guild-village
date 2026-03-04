@@ -17,7 +17,7 @@
 > [CzechFontFix (3.3.5a Addon)](https://github.com/BeardBear33/Czech-font-fix-addon/releases)
 
 > **Recommended addon for WoW 3.3.5a that displays village information:**  
->> [Guild Village Helper (3.3.5a Addon)](https://github.com/BeardBear33/Guild-Village-Helper-3.3.5a/releases/tag/GVH_2.1)   
+> [Guild Village Helper (3.3.5a Addon)](https://github.com/BeardBear33/Guild-Village-Helper-3.3.5a/releases/tag/GVH_2.1)   
 
 ----------------------------------------------------------------------------------------------------------------
 
