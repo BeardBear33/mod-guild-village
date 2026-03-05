@@ -11,22 +11,23 @@
 
 ## Addon
 > **Doporučený addon pro WoW 3.3.5a, který zobrazuje informace o vesnici:**  
-> [Guild Village Helper (3.3.5a Addon)](https://github.com/BeardBear33/Guild-Village-Helper-3.3.5a/releases/tag/GVH_2.1)  
+> [Guild Village Helper (3.3.5a Addon)](https://github.com/BeardBear33/Guild-Village-Helper-3.3.5a)  
 
 > **Doporučený addon pro WoW 3.3.5a zajišťující správné zobrazování diakritiky:**  
 > [CzechFontFix (3.3.5a Addon)](https://github.com/BeardBear33/Czech-font-fix-addon/releases)
 
 > **Recommended addon for WoW 3.3.5a that displays village information:**  
-> [Guild Village Helper (3.3.5a Addon)](https://github.com/BeardBear33/Guild-Village-Helper-3.3.5a/releases/tag/GVH_2.1)   
+> [Guild Village Helper (3.3.5a Addon)](https://github.com/BeardBear33/Guild-Village-Helper-3.3.5a)   
 
 ----------------------------------------------------------------------------------------------------------------
 
 ## Client patch
 > **Doporučený client fix pro modul guild village:**  
-> [Worldmap fix-mod guild village](https://github.com/BeardBear33/Worldmap_fix-mod-guild-village/releases/tag/v1.0)
+> [Worldmap fix-mod guild village](https://github.com/BeardBear33/Worldmap_fix-mod-guild-village)
+
 
 > **Recommended client fix for guild village module:**  
-> [Worldmap fix-mod guild village](https://github.com/BeardBear33/Worldmap_fix-mod-guild-village/releases/tag/v1.0)  
+> [Worldmap fix-mod guild village](https://github.com/BeardBear33/Worldmap_fix-mod-guild-village)  
 
 ----------------------------------------------------------------------------------------------------------------
 
