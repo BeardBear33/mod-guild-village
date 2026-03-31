@@ -205,16 +205,16 @@ struct boss_thalor_the_lifebinder : public ScriptedAI
     {
         std::vector<Player*> cands;
         CollectPlayers(cands, maxDist);
-        std::vector<Player*> far;
-        for (Player* p : cands)
-        {
-            if (me->GetDistance(p) >= minDist)
-                far.push_back(p);
-        }
-        if (far.empty())
-            return nullptr;
-        uint32 i = urand(0u, (uint32)far.size() - 1u);
-        return far[i];
+		std::vector<Player*> farPlayers;
+		for (Player* p : cands)
+		{
+			if (me->GetDistance(p) >= minDist)
+				farPlayers.push_back(p);
+		}
+		if (farPlayers.empty())
+			return nullptr;
+		uint32 i = urand(0u, (uint32)farPlayers.size() - 1u);
+		return farPlayers[i];
     }
 
     void MaybeApplyLifebloomHeroic()
@@ -326,10 +326,10 @@ struct boss_thalor_the_lifebinder : public ScriptedAI
 
         me->CastSpell(me, SPELL_STORM_WAVE_H, true);
 
-        if (Player* far = PickDistantTarget(STORM_MIN_DIST, MAX_LOS_RANGE))
-            me->CastSpell(far, SPELL_STORM_WAVE_H, false);
-        else
-            me->CastSpell(me, SPELL_STORM_WAVE_H, true);
+		if (Player* farTarget = PickDistantTarget(STORM_MIN_DIST, MAX_LOS_RANGE))
+			me->CastSpell(farTarget, SPELL_STORM_WAVE_H, false);
+		else
+			me->CastSpell(me, SPELL_STORM_WAVE_H, true);
     }
 
     void TryCastVenomBolt()
