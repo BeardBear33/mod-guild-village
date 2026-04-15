@@ -609,111 +609,121 @@ namespace GuildVillageAoe
         return true;
     }
 
-    bool TriggerAoeLoot(Player* player)
-    {
-        if (!player)
-            return true;
-
-        if (!IsAoeLootEnabledForPlayer(player))
-            return true;
-
-        float range = sConfigMgr->GetOption<float>("GuildVillage.Aoe.Loot.Range", 55.0f);
-
-        std::list<Creature*> nearbyCorpses;
-        player->GetDeadCreatureListInGrid(nearbyCorpses, range);
-
-        std::list<Creature*> validCorpses;
-
-        for (Creature* creature : nearbyCorpses)
-        {
-            if (!player || !creature)
-                continue;
-
-            if (!player->isAllowedToLoot(creature))
-                continue;
-
-            if (!creature->HasDynamicFlag(UNIT_DYNFLAG_LOOTABLE))
-                continue;
-
-            if (!creature->hasLootRecipient())
-                continue;
-
-            if (!creature->isTappedBy(player))
-                continue;
-
-            Group* group = player->GetGroup();
-            if (group)
-            {
-                Loot* loot = &creature->loot;
-                LootMethod lootMethod = group->GetLootMethod();
-
-                if (lootMethod == ROUND_ROBIN)
-                {
-                    if (loot->roundRobinPlayer && loot->roundRobinPlayer != player->GetGUID())
-                        continue;
-                }
-                else if (lootMethod == MASTER_LOOT)
-                {
-                    if (group->GetMasterLooterGuid() != player->GetGUID())
-                        continue;
-                }
-            }
-
-            validCorpses.push_back(creature);
-        }
-
-        for (Creature* creature : validCorpses)
-        {
-            ObjectGuid lguid = creature->GetGUID();
-            Loot* loot = &creature->loot;
-
-            if (!loot)
-                continue;
-
-            if (!ValidateLootingDistance(player, lguid, range))
-                continue;
-
-            player->SetLootGUID(lguid);
-
-            for (uint8 lootSlot = 0; lootSlot < loot->items.size(); ++lootSlot)
-            {
-                ProcessSingleLootSlot(player, lguid, lootSlot);
-            }
-
-            const QuestItemMap& questItems = loot->GetPlayerQuestItems();
-            auto q_itr = questItems.find(player->GetGUID());
-            if (q_itr != questItems.end())
-            {
-                const QuestItemList* qlist = q_itr->second;
-                for (uint8 i = 0; i < qlist->size(); ++i)
-                {
-                    uint8 questSlot = loot->items.size() + i;
-                    ProcessSingleLootSlot(player, lguid, questSlot);
-                }
-            }
-
-            const QuestItemMap& ffaItems = loot->GetPlayerFFAItems();
-            auto ffa_itr = ffaItems.find(player->GetGUID());
-            if (ffa_itr != ffaItems.end())
-            {
-                const QuestItemList* flist = ffa_itr->second;
-                uint8 base = loot->items.size() + (q_itr != questItems.end() ? q_itr->second->size() : 0);
-                for (uint8 i = 0; i < flist->size(); ++i)
-                {
-                    uint8 ffaSlot = base + i;
-                    ProcessSingleLootSlot(player, lguid, ffaSlot);
-                }
-            }
-
-            if (loot->gold > 0)
-                ProcessCreatureGold(player, creature);
-
-            if (loot->isLooted())
-                ReleaseAndCleanupLoot(lguid, player, loot);
-        }
-
-        return true;
-    }
+	bool TriggerAoeLoot(Player* player)
+	{
+		if (!player)
+			return true;
+	
+		if (!IsAoeLootEnabledForPlayer(player))
+			return true;
+	
+		static std::unordered_map<uint64, bool> s_processing;
+	
+		uint64 guid = player->GetGUID().GetRawValue();
+		if (s_processing[guid])
+			return true;
+	
+		s_processing[guid] = true;
+	
+		float range = sConfigMgr->GetOption<float>("GuildVillage.Aoe.Loot.Range", 55.0f);
+	
+		std::list<Creature*> nearbyCorpses;
+		player->GetDeadCreatureListInGrid(nearbyCorpses, range);
+	
+		std::list<Creature*> validCorpses;
+	
+		for (Creature* creature : nearbyCorpses)
+		{
+			if (!player || !creature)
+				continue;
+	
+			if (!player->isAllowedToLoot(creature))
+				continue;
+	
+			if (!creature->HasDynamicFlag(UNIT_DYNFLAG_LOOTABLE))
+				continue;
+	
+			if (!creature->hasLootRecipient())
+				continue;
+	
+			if (!creature->isTappedBy(player))
+				continue;
+	
+			Group* group = player->GetGroup();
+			if (group)
+			{
+				Loot* loot = &creature->loot;
+				LootMethod lootMethod = group->GetLootMethod();
+	
+				if (lootMethod == ROUND_ROBIN)
+				{
+					if (loot->roundRobinPlayer && loot->roundRobinPlayer != player->GetGUID())
+						continue;
+				}
+				else if (lootMethod == MASTER_LOOT)
+				{
+					if (group->GetMasterLooterGuid() != player->GetGUID())
+						continue;
+				}
+			}
+	
+			validCorpses.push_back(creature);
+		}
+	
+		for (Creature* creature : validCorpses)
+		{
+			ObjectGuid lguid = creature->GetGUID();
+			Loot* loot = &creature->loot;
+	
+			if (!loot)
+				continue;
+	
+			if (!ValidateLootingDistance(player, lguid, range))
+				continue;
+	
+			player->SetLootGUID(lguid);
+	
+			for (uint8 lootSlot = 0; lootSlot < loot->items.size(); ++lootSlot)
+			{
+				ProcessSingleLootSlot(player, lguid, lootSlot);
+			}
+	
+			const QuestItemMap& questItems = loot->GetPlayerQuestItems();
+			auto q_itr = questItems.find(player->GetGUID());
+			if (q_itr != questItems.end())
+			{
+				const QuestItemList* qlist = q_itr->second;
+				for (uint8 i = 0; i < qlist->size(); ++i)
+				{
+					uint8 questSlot = loot->items.size() + i;
+					ProcessSingleLootSlot(player, lguid, questSlot);
+				}
+			}
+	
+			const QuestItemMap& ffaItems = loot->GetPlayerFFAItems();
+			auto ffa_itr = ffaItems.find(player->GetGUID());
+			if (ffa_itr != ffaItems.end())
+			{
+				const QuestItemList* flist = ffa_itr->second;
+				uint8 base = loot->items.size() + (q_itr != questItems.end() ? q_itr->second->size() : 0);
+				for (uint8 i = 0; i < flist->size(); ++i)
+				{
+					uint8 ffaSlot = base + i;
+					ProcessSingleLootSlot(player, lguid, ffaSlot);
+				}
+			}
+	
+			if (loot->gold > 0)
+				ProcessCreatureGold(player, creature);
+	
+			if (loot->isLooted())
+				ReleaseAndCleanupLoot(lguid, player, loot);
+		}
+	
+		s_processing[guid] = false;
+	
+		return true;
+	}
 
     class guild_village_AoeLootQuestParty : public PlayerScript
     {
@@ -734,65 +744,10 @@ namespace GuildVillageAoe
         }
     };
 
-} // namespace GuildVillageAoe
+}
 
 namespace
 {
-    class guild_village_AoeLootServer : public ServerScript
-    {
-    public:
-        guild_village_AoeLootServer() : ServerScript("guild_village_AoeLootServer") { }
-
-        bool CanPacketReceive(WorldSession* session, WorldPacket& packet) override
-        {
-            if (packet.GetOpcode() != CMSG_LOOT)
-                return true;
-
-            Player* player = session->GetPlayer();
-            if (!player)
-                return true;
-
-            if (!GuildVillageAoe::IsAoeLootEnabledForPlayer(player))
-                return true;
-
-            if (!GuildVillageAoe::IsSessionActive(player))
-                return true;
-
-            if (!player->IsInWorld() || player->isDead())
-                return true;
-
-            ObjectGuid targetGuid;
-            packet >> targetGuid;
-
-            if (Creature* creature = player->GetMap()->GetCreature(targetGuid))
-            {
-                if (creature->IsAlive())
-                {
-                    if (player->IsClass(CLASS_ROGUE, CLASS_CONTEXT_ABILITY) &&
-                        creature->loot.loot_type == LOOT_PICKPOCKETING)
-                    {
-                        return true;
-                    }
-                    return true;
-                }
-
-                if (!creature->isDead())
-                    return true;
-            }
-            else
-            {
-                return true;
-            }
-
-            if (player->GetLootGUID().IsEmpty())
-            {
-                GuildVillageAoe::TriggerAoeLoot(player);
-            }
-
-            return true;
-        }
-    };
-
     class guild_village_AoeLootPlayer : public PlayerScript
     {
     public:
@@ -808,11 +763,34 @@ namespace
             GuildVillageAoe::ClearSession(player);
         }
     };
+
+    class guild_village_AoeLootHook : public PlayerScript
+    {
+    public:
+        guild_village_AoeLootHook() : PlayerScript("guild_village_AoeLootHook") { }
+
+        void OnPlayerLootItem(Player* player, Item* /*item*/, uint32 /*count*/, ObjectGuid /*lootguid*/) override
+        {
+            if (!player)
+                return;
+
+            if (!GuildVillageAoe::IsAoeLootEnabledForPlayer(player))
+                return;
+
+            if (!GuildVillageAoe::IsSessionActive(player))
+                return;
+
+            if (!player->IsInWorld() || player->isDead())
+                return;
+
+            GuildVillageAoe::TriggerAoeLoot(player);
+        }
+    };
 }
 
 void RegisterGuildVillageAoe()
 {
     new guild_village_AoeLootPlayer();
-    new guild_village_AoeLootServer();
+    new guild_village_AoeLootHook();
     new GuildVillageAoe::guild_village_AoeLootQuestParty();
 }
