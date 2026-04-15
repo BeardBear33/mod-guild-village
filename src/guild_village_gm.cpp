@@ -318,6 +318,372 @@ namespace
         }
     }
 
+    // === Helper: Determine guild faction based on guildmaster ===
+    static uint8 GetGuildFaction(uint32 guildId)
+    {
+        // Najdi guildmastera z guildY
+        uint32 leaderGuid = 0;
+        if (QueryResult r = CharacterDatabase.Query(
+                "SELECT leaderGuid FROM guild WHERE guildid={}", guildId))
+        {
+            leaderGuid = r->Fetch()[0].Get<uint32>();
+        }
+
+        if (!leaderGuid) return 0; // Fallback: neutrální/neznámý
+
+        // Vezmi faktci playera (race určuje faktci)
+        // Aliance: races 1, 3, 4, 7, 11 (Human, Dwarf, Gnome, Draenei, Worgen)
+        // Horda: races 2, 5, 6, 8, 9, 10 (Orc, Tauren, Undead, Troll, Blood Elf, Goblin)
+        if (QueryResult r = CharacterDatabase.Query(
+                "SELECT race FROM characters WHERE guid={}", leaderGuid))
+        {
+            uint8 race = r->Fetch()[0].Get<uint8>();
+            // Aliance fact = 1, Horda faction = 2, neutrální = 0
+            if (race == 1 || race == 3 || race == 4 || race == 7 || race == 11)
+                return 1; // Aliance
+            else if (race == 2 || race == 5 || race == 6 || race == 8 || race == 9 || race == 10)
+                return 2; // Horda
+        }
+
+        return 0; // Default: neutrální
+    }
+
+    static bool CreatureSpawnExistsAtPosition(uint32 mapId, uint32 phaseId, uint32 entry, float x, float y, float z)
+    {
+        // Duplicitu kontrolujeme podle entry + phase + pozice (tolerance),
+        // aby stejný entry mohl existovat na více různých spawn pozicích.
+        if (QueryResult r = WorldDatabase.Query(
+                "SELECT 1 FROM creature "
+                "WHERE map={} AND phaseMask={} AND id1={} "
+                "  AND ABS(position_x - {}) < 0.05 "
+                "  AND ABS(position_y - {}) < 0.05 "
+                "  AND ABS(position_z - {}) < 0.10 "
+                "LIMIT 1",
+                mapId, phaseId, entry, x, y, z))
+        {
+            return true;
+        }
+        return false;
+    }
+
+    static bool SpawnExpansionCreatureLive(
+        uint32 mapId,
+        uint32 phaseId,
+        uint32 entry,
+        float x,
+        float y,
+        float z,
+        float o,
+        uint32 respawnSec,
+        float wanderDist,
+        uint8 moveType)
+    {
+        Map* map = sMapMgr->FindMap(mapId, 0);
+        if (!map)
+        {
+            sMapMgr->CreateBaseMap(mapId);
+            map = sMapMgr->FindMap(mapId, 0);
+        }
+
+        // Fallback: jen DB insert (když mapa není aktivní)
+        if (!map)
+        {
+            WorldDatabase.Execute(
+                "INSERT INTO creature "
+                "(id1, map, spawnMask, phaseMask, position_x, position_y, position_z, orientation, "
+                " spawntimesecs, wander_distance, MovementType, Comment) "
+                "VALUES ({}, {}, 1, {}, {}, {}, {}, {}, {}, {}, {}, 'Init mod expansion')",
+                entry, mapId, phaseId, x, y, z, o,
+                respawnSec, wanderDist, (uint32)moveType
+            );
+            return true;
+        }
+
+        Creature* c = new Creature();
+        ObjectGuid::LowType low = map->GenerateLowGuid<HighGuid::Unit>();
+        if (!c->Create(low, map, phaseId, entry, 0, x, y, z, o))
+        {
+            delete c;
+            return false;
+        }
+
+        c->SetRespawnDelay(respawnSec);
+        c->SetWanderDistance(wanderDist);
+        c->SetDefaultMovementType(MovementGeneratorType(moveType));
+
+        c->SaveToDB(map->GetId(), (1 << map->GetSpawnMode()), phaseId);
+        uint32 spawnId = c->GetSpawnId();
+
+        WorldDatabase.Execute(
+            "UPDATE creature "
+            "SET spawntimesecs = {}, wander_distance = {}, MovementType = {}, Comment='Init mod expansion' "
+            "WHERE guid = {}",
+            respawnSec, wanderDist, (uint32)moveType,
+            spawnId
+        );
+
+        c->CleanupsBeforeDelete();
+        delete c;
+
+        c = new Creature();
+        if (!c->LoadCreatureFromDB(spawnId, map, /*addToMap=*/true))
+        {
+            delete c;
+            return true; // DB je ok, jen se live nepodařilo načíst
+        }
+
+        sObjectMgr->AddCreatureToGrid(spawnId, sObjectMgr->GetCreatureData(spawnId));
+        return true;
+    }
+
+    static bool GameObjectSpawnExistsAtPosition(uint32 mapId, uint32 phaseId, uint32 entry, float x, float y, float z)
+    {
+        // Stejná logika jako u creature: entry + phase + pozice s tolerancí.
+        if (QueryResult r = WorldDatabase.Query(
+                "SELECT 1 FROM gameobject "
+                "WHERE map={} AND phaseMask={} AND id={} "
+                "  AND ABS(position_x - {}) < 0.05 "
+                "  AND ABS(position_y - {}) < 0.05 "
+                "  AND ABS(position_z - {}) < 0.10 "
+                "LIMIT 1",
+                mapId, phaseId, entry, x, y, z))
+        {
+            return true;
+        }
+        return false;
+    }
+
+    static bool SpawnExpansionGameObjectLive(
+        uint32 mapId,
+        uint32 phaseId,
+        uint32 entry,
+        float x,
+        float y,
+        float z,
+        float o,
+        float r0,
+        float r1,
+        float r2,
+        float r3,
+        int32 spawntimesecs)
+    {
+        Map* map = sMapMgr->FindMap(mapId, 0);
+        if (!map)
+        {
+            sMapMgr->CreateBaseMap(mapId);
+            map = sMapMgr->FindMap(mapId, 0);
+        }
+
+        if (!map)
+        {
+            WorldDatabase.Execute(
+                "INSERT INTO gameobject "
+                "(id, map, spawnMask, phaseMask, position_x, position_y, position_z, orientation, "
+                " rotation0, rotation1, rotation2, rotation3, spawntimesecs) "
+                "VALUES ({}, {}, 1, {}, {}, {}, {}, {}, {}, {}, {}, {}, {})",
+                entry, mapId, phaseId, x, y, z, o, r0, r1, r2, r3, spawntimesecs
+            );
+            return true;
+        }
+
+        GameObject* g = sObjectMgr->IsGameObjectStaticTransport(entry) ? new StaticTransport() : new GameObject();
+        ObjectGuid::LowType low = map->GenerateLowGuid<HighGuid::GameObject>();
+
+        if (!g->Create(low, entry, map, phaseId, x, y, z, o, G3D::Quat(r0, r1, r2, r3), 0, GO_STATE_READY))
+        {
+            delete g;
+            return false;
+        }
+
+        g->SetRespawnTime(spawntimesecs);
+        g->SaveToDB(map->GetId(), (1 << map->GetSpawnMode()), phaseId);
+        uint32 spawnId = g->GetSpawnId();
+
+        WorldDatabase.Execute(
+            "UPDATE gameobject SET spawntimesecs = {} WHERE guid = {}",
+            spawntimesecs, spawnId
+        );
+
+        g->CleanupsBeforeDelete();
+        delete g;
+
+        g = sObjectMgr->IsGameObjectStaticTransport(entry) ? new StaticTransport() : new GameObject();
+        if (!g->LoadGameObjectFromDB(spawnId, map, true))
+        {
+            delete g;
+            return true; // DB je ok, jen se live nepodařilo načíst
+        }
+
+        sObjectMgr->AddGameobjectToGrid(spawnId, sObjectMgr->GetGameObjectData(spawnId));
+        return true;
+    }
+
+    // === Helper: Initialize village creatures based on purchased expansions ===
+    static void CmdInitVillages(ChatHandler* handler, uint32 specificGuildId = 0)
+    {
+        std::vector<uint32> guildIds;
+
+        if (specificGuildId > 0)
+        {
+            if (!GuildVillage::GuildHasVillage(specificGuildId))
+            {
+                handler->SendSysMessage(T("|cffffaa00[GV-INIT]|r Tato guilda nemá vesnici.",
+                                          "|cffffaa00[GV-INIT]|r This guild does not have a village."));
+                return;
+            }
+            guildIds.push_back(specificGuildId);
+        }
+        else
+        {
+            if (QueryResult rg = WorldDatabase.Query("SELECT guild FROM customs.gv_guild ORDER BY guild"))
+                do { guildIds.emplace_back(rg->Fetch()[0].Get<uint32>()); } while (rg->NextRow());
+        }
+
+        if (guildIds.empty())
+        {
+            handler->SendSysMessage(T("|cffffaa00[GV-INIT]|r Není vytvořena žádná vesnice.",
+                                      "|cffffaa00[GV-INIT]|r No villages exist."));
+            return;
+        }
+
+        uint32 totalCreaturesAdded = 0;
+        uint32 totalGameObjectsAdded = 0;
+        uint32 totalProcessed = 0;
+
+        for (uint32 guildId : guildIds)
+        {
+            uint32 phaseId = 0;
+            if (QueryResult rp = WorldDatabase.Query(
+                    "SELECT phase FROM customs.gv_guild WHERE guild={}", guildId))
+            {
+                phaseId = (*rp)[0].Get<uint32>();
+            }
+
+            if (!phaseId)
+                continue;
+
+            uint8 guildFaction = GetGuildFaction(guildId);
+            uint32 guildCreaturesAdded = 0;
+            uint32 guildGameObjectsAdded = 0;
+
+            if (QueryResult rexp = WorldDatabase.Query(
+                    "SELECT expansion_key FROM customs.gv_upgrades WHERE guildId={}", guildId))
+            {
+                do
+                {
+                    std::string expansionKey = rexp->Fetch()[0].Get<std::string>();
+
+                    QueryResult rcreats = WorldDatabase.Query(
+                        "SELECT entry, map, position_x, position_y, position_z, orientation, "
+                        "       spawntimesecs, spawndist, movementtype "
+                        "FROM customs.gv_expansion_creatures "
+                        "WHERE expansion_key='{}' AND (faction=0 OR faction={})",
+                        expansionKey, (uint32)guildFaction);
+
+                    if (rcreats)
+                    {
+                        do
+                        {
+                            Field* f = rcreats->Fetch();
+                            uint32 entry      = f[0].Get<uint32>();
+                            uint32 mapId      = f[1].Get<uint32>();
+                            float  x          = f[2].Get<float>();
+                            float  y          = f[3].Get<float>();
+                            float  z          = f[4].Get<float>();
+                            float  o          = f[5].Get<float>();
+                            uint32 respawnSec = f[6].Get<uint32>();
+                            float  wanderDist = f[7].Get<float>();
+                            uint8  moveType   = f[8].Get<uint8>();
+
+                            if (CreatureSpawnExistsAtPosition(mapId, phaseId, entry, x, y, z))
+                                continue;
+
+                            if (SpawnExpansionCreatureLive(
+                                    mapId, phaseId, entry, x, y, z, o,
+                                    respawnSec, wanderDist, moveType))
+                            {
+                                ++guildCreaturesAdded;
+                                ++totalCreaturesAdded;
+                            }
+                        }
+                        while (rcreats->NextRow());
+                    }
+
+                    QueryResult rgos = WorldDatabase.Query(
+                        "SELECT entry, map, position_x, position_y, position_z, orientation, "
+                        "       rotation0, rotation1, rotation2, rotation3, spawntimesecs "
+                        "FROM customs.gv_expansion_gameobjects "
+                        "WHERE expansion_key='{}' AND (faction=0 OR faction={})",
+                        expansionKey, (uint32)guildFaction);
+
+                    if (rgos)
+                    {
+                        do
+                        {
+                            Field* f = rgos->Fetch();
+                            uint32 entry = f[0].Get<uint32>();
+                            uint32 mapId = f[1].Get<uint32>();
+                            float x = f[2].Get<float>();
+                            float y = f[3].Get<float>();
+                            float z = f[4].Get<float>();
+                            float o = f[5].Get<float>();
+                            float r0 = f[6].Get<float>();
+                            float r1 = f[7].Get<float>();
+                            float r2 = f[8].Get<float>();
+                            float r3 = f[9].Get<float>();
+                            int32 spawntimesecs = f[10].Get<int32>();
+
+                            if (GameObjectSpawnExistsAtPosition(mapId, phaseId, entry, x, y, z))
+                                continue;
+
+                            if (SpawnExpansionGameObjectLive(
+                                    mapId, phaseId, entry,
+                                    x, y, z, o,
+                                    r0, r1, r2, r3,
+                                    spawntimesecs))
+                            {
+                                ++guildGameObjectsAdded;
+                                ++totalGameObjectsAdded;
+                            }
+                        }
+                        while (rgos->NextRow());
+                    }
+                }
+                while (rexp->NextRow());
+            }
+
+            ++totalProcessed;
+            if (guildCreaturesAdded > 0 || guildGameObjectsAdded > 0)
+            {
+                handler->SendSysMessage(Acore::StringFormat(
+                    "|cff00ff00[GV-INIT]|r Guild {}: {} creatures, {} gameobjects added.",
+                    guildId, guildCreaturesAdded, guildGameObjectsAdded).c_str());
+            }
+            else
+            {
+                handler->SendSysMessage(Acore::StringFormat(
+                    "|cff00ff00[GV-INIT]|r Guild {}: no new creatures/gameobjects needed.",
+                    guildId).c_str());
+            }
+        }
+
+        if (specificGuildId > 0)
+        {
+            handler->SendSysMessage(Acore::StringFormat(
+                "|cff00ff00[GV-INIT]|r Initialization complete: {} creatures, {} gameobjects added.",
+                totalCreaturesAdded, totalGameObjectsAdded).c_str());
+        }
+        else
+        {
+            handler->SendSysMessage(Acore::StringFormat(
+                "|cff00ff00[GV-INIT]|r All villages initialized: {} guilds processed, {} creatures, {} gameobjects added.",
+                totalProcessed, totalCreaturesAdded, totalGameObjectsAdded).c_str());
+        }
+
+        LOG_INFO("modules", "GV: Init command executed: {} guilds, {} creatures added, {} gameobjects added",
+                 totalProcessed, totalCreaturesAdded, totalGameObjectsAdded);
+    }
+
     // === Hlavní GM handler ===
     static bool HandleGv(ChatHandler* handler, char const* args)
     {
@@ -343,6 +709,7 @@ namespace
                 R"(|cffffd000[GV]|r Dostupné příkazy:
   |cff00ff00.gv create [GUILDID] [ignorecap]|r      vytvoří vesnici pro guildy
   |cff00ff00.gv delete <GUILDID>|r      kompletní odstranění vesnice
+  |cff00ff00.gv init [GUILDID]|r      inicializuje creatures pro koupeného rozsírení
   |cff00ff00.gv reset <GUILDID>|r      wipe + reinstall base layout
   |cff00ff00.gv list [PAGE]|r      vypíše 10 vesnic na stránku
   |cff00ff00.gv set <GUILDID> <material3> <50>|r      upraví množství materiálu
@@ -354,6 +721,7 @@ namespace
                 R"(|cffffd000[GV]|r Available commands:
   |cff00ff00.gv create [GUILDID] [ignorecap]|r      create village
   |cff00ff00.gv delete <GUILDID>|r      remove village completely
+  |cff00ff00.gv init [GUILDID]|r      initialize creatures for purchased expansions
   |cff00ff00.gv reset <GUILDID>|r      wipe + reinstall base layout
   |cff00ff00.gv list [PAGE]|r      list 10 villages per page
   |cff00ff00.gv set <GUILDID> <material3> <50>|r      modify material amount
@@ -694,12 +1062,37 @@ namespace
 
             return true;
         }
+
+        // ===== .gv init [GUILDID] =====
+        if (cmd == "init")
+        {
+            if (!rest.empty())
+            {
+                // Konkrétní guilda
+                try
+                {
+                    uint32 guildId = std::stoul(rest);
+                    CmdInitVillages(handler, guildId);
+                }
+                catch (...)
+                {
+                    handler->SendSysMessage(T("Špatný formát GUILDID.", "Bad GUILDID format."));
+                }
+            }
+            else
+            {
+                // Všechny gildy
+                CmdInitVillages(handler, 0);
+            }
+            return true;
+        }
 	
         // === Default help ===
         handler->SendSysMessage(T(
             R"(|cffffd000[GV]|r Dostupné příkazy:
   |cff00ff00.gv create [GUILDID] [ignorecap]|r
   |cff00ff00.gv delete <GUILDID>|r
+  |cff00ff00.gv init [GUILDID]|r
   |cff00ff00.gv reset <GUILDID>|r
   |cff00ff00.gv list [PAGE]|r
   |cff00ff00.gv set <GUILDID> <material3> <50>|r
@@ -710,6 +1103,7 @@ namespace
             R"(|cffffd000[GV]|r Available commands:
   |cff00ff00.gv create [GUILDID] [ignorecap]|r
   |cff00ff00.gv delete <GUILDID>|r
+  |cff00ff00.gv init [GUILDID]|r
   |cff00ff00.gv reset <GUILDID>|r
   |cff00ff00.gv list [PAGE]|r
   |cff00ff00.gv creature <ENTRY> [MOVEMENTTYPE SPAWNDIST SPAWNTIMESECS]|r
