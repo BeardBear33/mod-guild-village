@@ -173,7 +173,6 @@ namespace
                 if (!c->Create(low, map, phaseId, entry, 0, x, y, z, o))
                 { delete c; continue; }
 
-                // správně: defaultní respawn delay (ne absolutní čas)
                 c->SetRespawnDelay(respawnSec);
                 c->SetWanderDistance(wander);
                 c->SetDefaultMovementType(MovementGeneratorType(moveType));
@@ -181,7 +180,6 @@ namespace
                 c->SaveToDB(map->GetId(), (1 << map->GetSpawnMode()), phaseId);
                 uint32 spawnId = c->GetSpawnId();
 
-                // pojistka: přepsat hodnoty v DB (jinak hrozí výchozích 300)
                 WorldDatabase.Execute(
                     "UPDATE creature SET spawntimesecs = {}, wander_distance = {}, MovementType = {}, Comment='Village mob' WHERE guid = {}",
                     respawnSec, wander, (uint32)moveType, spawnId
@@ -233,7 +231,6 @@ namespace
                     g->SaveToDB(map->GetId(), (1 << map->GetSpawnMode()), phaseId);
                     uint32 spawnId = g->GetSpawnId();
 
-                    // pojistka: přepsat spawntimesecs i v DB
                     WorldDatabase.Execute(
                         "UPDATE gameobject SET spawntimesecs = {} WHERE guid = {}",
                         st, spawnId
@@ -311,7 +308,7 @@ namespace
 
             handler->SendSysMessage(
                 Acore::StringFormat("{}{}. {} - ID: {}",
-                                    (idxOnPage < 10 ? " " : ""), // drobná kosmetika zarovnání
+                                    (idxOnPage < 10 ? " " : ""),
                                     idxOnPage, name, gid).c_str()
             );
             ++idxOnPage;
@@ -321,7 +318,7 @@ namespace
     // === Helper: Determine guild faction based on guildmaster ===
     static uint8 GetGuildFaction(uint32 guildId)
     {
-        // Najdi guildmastera z guildY
+        // Najdi guildmastera z guildy
         uint32 leaderGuid = 0;
         if (QueryResult r = CharacterDatabase.Query(
                 "SELECT leaderGuid FROM guild WHERE guildid={}", guildId))
@@ -331,14 +328,14 @@ namespace
 
         if (!leaderGuid) return 0; // Fallback: neutrální/neznámý
 
-        // Vezmi faktci playera (race určuje faktci)
+        // Vezmi frakci playera (race určuje frakci)
         // Aliance: races 1, 3, 4, 7, 11 (Human, Dwarf, Gnome, Draenei, Worgen)
         // Horda: races 2, 5, 6, 8, 9, 10 (Orc, Tauren, Undead, Troll, Blood Elf, Goblin)
         if (QueryResult r = CharacterDatabase.Query(
                 "SELECT race FROM characters WHERE guid={}", leaderGuid))
         {
             uint8 race = r->Fetch()[0].Get<uint8>();
-            // Aliance fact = 1, Horda faction = 2, neutrální = 0
+            // Aliance = 1, Horda = 2, neutrální = 0
             if (race == 1 || race == 3 || race == 4 || race == 7 || race == 11)
                 return 1; // Aliance
             else if (race == 2 || race == 5 || race == 6 || race == 8 || race == 9 || race == 10)
@@ -350,8 +347,6 @@ namespace
 
     static bool CreatureSpawnExistsAtPosition(uint32 mapId, uint32 phaseId, uint32 entry, float x, float y, float z)
     {
-        // Duplicitu kontrolujeme podle entry + phase + pozice (tolerance),
-        // aby stejný entry mohl existovat na více různých spawn pozicích.
         if (QueryResult r = WorldDatabase.Query(
                 "SELECT 1 FROM creature "
                 "WHERE map={} AND phaseMask={} AND id1={} "
@@ -385,7 +380,6 @@ namespace
             map = sMapMgr->FindMap(mapId, 0);
         }
 
-        // Fallback: jen DB insert (když mapa není aktivní)
         if (!map)
         {
             WorldDatabase.Execute(
@@ -429,7 +423,7 @@ namespace
         if (!c->LoadCreatureFromDB(spawnId, map, /*addToMap=*/true))
         {
             delete c;
-            return true; // DB je ok, jen se live nepodařilo načíst
+            return true;
         }
 
         sObjectMgr->AddCreatureToGrid(spawnId, sObjectMgr->GetCreatureData(spawnId));
@@ -438,7 +432,6 @@ namespace
 
     static bool GameObjectSpawnExistsAtPosition(uint32 mapId, uint32 phaseId, uint32 entry, float x, float y, float z)
     {
-        // Stejná logika jako u creature: entry + phase + pozice s tolerancí.
         if (QueryResult r = WorldDatabase.Query(
                 "SELECT 1 FROM gameobject "
                 "WHERE map={} AND phaseMask={} AND id={} "
@@ -511,7 +504,7 @@ namespace
         if (!g->LoadGameObjectFromDB(spawnId, map, true))
         {
             delete g;
-            return true; // DB je ok, jen se live nepodařilo načíst
+            return true;
         }
 
         sObjectMgr->AddGameobjectToGrid(spawnId, sObjectMgr->GetGameObjectData(spawnId));
@@ -801,7 +794,6 @@ namespace
 
             uint32 guildId = std::stoul(rest);
 
-            // vytáhneme phaseId (kvůli despawnu ze světa a respawn tabulkám)
             uint32 phaseId = 0;
             if (QueryResult pr = WorldDatabase.Query(
                     "SELECT phase FROM customs.gv_guild WHERE guild = {} LIMIT 1", guildId))
@@ -1081,7 +1073,7 @@ namespace
             }
             else
             {
-                // Všechny gildy
+                // Všechny guildy
                 CmdInitVillages(handler, 0);
             }
             return true;
