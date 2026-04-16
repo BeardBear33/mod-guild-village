@@ -559,6 +559,78 @@ namespace
             uint32 guildCreaturesAdded = 0;
             uint32 guildGameObjectsAdded = 0;
 
+            // ---- BASE LAYOUT (creatures) ----
+            if (QueryResult rbase = WorldDatabase.Query(
+                    "SELECT entry, map, position_x, position_y, position_z, orientation, "
+                    "       spawntimesecs, spawndist, movementtype "
+                    "FROM customs.gv_creature_template "
+                    "WHERE layout_key='base'"))
+            {
+                do
+                {
+                    Field* f = rbase->Fetch();
+                    uint32 entry      = f[0].Get<uint32>();
+                    uint32 mapId      = f[1].Get<uint32>();
+                    float  x          = f[2].Get<float>();
+                    float  y          = f[3].Get<float>();
+                    float  z          = f[4].Get<float>();
+                    float  o          = f[5].Get<float>();
+                    uint32 respawnSec = f[6].Get<uint32>();
+                    float  wanderDist = f[7].Get<float>();
+                    uint8  moveType   = f[8].Get<uint8>();
+
+                    if (CreatureSpawnExistsAtPosition(mapId, phaseId, entry, x, y, z))
+                        continue;
+
+                    if (SpawnExpansionCreatureLive(
+                            mapId, phaseId, entry, x, y, z, o,
+                            respawnSec, wanderDist, moveType))
+                    {
+                        ++guildCreaturesAdded;
+                        ++totalCreaturesAdded;
+                    }
+                }
+                while (rbase->NextRow());
+            }
+
+            // ---- BASE LAYOUT (gameobjects) ----
+            if (QueryResult rbasego = WorldDatabase.Query(
+                    "SELECT entry, map, position_x, position_y, position_z, orientation, "
+                    "       rotation0, rotation1, rotation2, rotation3, spawntimesecs "
+                    "FROM customs.gv_gameobject_template "
+                    "WHERE layout_key='base'"))
+            {
+                do
+                {
+                    Field* f = rbasego->Fetch();
+                    uint32 entry = f[0].Get<uint32>();
+                    uint32 mapId = f[1].Get<uint32>();
+                    float x  = f[2].Get<float>();
+                    float y  = f[3].Get<float>();
+                    float z  = f[4].Get<float>();
+                    float o  = f[5].Get<float>();
+                    float r0 = f[6].Get<float>();
+                    float r1 = f[7].Get<float>();
+                    float r2 = f[8].Get<float>();
+                    float r3 = f[9].Get<float>();
+                    int32 st = f[10].Get<int32>();
+
+                    if (GameObjectSpawnExistsAtPosition(mapId, phaseId, entry, x, y, z))
+                        continue;
+
+                    if (SpawnExpansionGameObjectLive(
+                            mapId, phaseId, entry,
+                            x, y, z, o,
+                            r0, r1, r2, r3,
+                            st))
+                    {
+                        ++guildGameObjectsAdded;
+                        ++totalGameObjectsAdded;
+                    }
+                }
+                while (rbasego->NextRow());
+            }
+
             if (QueryResult rexp = WorldDatabase.Query(
                     "SELECT expansion_key FROM customs.gv_upgrades WHERE guildId={}", guildId))
             {
