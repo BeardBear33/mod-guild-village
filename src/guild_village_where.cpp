@@ -52,54 +52,76 @@ namespace GuildVillage
     enum class Cat : uint8 { Trainers=1, Professions, Vendor, Portal, Objects, Others };
 
     struct CatalogRow
-    {
-        uint32 id;
-        Cat    cat;
-        std::string key;
-        std::string label_cs;
-        std::string label_en;
-        uint32 cost_mat1=0, cost_mat2=0, cost_mat3=0, cost_mat4=0;
-        uint8  sort=0;
-    };
+	{
+		uint32      id;
+		Cat         cat;
+		std::string key;
+		std::string label_cs;
+		std::string label_en;
+		std::string info_cs;
+		std::string info_en;
+		uint32      cost_mat1 = 0;
+		uint32      cost_mat2 = 0;
+		uint32      cost_mat3 = 0;
+		uint32      cost_mat4 = 0;
+		uint8       sort = 0;
+
+		std::string req_key;
+		bool        enabled = true;
+
+		std::optional<uint8> catalog_npc;
+	};
 
     static std::vector<CatalogRow> LoadCatalog(Cat cat)
-    {
-        std::vector<CatalogRow> out;
-        char const* catName = "";
-        switch (cat)
-        {
-            case Cat::Trainers:    catName = "trainers"; break;
-            case Cat::Professions: catName = "professions"; break;
-            case Cat::Vendor:      catName = "vendor"; break;
-            case Cat::Portal:      catName = "portal"; break;
-            case Cat::Objects:     catName = "objects"; break;
-            case Cat::Others:      catName = "others"; break;
-        }
+	{
+		std::vector<CatalogRow> out;
+		char const* catName = "";
+		switch (cat)
+		{
+			case Cat::Trainers:    catName = "trainers";    break;
+			case Cat::Professions: catName = "professions"; break;
+			case Cat::Vendor:      catName = "vendor";      break;
+			case Cat::Portal:      catName = "portal";      break;
+			case Cat::Objects:     catName = "objects";     break;
+			case Cat::Others:      catName = "others";      break;
+		}
 
-        if (QueryResult r = WorldDatabase.Query(
-                "SELECT id, expansion_key, label_cs, label_en, cost_material1, cost_material2, cost_material3, cost_material4, sort_order "
-                "FROM customs.gv_upgrade_catalog WHERE category='{}' ORDER BY sort_order, id", catName))
-        {
-            do
-            {
-                Field* f = r->Fetch();
-                CatalogRow c;
-                c.id        = f[0].Get<uint32>();
-                c.key       = f[1].Get<std::string>();
-                c.label_cs  = f[2].Get<std::string>();
-                c.label_en  = f[3].Get<std::string>();
-                c.cost_mat1  = f[4].Get<uint32>();
-                c.cost_mat2  = f[5].Get<uint32>();
-                c.cost_mat3  = f[6].Get<uint32>();
-                c.cost_mat4 = f[7].Get<uint32>();
-                c.sort      = f[8].Get<uint8>();
-                c.cat       = cat;
-                out.push_back(std::move(c));
-            }
-            while (r->NextRow());
-        }
-        return out;
-    }
+		if (QueryResult r = WorldDatabase.Query(
+				"SELECT id, expansion_key, label_cs, label_en, info_cs, info_en, "
+				"cost_material1, cost_material2, cost_material3, cost_material4, sort_order, "
+				"COALESCE(expansion_key_required, ''), COALESCE(enabled, 1), catalog_npc "
+				"FROM customs.gv_upgrade_catalog "
+				"WHERE category='{}' "
+				"ORDER BY sort_order, id",
+				catName))
+		{
+			do
+			{
+				Field* f = r->Fetch();
+				CatalogRow c;
+				c.id         = f[0].Get<uint32>();
+				c.key        = f[1].Get<std::string>();
+				c.label_cs   = f[2].Get<std::string>();
+				c.label_en   = f[3].Get<std::string>();
+				c.info_cs    = f[4].Get<std::string>();
+				c.info_en    = f[5].Get<std::string>();
+				c.cost_mat1  = f[6].Get<uint32>();
+				c.cost_mat2  = f[7].Get<uint32>();
+				c.cost_mat3  = f[8].Get<uint32>();
+				c.cost_mat4  = f[9].Get<uint32>();
+				c.sort       = f[10].Get<uint8>();
+				c.req_key    = f[11].Get<std::string>();
+				c.enabled    = f[12].Get<bool>();
+				if (!f[13].IsNull())
+					c.catalog_npc = static_cast<uint8>(f[13].Get<uint32>());
+				c.cat        = cat;
+				out.push_back(std::move(c));
+			}
+			while (r->NextRow());
+		}
+
+		return out;
+	}
 
     // ---------- Pomocné: převod category string -> Cat ----------
     static std::optional<Cat> CatFromString(std::string const& s)
@@ -115,35 +137,47 @@ namespace GuildVillage
 
     // ---------- Načtení katalogové položky podle ID ----------
     static std::optional<CatalogRow> LoadCatalogRowById(uint32 id)
-    {
-        if (QueryResult r = WorldDatabase.Query(
-            "SELECT id, category, expansion_key, label_cs, label_en, cost_material1, cost_material2, cost_material3, cost_material4, sort_order "
-            "FROM customs.gv_upgrade_catalog WHERE id={}", id))
-        {
-            Field* f = r->Fetch();
+	{
+		if (QueryResult r = WorldDatabase.Query(
+			"SELECT id, category, expansion_key, label_cs, label_en, info_cs, info_en, "
+			"cost_material1, cost_material2, cost_material3, cost_material4, sort_order, "
+			"COALESCE(expansion_key_required, ''), COALESCE(enabled, 1), catalog_npc "
+			"FROM customs.gv_upgrade_catalog WHERE id={}",
+			id))
+		{
+			Field* f = r->Fetch();
 
-            std::string catStr = f[1].Get<std::string>();
-            std::transform(catStr.begin(), catStr.end(), catStr.begin(), ::tolower);
+			std::string catStr = f[1].Get<std::string>();
+			std::transform(catStr.begin(), catStr.end(), catStr.begin(),
+				[](unsigned char c) { return std::tolower(c); });
 
-            auto catOpt = CatFromString(catStr);
-            if (!catOpt)
-                return std::nullopt;
+			auto catOpt = CatFromString(catStr);
+			if (!catOpt)
+				return std::nullopt;
 
-            CatalogRow c;
-            c.id        = f[0].Get<uint32>();
-            c.cat       = *catOpt;
-            c.key       = f[2].Get<std::string>();
-            c.label_cs  = f[3].Get<std::string>();
-            c.label_en  = f[4].Get<std::string>();
-            c.cost_mat1 = f[5].Get<uint32>();
-            c.cost_mat2 = f[6].Get<uint32>();
-            c.cost_mat3 = f[7].Get<uint32>();
-            c.cost_mat4 = f[8].Get<uint32>();
-            c.sort      = f[9].Get<uint8>();
-            return c;
-        }
-        return std::nullopt;
-    }
+			CatalogRow c;
+			c.id         = f[0].Get<uint32>();
+			c.cat        = *catOpt;
+			c.key        = f[2].Get<std::string>();
+			c.label_cs   = f[3].Get<std::string>();
+			c.label_en   = f[4].Get<std::string>();
+			c.info_cs    = f[5].Get<std::string>();
+			c.info_en    = f[6].Get<std::string>();
+			c.cost_mat1  = f[7].Get<uint32>();
+			c.cost_mat2  = f[8].Get<uint32>();
+			c.cost_mat3  = f[9].Get<uint32>();
+			c.cost_mat4  = f[10].Get<uint32>();
+			c.sort       = f[11].Get<uint8>();
+			c.req_key    = f[12].Get<std::string>();
+			c.enabled    = f[13].Get<bool>();
+			if (!f[14].IsNull())
+				c.catalog_npc = static_cast<uint8>(f[14].Get<uint32>());
+
+			return c;
+		}
+
+		return std::nullopt;
+	}
 	
     // ---------- POI podpora ----------
     struct PoiRow
@@ -251,6 +285,9 @@ namespace GuildVillage
 
         for (auto const& c : all)
         {
+			if (!c.enabled)
+				continue;
+			
             if (purchased.find(c.key) == purchased.end())
                 continue;
 
